@@ -1,0 +1,83 @@
+{
+  "expo": {
+    "name": "Hairlines",
+    "slug": "hairlines",
+    "version": "2.0.2",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.apps.hairlines",
+      "buildNumber": "2",
+      "config": {
+        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to take profile photos and upload images.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photos to upload profile images and style preferences.",
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to find nearby service providers.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses your location to track service provider arrival.",
+        "NSMicrophoneUsageDescription": "This app uses the microphone for voice calls with service providers."
+      }
+    },
+    "android": {
+      "package": "com.apps.hairlines",
+      "versionCode": 2,
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+        }
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Hairlines to use your location to find nearby service providers."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Hairlines to access your photos to upload profile images.",
+          "cameraPermission": "Allow Hairlines to access your camera to take profile photos."
+        }
+      ],
+      [
+        "expo-apple-authentication"
+      ],
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.hairlines",
+          "enableGooglePay": true
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-eas-project-id"
+      }
+    }
+  }
+}
