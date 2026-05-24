@@ -66,7 +66,7 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
         countryCode: '+1',
         phoneNumber: account?.phoneNumber || '',
         userType: 1,
-        deviceToken: 'simulator-device-token',
+        deviceToken: '0000000000000000000000000000000000000000000000000000000000000000', // Structurally valid 64-char hex token for AWS SNS
         deviceType: 'ios',
         email: email.toLowerCase(),
         firstName,

@@ -28,7 +28,7 @@ const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleGuestLogin = async () => {
     try {
-      const deviceToken = 'simulator-device-token'; // Replace with actual push token
+      const deviceToken = '0000000000000000000000000000000000000000000000000000000000000000'; // Structurally valid 64-char hex token for AWS SNS
       const account = await AuthApi.signUpGuest({
         countryCode: '+1',
         phoneNumber: '',

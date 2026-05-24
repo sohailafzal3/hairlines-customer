@@ -41,7 +41,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
 
     setLoading(true);
     try {
-      const deviceToken = 'simulator-device-token';
+      const deviceToken = '0000000000000000000000000000000000000000000000000000000000000000'; // Structurally valid 64-char hex token for AWS SNS
 
       if (isForgotPassword) {
         await AuthApi.forgotPassword({
