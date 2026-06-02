@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   FlatList,
-  RefreshControl,
-} from 'react-native';
+  RefreshControl } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';

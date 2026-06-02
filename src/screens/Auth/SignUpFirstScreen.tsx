@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
-import {
-  View,
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
   Image,
-  SafeAreaView,
   KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+  Platform } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Colors } from '../../theme/colors';

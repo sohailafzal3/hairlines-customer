@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
+  ScrollView
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -78,6 +78,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
         }
       }
     } catch (error: any) {
+      console.log("error", error)
       console.error('Auth error:', error.message);
     } finally {
       setLoading(false);
@@ -100,15 +101,15 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
             {isForgotPassword
               ? 'Retrieve Password'
               : isSignUp
-              ? 'Sign Up'
-              : 'Sign In'}
+                ? 'Sign Up'
+                : 'Sign In'}
           </Text>
           <Text style={styles.subtitle}>
             {isForgotPassword
               ? 'Enter your phone number to receive a verification code'
               : isSignUp
-              ? 'Enter your phone number to get started'
-              : 'Welcome back! Enter your credentials'}
+                ? 'Enter your phone number to get started'
+                : 'Welcome back! Enter your credentials'}
           </Text>
 
           {/* Phone Input */}

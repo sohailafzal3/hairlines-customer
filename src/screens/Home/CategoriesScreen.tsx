@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   FlatList,
   Image,
   RefreshControl,
-  StatusBar,
-} from 'react-native';
+  StatusBar } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
@@ -18,7 +16,8 @@ import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTLoading } from '../../components/common';
 import { JobsApi, ProfileApi } from '../../api';
 import { useApi } from '../../hooks';
-import { useAuthStore, useUserStore } from '../../store';
+import { useAuthStore, useUserStore, useJobStore } from '../../store';
+import * as Location from 'expo-location';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Categories'>;
@@ -35,7 +34,9 @@ interface ServiceType {
 const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
   const { user } = useAuthStore();
   const { setNotificationBadge } = useUserStore();
+  const { createJob, setCreateJobField } = useJobStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [detectedLocation, setDetectedLocation] = useState('Detecting location...');
 
   const {
     data: serviceTypes,
@@ -45,10 +46,49 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
   } = useApi<ServiceType[]>(JobsApi.fetchServiceTypes);
 
   const { execute: fetchNotificationCount } = useApi<any>(ProfileApi.notificationCount);
-
   useEffect(() => {
     loadData();
+    detectLocation();
   }, []);
+
+  const detectLocation = async () => {
+    if (user?.address || createJob?.primaryAddress) return;
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setDetectedLocation('Location permission denied');
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const geocode = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      if (geocode && geocode[0]) {
+        const place = geocode[0];
+        const formattedAddress = [
+          place.street,
+          place.streetNumber,
+          place.city,
+          place.region,
+          place.country,
+        ].filter(Boolean).join(', ');
+        setDetectedLocation(formattedAddress);
+        setCreateJobField('primaryAddress', formattedAddress);
+        setCreateJobField('city', place.city || '');
+        setCreateJobField('state', place.region || '');
+        setCreateJobField('country', place.country || '');
+        setCreateJobField('latitude', location.coords.latitude);
+        setCreateJobField('longitude', location.coords.longitude);
+      } else {
+        setDetectedLocation('Location not found');
+      }
+    } catch (e) {
+      setDetectedLocation('Location not found');
+    }
+  };
 
   const loadData = async () => {
     await fetchServiceTypes();
@@ -116,12 +156,15 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
         >
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
-        <View style={styles.locationContainer}>
+        <TouchableOpacity 
+          style={styles.locationContainer}
+          onPress={() => navigation.navigate('SetLocation')}
+        >
           <Text style={styles.locationLabel}>Current Location</Text>
           <Text style={styles.locationText} numberOfLines={1}>
-            {user?.address || 'Detecting location...'}
+            {createJob?.primaryAddress || user?.address || detectedLocation}
           </Text>
-        </View>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.notificationButton}>
           <Text style={styles.notificationIcon}>🔔</Text>
         </TouchableOpacity>

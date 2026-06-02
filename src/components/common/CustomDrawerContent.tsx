@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { DrawerContentScrollView, DrawerItemList, DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useAuthStore } from '../../store';
 import { Colors } from '../../theme/colors';
@@ -29,7 +30,7 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <DrawerContentScrollView {...props} contentContainerStyle={styles.scrollContent}>
         {/* Profile Header */}
         <View style={styles.header}>
@@ -61,7 +62,7 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
         <Text style={styles.logoutIcon}>🚪</Text>
         <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 };
 
