@@ -231,9 +231,7 @@ Currently no tests are set up. Recommended:
 
 ## Known Issues / Considerations
 
-1. **Cookie-based auth in React Native**: The backend relies on session cookies. In Expo, you may need to:
-   - Use a custom Axios adapter with manual cookie management
-   - Or migrate the backend to token-based auth (recommended)
+1. **Cookie-based auth in React Native**: ✅ Addressed. `src/api/client.ts` now uses a small cookie jar (`src/utils/cookies.ts`) that parses `Set-Cookie` headers, persists them in AsyncStorage, and sends them back on every request. Logout clears the stored cookies.
 
 2. **Socket.IO cookies**: Same issue as above — socket may need explicit auth headers.
 

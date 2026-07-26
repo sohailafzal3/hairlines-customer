@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { kBaseUrl } from '../constants';
-import { Storage } from '../utils/storage';
+import { CookieManager } from '../utils/cookies';
 
 // Standard API Response Envelope
 export interface ApiResponse<T = any> {
@@ -28,15 +28,30 @@ class ApiClient {
 
     this.client.interceptors.request.use(
       async (config) => {
-        // Load any stored cookies or headers if needed
+        // React Native does not automatically persist/send cookies.
+        // Load any cookies the server previously set and send them back.
+        const cookieHeader = await CookieManager.getCookieHeader();
+        if (cookieHeader) {
+          config.headers = config.headers || {};
+          config.headers.Cookie = cookieHeader;
+        }
         return config;
       },
       (error) => Promise.reject(error)
     );
 
     this.client.interceptors.response.use(
-      (response: AxiosResponse<ApiResponse>) => {
+      async (response: AxiosResponse<ApiResponse>) => {
+        // Capture session cookies (e.g. connect.sid / sessionId) from the
+        // response so they can be sent with subsequent authenticated requests.
+        await CookieManager.setCookieFromHeader(response.headers['set-cookie']);
+
         const { data } = response;
+
+        // Fallback: some endpoints return the session identifier in the
+        // response body. Store it as a cookie so it is sent with future calls.
+        await captureSessionIdFromData(data.data);
+
         if (data.success) {
           return { ...response, data: data.data };
         }
@@ -100,3 +115,21 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
+/**
+ * If the server returns the session identifier inside the response payload
+ * (e.g. `{ sessionId: "..." }`) instead of a `Set-Cookie` header, store it
+ * as a cookie so it is sent with every subsequent request.
+ */
+async function captureSessionIdFromData(data: any): Promise<void> {
+  if (!data || typeof data !== 'object') return;
+
+  const sessionIdFields = ['sessionId', 'sessionID', 'session_id', 'sid', 'token'];
+  for (const field of sessionIdFields) {
+    const value = data[field];
+    if (value && typeof value === 'string') {
+      await CookieManager.setCookieFromHeader(`${field}=${value}`);
+      return;
+    }
+  }
+}

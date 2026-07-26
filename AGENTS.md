@@ -170,7 +170,7 @@ npx eas build --profile production --platform android
 
 - **Base URL**: `https://api.hairlines.app/api/v1/en/`
 - **Socket URL**: `https://api.hairlines.app`
-- **Authentication**: Session cookie-based (`withCredentials: true` in Axios). Not JWT.
+- **Authentication**: Session cookie-based. `src/api/client.ts` uses `withCredentials: true` plus a custom cookie jar (`src/utils/cookies.ts`) that parses `Set-Cookie` headers, persists them in AsyncStorage, and sends them back on every request. Not JWT.
 - **Timeout**: 40 seconds
 - **Pagination**: `offset` / `limit` with default page size `kOffSet = 10`
 
@@ -349,8 +349,8 @@ There are no existing test files, Jest config, ESLint config, or Prettier config
 > 2. **EAS Secrets** (for CI/CD builds)
 > 3. Never commit real secrets to version control.
 
-- The app relies on **session cookies** for authentication. Axios is configured with `withCredentials: true`.
-- Socket.IO connections may need explicit auth headers if cookie propagation does not work in React Native.
+- The app relies on **session cookies** for authentication. `src/api/client.ts` uses `withCredentials: true` together with a custom cookie jar (`src/utils/cookies.ts`) that manually stores and sends cookies because React Native does not have a built-in cookie jar.
+- Socket.IO connections may need explicit auth headers because Socket.IO in React Native does not automatically use the API cookie jar.
 - Image uploads go to AWS S3 via pre-signed URLs or direct multipart upload endpoints.
 
 ---

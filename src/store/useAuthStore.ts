@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Account, User } from '../models';
 import { Storage } from '../utils/storage';
+import { CookieManager } from '../utils/cookies';
 import { STORAGE_KEYS } from '../constants';
 
 interface AuthState {
@@ -40,6 +41,7 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         await Storage.removeItem(STORAGE_KEYS.kIsUserLoggedIn);
         await Storage.removeItem(STORAGE_KEYS.kIsGuestUserLoggedIn);
+        await CookieManager.clearCookies();
         set({
           isLoggedIn: false,
           isGuest: false,
