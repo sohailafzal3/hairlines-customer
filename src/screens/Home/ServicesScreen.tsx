@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View,
+import {
+  View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
   Image,
-  RefreshControl } from 'react-native';
+  RefreshControl,
+  StatusBar,
+  TextInput,
+} from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
@@ -24,17 +29,49 @@ type Props = {
   route: RouteProp<HomeStackParamList, 'Services'>;
 };
 
+// Default 4 fallback services if API array is empty
+const defaultMainServices: Service[] = [
+  {
+    id: 'haircuts-1',
+    serviceName: 'Haircuts',
+    serviceDescription: 'Classic & precision haircuts tailored to your head shape.',
+    serviceHourlyRate: 35,
+    serviceImage: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 'styled-haircuts-2',
+    serviceName: 'Styled Haircuts',
+    serviceDescription: 'Custom razor lineups, fades, pompadours & modern styling.',
+    serviceHourlyRate: 45,
+    serviceImage: 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 'group-cuts-3',
+    serviceName: 'Group Cuts',
+    serviceDescription: 'Family packages, wedding parties & multi-person bookings.',
+    serviceHourlyRate: 90,
+    serviceImage: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 'addon-services-4',
+    serviceName: 'Add-On Services',
+    serviceDescription: 'Beard trimming, hot towel shave, hair color & scalp treatment.',
+    serviceHourlyRate: 25,
+    serviceImage: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=400&q=80',
+  },
+];
+
 const ServicesScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { serviceTypeName } = route.params;
+  const { serviceTypeName } = route.params || {};
   const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const {
-    data: services,
+    data: servicesData,
     loading,
-    error,
     execute: fetchServices,
-  } = useApi<Service[]>(JobsApi.fetchServices);
+  } = useApi<any>(JobsApi.fetchServices);
 
   useEffect(() => {
     loadData();
@@ -52,6 +89,27 @@ const ServicesScreen: React.FC<Props> = ({ navigation, route }) => {
     setRefreshing(false);
   };
 
+  const getServicesArray = (): Service[] => {
+    if (Array.isArray(servicesData) && servicesData.length > 0) return servicesData;
+    if (servicesData && typeof servicesData === 'object') {
+      const obj = servicesData as any;
+      if (Array.isArray(obj.services) && obj.services.length > 0) return obj.services;
+      if (Array.isArray(obj.data) && obj.data.length > 0) return obj.data;
+    }
+    return defaultMainServices;
+  };
+
+  const rawServicesList = getServicesArray();
+
+  const filteredServices = rawServicesList.filter((item) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      item.serviceName?.toLowerCase().includes(q) ||
+      item.serviceDescription?.toLowerCase().includes(q)
+    );
+  });
+
   const renderItem = ({ item }: { item: Service }) => (
     <TouchableOpacity
       style={styles.card}
@@ -61,58 +119,88 @@ const ServicesScreen: React.FC<Props> = ({ navigation, route }) => {
           serviceName: item.serviceName,
         })
       }
-      activeOpacity={0.8}
+      activeOpacity={0.85}
     >
       <View style={styles.imageContainer}>
         {item.serviceImage ? (
           <Image source={{ uri: item.serviceImage }} style={styles.image} />
         ) : (
           <View style={styles.imagePlaceholder}>
-            <Text style={styles.placeholderText}>🛠</Text>
+            <MaterialCommunityIcons name="content-cut" size={28} color={Colors.ButtonPrimaryColor} />
           </View>
         )}
       </View>
+
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle}>{item.serviceName}</Text>
         <Text style={styles.cardDescription} numberOfLines={2}>
-          {item.serviceDescription}
+          {item.serviceDescription || 'Professional grooming service.'}
         </Text>
         {item.serviceHourlyRate ? (
-          <Text style={styles.rateText}>
-            ${item.serviceHourlyRate}/hr
-          </Text>
+          <View style={styles.ratePill}>
+            <Text style={styles.rateText}>From ${item.serviceHourlyRate}</Text>
+          </View>
         ) : null}
       </View>
-      <Text style={styles.arrow}>→</Text>
+
+      <View style={styles.arrowButton}>
+        <Ionicons name="arrow-forward" size={18} color={Colors.ButtonPrimaryColor} />
+      </View>
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+
+      {/* Top Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>←</Text>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={22} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.title}>{serviceTypeName || 'Services'}</Text>
-        <View style={{ width: 24 }} />
+        <Text style={styles.title}>{serviceTypeName || 'Select Service'}</Text>
+        <View style={{ width: 44 }} />
       </View>
 
+      {/* Services List */}
       <FlatList
-        data={services || []}
-        keyExtractor={(item) => item.id}
+        data={filteredServices}
+        keyExtractor={(item) => item.id || Math.random().toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.ButtonPrimaryColor]}
+            tintColor={Colors.ButtonPrimaryColor}
+          />
         }
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                {error || 'No services available'}
-              </Text>
+        ListHeaderComponent={
+          <View style={styles.searchSection}>
+            <Text style={styles.sectionLabel}>AVAILABLE SERVICE PACKAGES</Text>
+            <View style={styles.searchContainer}>
+              <Ionicons name="search-outline" size={20} color="#64748B" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search packages..."
+                placeholderTextColor="#94A3B8"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                clearButtonMode="while-editing"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
+                  <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                </TouchableOpacity>
+              )}
             </View>
-          ) : null
+          </View>
         }
       />
 
@@ -124,94 +212,139 @@ const ServicesScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    borderBottomColor: '#F1F5F9',
   },
-  back: {
-    fontSize: FontSizes['2xl'],
-    color: Colors.TitleColor,
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   title: {
-    fontSize: FontSizes.lg,
+    fontSize: FontSizes.xl,
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
+    color: '#0F172A',
   },
   listContent: {
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing['3xl'],
+  },
+  searchSection: {
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.md,
+  },
+  sectionLabel: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    letterSpacing: 0.5,
+    marginBottom: Spacing.sm,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  searchIcon: {
+    marginRight: Spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#0F172A',
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.BGColor,
-    borderRadius: BorderRadius.lg,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
-    marginBottom: Spacing.base,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    marginBottom: Spacing.md,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
     borderWidth: 1,
-    borderColor: Colors.CardColor,
+    borderColor: '#F1F5F9',
   },
   imageContainer: {
     marginRight: Spacing.lg,
   },
   image: {
-    width: 60,
-    height: 60,
-    borderRadius: BorderRadius.base,
+    width: 64,
+    height: 64,
+    borderRadius: BorderRadius.lg,
   },
   imagePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: BorderRadius.base,
-    backgroundColor: Colors.TextFieldColor,
+    width: 64,
+    height: 64,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: '#EEF4FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: {
-    fontSize: FontSizes.xl,
-  },
   cardContent: {
     flex: 1,
+    marginRight: Spacing.sm,
   },
   cardTitle: {
     fontSize: FontSizes.lg,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+    marginBottom: 4,
   },
   cardDescription: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
+    color: '#64748B',
+    lineHeight: 18,
+  },
+  ratePill: {
+    backgroundColor: '#EEF4FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+    alignSelf: 'flex-start',
+    marginTop: 6,
   },
   rateText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryRight,
-    marginTop: Spacing.xs,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
   },
-  arrow: {
-    fontSize: FontSizes.lg,
-    color: Colors.DescriptionTextLight,
-  },
-  emptyContainer: {
+  arrowButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EEF4FF',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: Spacing['4xl'],
-  },
-  emptyText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
   },
 });
 

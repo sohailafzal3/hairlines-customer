@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { kBaseUrl } from '../constants';
 import { CookieManager } from '../utils/cookies';
 
@@ -28,13 +29,44 @@ class ApiClient {
 
     this.client.interceptors.request.use(
       async (config) => {
-        // React Native does not automatically persist/send cookies.
+        config.headers = config.headers || {};
+
+        // 1. React Native does not automatically persist/send cookies.
         // Load any cookies the server previously set and send them back.
         const cookieHeader = await CookieManager.getCookieHeader();
         if (cookieHeader) {
-          config.headers = config.headers || {};
           config.headers.Cookie = cookieHeader;
         }
+
+        // 2. Fallback Auth Header: Read auth state from AsyncStorage
+        try {
+          const authStorageStr = await AsyncStorage.getItem('auth-storage');
+          if (authStorageStr) {
+            const parsed = JSON.parse(authStorageStr);
+            const state = parsed?.state;
+            const token =
+              state?.token ||
+              state?.account?.id ||
+              state?.account?.userAccountId ||
+              state?.user?.id;
+
+            if (token) {
+              if (!config.headers.Authorization) {
+                config.headers.Authorization = `Bearer ${token}`;
+              }
+              config.headers['x-access-token'] = token;
+              config.headers['user-id'] = state?.account?.id || state?.user?.id || '';
+
+              // If Cookie header is missing or lacks session, inject token cookie
+              if (!cookieHeader) {
+                config.headers.Cookie = `sessionId=${token}; token=${token}`;
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore storage read error
+        }
+
         return config;
       },
       (error) => Promise.reject(error)
@@ -79,7 +111,6 @@ class ApiClient {
   }
 
   async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    console.log("config", this.client.getUri())
     const response = await this.client.post<ApiResponse<T>>(url, data, config);
     return response.data as T;
   }

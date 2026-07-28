@@ -1,23 +1,26 @@
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View,
+import {
+  View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
   Image,
   KeyboardAvoidingView,
-  Platform } from 'react-native';
+  Platform,
+  StatusBar,
+} from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
-import { Spacing } from '../../theme/spacing';
+import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTButton, VTTextField } from '../../components/common';
 import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
-import { Genders } from '../../constants';
-import * as ImagePicker from 'expo-image-picker';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'SignUpFirst'>;
@@ -29,16 +32,18 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [gender, setGender] = useState('');
+  const [gender, setGender] = useState('male');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [profileImage, setProfileImage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleImagePick = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
+      setErrorMsg('Camera roll permissions are required to upload a profile photo.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -53,8 +58,10 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleSubmit = async () => {
+    setErrorMsg('');
+
     if (password !== confirmPassword) {
-      console.error('Passwords do not match');
+      setErrorMsg('Passwords do not match. Please re-enter password.');
       return;
     }
 
@@ -64,7 +71,7 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
         countryCode: '+1',
         phoneNumber: account?.phoneNumber || '',
         userType: 1,
-        deviceToken: '0000000000000000000000000000000000000000000000000000000000000000', // Structurally valid 64-char hex token for AWS SNS
+        deviceToken: '0000000000000000000000000000000000000000000000000000000000000000',
         deviceType: 'ios',
         email: email.toLowerCase(),
         firstName,
@@ -85,7 +92,8 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
       await AuthApi.basicInfo(params);
       navigation.navigate('ThankYou');
     } catch (error: any) {
-      console.error('Signup error:', error.message);
+      console.error('Signup error:', error);
+      setErrorMsg(error.message || 'Failed to complete sign up. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -93,102 +101,150 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backIcon}>←</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.title}>Complete Your Profile</Text>
-
-          {/* Profile Image */}
-          <TouchableOpacity onPress={handleImagePick} style={styles.imageContainer}>
-            {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.profileImage} />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <Text style={styles.imagePlaceholderText}>📷</Text>
-              </View>
-            )}
-            <Text style={styles.imageLabel}>Add Photo</Text>
-          </TouchableOpacity>
-
-          <VTTextField
-            label="First Name"
-            placeholder="Enter first name"
-            value={firstName}
-            onChangeText={setFirstName}
-            autoCapitalize="words"
-          />
-
-          <VTTextField
-            label="Last Name"
-            placeholder="Enter last name"
-            value={lastName}
-            onChangeText={setLastName}
-            autoCapitalize="words"
-          />
-
-          <VTTextField
-            label="Email"
-            placeholder="Enter email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-
-          {/* Gender Selection */}
-          <Text style={styles.label}>Gender</Text>
-          <View style={styles.genderContainer}>
-            {['male', 'female'].map((g) => (
-              <TouchableOpacity
-                key={g}
-                style={[styles.genderButton, gender === g && styles.genderButtonActive]}
-                onPress={() => setGender(g)}
-              >
-                <Text
-                  style={[styles.genderText, gender === g && styles.genderTextActive]}
-                >
-                  {g.charAt(0).toUpperCase() + g.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Top Bar - Back Button */}
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+            </TouchableOpacity>
           </View>
 
-          <VTTextField
-            label="Date of Birth"
-            placeholder="YYYY-MM-DD"
-            value={dateOfBirth}
-            onChangeText={setDateOfBirth}
-          />
+          {/* Header Title */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Complete Your Profile</Text>
+            <Text style={styles.subtitle}>Help us personalize your service experience</Text>
+          </View>
 
-          <VTTextField
-            label="Password"
-            placeholder="Create password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          {/* Error Banner */}
+          {!!errorMsg && (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={18} color={Colors.errorViewColor} style={{ marginRight: 6 }} />
+              <Text style={styles.errorBannerText}>{errorMsg}</Text>
+            </View>
+          )}
 
-          <VTTextField
-            label="Confirm Password"
-            placeholder="Confirm password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
+          {/* Avatar Upload Container */}
+          <View style={styles.avatarSection}>
+            <TouchableOpacity onPress={handleImagePick} activeOpacity={0.85} style={styles.avatarWrapper}>
+              {profileImage ? (
+                <Image source={{ uri: profileImage }} style={styles.profileImage} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Ionicons name="person" size={44} color="#94A3B8" />
+                </View>
+              )}
+              <View style={styles.cameraBadge}>
+                <Ionicons name="camera" size={16} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+            <Text style={styles.avatarLabel}>Upload Profile Photo</Text>
+          </View>
 
-          <VTButton
-            title="Complete Sign Up"
-            onPress={handleSubmit}
-            loading={loading}
-            disabled={!firstName || !lastName || !email || !gender || !password || !confirmPassword}
-            style={styles.button}
-          />
+          {/* Form Fields */}
+          <View style={styles.formContainer}>
+            <View style={styles.rowFields}>
+              <VTTextField
+                label="First Name"
+                placeholder="First Name"
+                value={firstName}
+                onChangeText={setFirstName}
+                autoCapitalize="words"
+                style={styles.flexHalf}
+              />
+              <VTTextField
+                label="Last Name"
+                placeholder="Last Name"
+                value={lastName}
+                onChangeText={setLastName}
+                autoCapitalize="words"
+                style={styles.flexHalf}
+              />
+            </View>
+
+            <VTTextField
+              label="Email Address"
+              placeholder="name@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            {/* Gender Selection Segment */}
+            <Text style={styles.genderLabel}>Gender</Text>
+            <View style={styles.genderSegmentRow}>
+              {[
+                { key: 'male', label: 'Male', icon: 'male' },
+                { key: 'female', label: 'Female', icon: 'female' },
+              ].map((item) => {
+                const isActive = gender === item.key;
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={[styles.genderCard, isActive && styles.genderCardActive]}
+                    onPress={() => setGender(item.key)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={item.icon as any}
+                      size={18}
+                      color={isActive ? Colors.ButtonPrimaryColor : '#64748B'}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={[styles.genderCardText, isActive && styles.genderCardTextActive]}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <VTTextField
+              label="Date of Birth"
+              placeholder="YYYY-MM-DD"
+              value={dateOfBirth}
+              onChangeText={setDateOfBirth}
+            />
+
+            <VTTextField
+              label="Password"
+              placeholder="Create password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+
+            <VTTextField
+              label="Confirm Password"
+              placeholder="Re-enter password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+            />
+
+            <VTButton
+              title="Complete Sign Up"
+              onPress={handleSubmit}
+              loading={loading}
+              disabled={!firstName || !lastName || !email || !gender || !password || !confirmPassword}
+              style={styles.submitButton}
+              textStyle={styles.submitButtonText}
+            />
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -198,95 +254,177 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
-    padding: Spacing.xl,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing['3xl'],
+  },
+  topBar: {
+    marginBottom: Spacing.lg,
   },
   backButton: {
-    marginBottom: Spacing.lg,
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  backIcon: {
-    fontSize: FontSizes['2xl'],
-    color: Colors.TitleColor,
+  header: {
+    marginBottom: Spacing.lg,
   },
   title: {
-    fontSize: FontSizes['2xl'],
+    fontSize: FontSizes['3xl'],
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.lg,
+    color: '#0F172A',
+    marginBottom: Spacing.xs,
   },
-  imageContainer: {
+  subtitle: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#64748B',
+    lineHeight: 22,
+  },
+  errorContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
     marginBottom: Spacing.lg,
   },
-  imagePlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.TextFieldColor,
+  errorBannerText: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveMedium,
+    color: Colors.errorViewColor,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: Spacing.xs,
+  },
+  avatarPlaceholder: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: Colors.CardColor,
+    borderColor: '#CBD5E1',
     borderStyle: 'dashed',
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    borderWidth: 2,
+    borderColor: Colors.ButtonPrimaryColor,
   },
-  imagePlaceholderText: {
-    fontSize: FontSizes['2xl'],
+  cameraBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: Colors.ButtonPrimaryColor,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  imageLabel: {
-    marginTop: Spacing.sm,
+  avatarLabel: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryRight,
+    color: Colors.ButtonPrimaryColor,
+    marginTop: 2,
   },
-  label: {
+  formContainer: {
+    width: '100%',
+  },
+  rowFields: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  flexHalf: {
+    flex: 1,
+  },
+  genderLabel: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.uberMoveMedium,
-    color: Colors.PlaceholderInactive,
+    color: '#334155',
     marginBottom: Spacing.xs,
   },
-  genderContainer: {
+  genderSegmentRow: {
     flexDirection: 'row',
+    gap: Spacing.md,
     marginBottom: Spacing.base,
   },
-  genderButton: {
+  genderCard: {
     flex: 1,
-    paddingVertical: Spacing.md,
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.TextFieldColor,
-    borderRadius: 4,
-    marginRight: Spacing.sm,
+    justifyContent: 'center',
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: '#E2E8F0',
   },
-  genderButtonActive: {
+  genderCardActive: {
     borderColor: Colors.ButtonPrimaryColor,
-    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
+    backgroundColor: '#EEF4FF',
   },
-  genderText: {
+  genderCardText: {
     fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-  },
-  genderTextActive: {
-    color: Colors.ButtonPrimaryColor,
     fontFamily: Fonts.uberMoveMedium,
+    color: '#64748B',
   },
-  button: {
+  genderCardTextActive: {
+    color: Colors.ButtonPrimaryColor,
+    fontFamily: Fonts.uberMoveBold,
+  },
+  submitButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 54,
     marginTop: Spacing.lg,
-    marginBottom: Spacing['2xl'],
+    marginBottom: Spacing.xl,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submitButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
 });
 

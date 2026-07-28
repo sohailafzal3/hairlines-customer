@@ -11,12 +11,12 @@ import SelectLanguageScreen from '../screens/Auth/SelectLanguageScreen';
 
 export type AuthStackParamList = {
   LoginSignUp: undefined;
-  SignIn: { isSignUp: boolean };
+  SignIn: { isSignUp: boolean; selectedCountryCode?: string; selectedFlag?: string };
   Verification: { countryCode: string; phoneNumber: string; isSignUp: boolean; isForgotPassword?: boolean };
   SignUpFirst: undefined;
   ThankYou: undefined;
   NewPassword: undefined;
-  SelectCountry: undefined;
+  SelectCountry: { selectedCode?: string };
   SelectLanguage: undefined;
 };
 

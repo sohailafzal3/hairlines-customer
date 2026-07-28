@@ -1,18 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View,
+import {
+  View,
   Text,
   StyleSheet,
   TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
-  Platform } from 'react-native';
+  Platform,
+  StatusBar,
+  ScrollView,
+} from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
-import { Spacing } from '../../theme/spacing';
+import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTButton } from '../../components/common';
 import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
@@ -31,6 +36,7 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   const [code, setCode] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
+  const [errorMsg, setErrorMsg] = useState('');
   const inputs = useRef<Array<TextInput | null>>([]);
 
   useEffect(() => {
@@ -57,11 +63,13 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleResend = async () => {
+    setErrorMsg('');
     setTimer(60);
     try {
       await AuthApi.sendVerificationCode(countryCode, phoneNumber);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Resend error:', error);
+      setErrorMsg(error.message || 'Failed to resend verification code.');
     }
   };
 
@@ -69,9 +77,10 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
     const fullCode = code.join('');
     if (fullCode.length !== 4) return;
 
+    setErrorMsg('');
     setLoading(true);
     try {
-      const deviceToken = '0000000000000000000000000000000000000000000000000000000000000000'; // Structurally valid 64-char hex token for AWS SNS
+      const deviceToken = '0000000000000000000000000000000000000000000000000000000000000000';
 
       if (isSignUp) {
         const account = await AuthApi.verifyCode({
@@ -105,7 +114,8 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
         }
       }
     } catch (error: any) {
-      console.error('Verification error:', error.message);
+      console.error('Verification error:', error);
+      setErrorMsg(error.message || 'Invalid verification code. Please check and try again.');
     } finally {
       setLoading(false);
     }
@@ -115,52 +125,92 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <View style={styles.content}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backIcon}>←</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.title}>Verification Code</Text>
-          <Text style={styles.subtitle}>
-            Enter the 4-digit code sent to {countryCode} {phoneNumber}
-          </Text>
-
-          <View style={styles.codeContainer}>
-            {code.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref: any) => (inputs.current[index] = ref)}
-                style={styles.codeInput}
-                keyboardType="number-pad"
-                maxLength={1}
-                value={digit}
-                onChangeText={(text) => handleChange(text, index)}
-                onKeyPress={(e) => handleKeyPress(e, index)}
-                autoFocus={index === 0}
-              />
-            ))}
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Top Bar Back Button */}
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+            </TouchableOpacity>
           </View>
 
+          {/* Header Title */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Verification Code</Text>
+            <Text style={styles.subtitle}>
+              We sent a 4-digit code to{' '}
+              <Text style={styles.phoneHighlight}>
+                {countryCode} {phoneNumber}
+              </Text>
+            </Text>
+          </View>
+
+          {/* Error Banner */}
+          {!!errorMsg && (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={18} color={Colors.errorViewColor} style={{ marginRight: 6 }} />
+              <Text style={styles.errorBannerText}>{errorMsg}</Text>
+            </View>
+          )}
+
+          {/* OTP Digit Row */}
+          <View style={styles.codeContainer}>
+            {code.map((digit, index) => {
+              const isFilled = digit.length > 0;
+              return (
+                <TextInput
+                  key={index}
+                  ref={(ref: any) => (inputs.current[index] = ref)}
+                  style={[styles.codeInput, isFilled && styles.codeInputFilled]}
+                  keyboardType="number-pad"
+                  maxLength={1}
+                  value={digit}
+                  onChangeText={(text) => handleChange(text, index)}
+                  onKeyPress={(e) => handleKeyPress(e, index)}
+                  autoFocus={index === 0}
+                  selectTextOnFocus
+                />
+              );
+            })}
+          </View>
+
+          {/* Verify Button */}
           <VTButton
-            title="Verify"
+            title="Verify & Continue"
             onPress={handleVerify}
             loading={loading}
             disabled={!isComplete}
-            style={styles.button}
+            style={styles.verifyButton}
+            textStyle={styles.verifyButtonText}
           />
 
-          {timer > 0 ? (
-            <Text style={styles.timerText}>Resend code in {timer}s</Text>
-          ) : (
-            <TouchableOpacity onPress={handleResend}>
-              <Text style={styles.resendText}>Resend Code</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+          {/* Resend Timer / Link */}
+          <View style={styles.resendContainer}>
+            {timer > 0 ? (
+              <Text style={styles.timerText}>
+                Resend code in <Text style={styles.timerBold}>{timer}s</Text>
+              </Text>
+            ) : (
+              <TouchableOpacity onPress={handleResend} style={styles.resendTouch} activeOpacity={0.7}>
+                <Ionicons name="reload-outline" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
+                <Text style={styles.resendText}>Resend Code</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -169,71 +219,133 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
   keyboardView: {
     flex: 1,
   },
   content: {
     flex: 1,
-    padding: Spacing.xl,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xl,
+  },
+  topBar: {
+    marginBottom: Spacing.lg,
   },
   backButton: {
-    marginBottom: Spacing.lg,
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  backIcon: {
-    fontSize: FontSizes['2xl'],
-    color: Colors.TitleColor,
+  header: {
+    marginBottom: Spacing.xl,
   },
   title: {
-    fontSize: FontSizes['2xl'],
+    fontSize: FontSizes['3xl'],
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.sm,
+    color: '#0F172A',
+    marginBottom: Spacing.xs,
   },
   subtitle: {
     fontSize: FontSizes.md,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-    marginBottom: Spacing.xl,
+    color: '#64748B',
+    lineHeight: 22,
+  },
+  phoneHighlight: {
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveMedium,
+    color: Colors.errorViewColor,
   },
   codeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xs,
   },
   codeInput: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.CardColor,
-    backgroundColor: Colors.TextFieldColor,
+    width: 68,
+    height: 68,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
     textAlign: 'center',
     fontSize: FontSizes['2xl'],
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
+    color: '#0F172A',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  button: {
-    marginTop: Spacing.lg,
+  codeInputFilled: {
+    borderColor: Colors.ButtonPrimaryColor,
+    backgroundColor: '#EEF4FF',
+  },
+  verifyButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 54,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  verifyButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
+  },
+  resendContainer: {
+    alignItems: 'center',
+    marginTop: Spacing.xl,
   },
   timerText: {
-    textAlign: 'center',
-    marginTop: Spacing.lg,
     fontSize: FontSizes.md,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    color: '#64748B',
+  },
+  timerBold: {
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  resendTouch: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   resendText: {
-    textAlign: 'center',
-    marginTop: Spacing.lg,
     fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryRight,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
   },
 });
 

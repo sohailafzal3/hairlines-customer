@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing } from '../../theme/spacing';
@@ -12,12 +12,32 @@ const NewPasswordScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.title}>Set New Password</Text>
-        <VTTextField label="New Password" placeholder="Enter new password" value={password} onChangeText={setPassword} secureTextEntry />
-        <VTTextField label="Confirm Password" placeholder="Confirm password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
-        <VTButton title="Reset Password" onPress={() => {}} disabled={!password || password !== confirmPassword} />
-      </View>
+        <VTTextField
+          label="New Password"
+          placeholder="Enter new password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+        <VTTextField
+          label="Confirm Password"
+          placeholder="Confirm password"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+        />
+        <VTButton
+          title="Reset Password"
+          onPress={() => {}}
+          disabled={!password || password !== confirmPassword}
+        />
+      </ScrollView>
     </SafeAreaView>
   );
 };

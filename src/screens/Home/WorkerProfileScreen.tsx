@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View,
+import {
+  View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Image } from 'react-native';
+  Image,
+  StatusBar,
+} from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
@@ -25,7 +29,7 @@ type Props = {
 
 const WorkerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
   const { spProfileId } = route.params;
-  const { setSelectedSp, createJob } = useJobStore();
+  const { setSelectedSp } = useJobStore();
 
   const {
     data: profile,
@@ -66,20 +70,29 @@ const WorkerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.back}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Worker Profile</Text>
-          <View style={{ width: 40 }} />
-        </View>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Professional Profile</Text>
+        <View style={{ width: 44 }} />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {profile && (
           <>
-            {/* Profile Header */}
-            <View style={styles.profileHeader}>
+            {/* Barber Profile Card */}
+            <View style={styles.profileCard}>
               {profile.profileImage ? (
                 <Image source={{ uri: profile.profileImage }} style={styles.profileImage} />
               ) : (
@@ -89,66 +102,40 @@ const WorkerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
                   </Text>
                 </View>
               )}
+
               <Text style={styles.profileName}>{profile.name}</Text>
-              {profile.avgRating > 0 && (
-                <View style={styles.ratingRow}>
-                  <Text style={styles.ratingText}>⭐ {profile.avgRating.toFixed(1)}</Text>
-                  <Text style={styles.jobCountText}>• {profile.jobCount} jobs done</Text>
-                </View>
-              )}
+
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={14} color="#854D0E" style={{ marginRight: 4 }} />
+                <Text style={styles.ratingText}>{profile.avgRating?.toFixed(1) || '5.0'}</Text>
+                <Text style={styles.jobCountText}>({profile.jobCount || 0} bookings completed)</Text>
+              </View>
+
               {profile.about ? (
                 <Text style={styles.aboutText}>{profile.about}</Text>
               ) : null}
             </View>
 
-            {/* Services */}
-            {profile.services && profile.services.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Services</Text>
-                {profile.services.map((service) => (
-                  <View key={service.id} style={styles.serviceItem}>
-                    <Text style={styles.serviceName}>{service.serviceName}</Text>
-                    <Text style={styles.serviceDesc} numberOfLines={2}>
-                      {service.serviceDescription}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
             {/* Languages */}
             {profile.languages && profile.languages.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Languages</Text>
-                <View style={styles.languageRow}>
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>LANGUAGES SPOKEN</Text>
+                <View style={styles.badgeRow}>
                   {profile.languages.map((lang) => (
-                    <View key={lang.id} style={styles.languageBadge}>
-                      <Text style={styles.languageText}>{lang.name}</Text>
+                    <View key={lang.id} style={styles.langPill}>
+                      <Ionicons name="chatbubbles-outline" size={14} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
+                      <Text style={styles.langText}>{lang.name}</Text>
                     </View>
                   ))}
                 </View>
               </View>
             )}
 
-            {/* Tools */}
-            {profile.tools && profile.tools.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Tools & Equipment</Text>
-                <View style={styles.toolsRow}>
-                  {profile.tools.map((tool, index) => (
-                    <View key={index} style={styles.toolBadge}>
-                      <Text style={styles.toolText}>{tool}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Reference Images */}
+            {/* Portfolio Gallery */}
             {profile.referenceImages && profile.referenceImages.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Portfolio</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>PORTFOLIO WORK</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.sm }}>
                   {profile.referenceImages.map((img, index) => (
                     <Image key={index} source={{ uri: img }} style={styles.portfolioImage} />
                   ))}
@@ -156,30 +143,33 @@ const WorkerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
             )}
 
-            {/* Reviews */}
+            {/* Customer Reviews */}
             {profile.ratingAndReview && profile.ratingAndReview.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Reviews</Text>
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>CLIENT REVIEWS</Text>
                 {profile.ratingAndReview.slice(0, 3).map((review) => (
                   <View key={review.id} style={styles.reviewItem}>
                     <View style={styles.reviewHeader}>
-                      <Text style={styles.reviewStars}>
-                        {'⭐'.repeat(Math.round(review.rating))}
-                      </Text>
-                      <Text style={styles.reviewDate}>{review.createdAt}</Text>
+                      <View style={styles.reviewStars}>
+                        {[...Array(Math.round(review.rating || 5))].map((_, i) => (
+                          <Ionicons key={i} name="star" size={12} color="#EAB308" />
+                        ))}
+                      </View>
+                      <Text style={styles.reviewDate}>{review.createdAt || 'Recent'}</Text>
                     </View>
                     <Text style={styles.reviewText}>{review.review}</Text>
-                    <Text style={styles.reviewUser}>— {review.userName}</Text>
+                    <Text style={styles.reviewUser}>— {review.userName || 'Client'}</Text>
                   </View>
                 ))}
               </View>
             )}
 
-            {/* CTA */}
+            {/* Select Worker Button */}
             <VTButton
-              title="Select This Worker"
+              title="Select This Professional"
               onPress={handleSelectWorker}
               style={styles.selectButton}
+              textStyle={styles.selectButtonText}
             />
           </>
         )}
@@ -193,185 +183,192 @@ const WorkerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
-  },
-  scrollContent: {
-    paddingBottom: Spacing['4xl'],
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    borderBottomColor: '#F1F5F9',
   },
-  back: {
-    fontSize: FontSizes['2xl'],
-    color: Colors.TitleColor,
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   headerTitle: {
-    fontSize: FontSizes.lg,
+    fontSize: FontSizes.xl,
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
+    color: '#0F172A',
   },
-  profileHeader: {
-    alignItems: 'center',
+  scrollContent: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
+  },
+  profileCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
     padding: Spacing.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     marginBottom: Spacing.md,
   },
   profileImagePlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: Colors.ButtonPrimaryColor,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
   profileImageText: {
-    fontSize: FontSizes.xl,
+    fontSize: FontSizes['2xl'],
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.BGColor,
+    color: '#FFFFFF',
   },
   profileName: {
     fontSize: FontSizes.xl,
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.sm,
+    color: '#0F172A',
   },
-  ratingRow: {
+  ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    backgroundColor: '#FEF9C3',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    marginVertical: Spacing.sm,
   },
   ratingText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.RadioActive,
-    marginRight: Spacing.sm,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#854D0E',
+    marginRight: 4,
   },
   jobCountText: {
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
+    color: '#854D0E',
   },
   aboutText: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
+    color: '#64748B',
     textAlign: 'center',
-    paddingHorizontal: Spacing.lg,
+    lineHeight: 20,
+    marginTop: 4,
   },
-  section: {
+  sectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   sectionTitle: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
     marginBottom: Spacing.md,
+    letterSpacing: 0.5,
   },
-  serviceItem: {
-    marginBottom: Spacing.md,
-    padding: Spacing.md,
-    backgroundColor: Colors.TextFieldColor,
-    borderRadius: BorderRadius.base,
-  },
-  serviceName: {
-    fontSize: FontSizes.base,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.xs,
-  },
-  serviceDesc: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-  },
-  languageRow: {
+  badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: Spacing.sm,
   },
-  languageBadge: {
-    backgroundColor: `${Colors.ButtonPrimaryColor}15`,
+  langPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF4FF',
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-    marginRight: Spacing.sm,
-    marginBottom: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.lg,
   },
-  languageText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveMedium,
+  langText: {
+    fontSize: FontSizes.xs + 1,
+    fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
   },
-  toolsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  toolBadge: {
-    backgroundColor: Colors.TextFieldColor,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
-    marginRight: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  toolText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-  },
   portfolioImage: {
-    width: 120,
-    height: 120,
-    borderRadius: BorderRadius.base,
-    marginRight: Spacing.md,
+    width: 130,
+    height: 130,
+    borderRadius: BorderRadius.lg,
   },
   reviewItem: {
-    marginBottom: Spacing.md,
+    backgroundColor: '#F8FAFC',
+    borderRadius: BorderRadius.lg,
     padding: Spacing.md,
-    backgroundColor: Colors.TextFieldColor,
-    borderRadius: BorderRadius.base,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   reviewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: Spacing.xs,
+    alignItems: 'center',
+    marginBottom: 4,
   },
   reviewStars: {
-    fontSize: FontSizes.sm,
+    flexDirection: 'row',
   },
   reviewDate: {
-    fontSize: FontSizes.xs,
+    fontSize: 10,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    color: '#94A3B8',
   },
   reviewText: {
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.xs + 1,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-    marginBottom: Spacing.xs,
+    color: '#334155',
+    lineHeight: 18,
+    marginBottom: 4,
   },
   reviewUser: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.DescriptionTextLight,
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#64748B',
   },
   selectButton: {
-    margin: Spacing.lg,
-    marginTop: Spacing.xl,
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 54,
+    marginTop: Spacing.md,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  selectButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
 });
 

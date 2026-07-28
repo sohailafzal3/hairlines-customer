@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View,
+import {
+  View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
   RefreshControl,
-  TextInput } from 'react-native';
+  TextInput,
+  StatusBar,
+} from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
@@ -17,7 +22,6 @@ import { ProfileApi } from '../../api';
 import { useApi } from '../../hooks';
 import { PromoCode } from '../../models';
 import { useJobStore } from '../../store';
-import Toast from 'react-native-toast-message';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'PromoCodes'>;
@@ -29,16 +33,28 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
   const [manualCode, setManualCode] = useState('');
 
   const {
-    data: promoCodes,
+    data: rawPromoCodes,
     loading,
     execute: fetchPromoCodes,
-  } = useApi<PromoCode[]>(ProfileApi.fetchPromoCodes);
+  } = useApi<any>(ProfileApi.fetchPromoCodes);
 
   const { loading: applying, execute: applyPromo } = useApi(ProfileApi.applyPromoCode);
 
   useEffect(() => {
     loadPromoCodes();
   }, []);
+
+  const getPromoList = (): PromoCode[] => {
+    if (Array.isArray(rawPromoCodes)) return rawPromoCodes;
+    if (rawPromoCodes && typeof rawPromoCodes === 'object') {
+      const obj = rawPromoCodes as any;
+      if (Array.isArray(obj.promoCodes)) return obj.promoCodes;
+      if (Array.isArray(obj.data)) return obj.data;
+    }
+    return [];
+  };
+
+  const promoList = getPromoList();
 
   const loadPromoCodes = async () => {
     await fetchPromoCodes(0);
@@ -51,59 +67,60 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleApplyCode = async (code?: string) => {
-    const promoCode = code || manualCode;
-    if (!promoCode.trim()) return;
+    const targetCode = (code || manualCode).trim();
+    if (!targetCode) return;
 
     try {
-      const result = await applyPromo(promoCode.trim());
+      await applyPromo(targetCode);
       Toast.show({
         type: 'success',
-        text1: 'Promo Applied',
-        text2: 'Your promo code has been applied successfully',
+        text1: 'Promo Code Applied!',
+        text2: `Code "${targetCode.toUpperCase()}" added to your job checkout.`,
       });
       setManualCode('');
-      // Find the applied promo in the list or create a temp one
-      const applied = promoCodes?.find((p) => p.code === promoCode.trim());
+
+      const applied = promoList.find((p) => p.code?.toUpperCase() === targetCode.toUpperCase());
       if (applied) {
         setPromoCode(applied);
       }
     } catch (error: any) {
       Toast.show({
         type: 'error',
-        text1: 'Invalid Code',
-        text2: error.message || 'This promo code is not valid',
+        text1: 'Promo Code Error',
+        text2: error.message || 'This promo code is invalid or expired.',
       });
     }
   };
 
   const renderItem = ({ item }: { item: PromoCode }) => (
-    <View style={[styles.promoCard, item.isExpired && styles.promoCardExpired]}>
-      <View style={styles.promoLeft}>
-        <Text style={styles.promoName}>{item.name}</Text>
-        <Text style={styles.promoCode}>Code: {item.code}</Text>
-        <Text style={styles.promoDesc} numberOfLines={2}>
-          {item.promoText}
-        </Text>
-        <Text style={styles.promoExpiry}>
-          Expires: {item.expiryDate}
-        </Text>
-      </View>
-      <View style={styles.promoRight}>
-        <View style={styles.discountBadge}>
-          <Text style={styles.discountText}>
-            {item.promoType === 'percentage' ? `${item.percentage}%` : `$${item.maxDiscount}`}
-          </Text>
-          <Text style={styles.discountLabel}>OFF</Text>
+    <View style={[styles.couponCard, item.isExpired && styles.couponCardExpired]}>
+      <View style={styles.couponLeft}>
+        <View style={styles.badgeRow}>
+          <Ionicons name="pricetag" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
+          <Text style={styles.couponName}>{item.name || 'Special Discount'}</Text>
         </View>
-        {!item.isExpired && item.canUse && (
+        <Text style={styles.couponCode}>CODE: {item.code}</Text>
+        <Text style={styles.couponDesc} numberOfLines={2}>
+          {item.promoText || 'Save on your next grooming session.'}
+        </Text>
+        <Text style={styles.couponExpiry}>Valid until: {item.expiryDate || 'Limited Time'}</Text>
+      </View>
+
+      <View style={styles.couponRight}>
+        <Text style={styles.discountValue}>
+          {item.promoType === 'percentage' ? `${item.percentage}%` : `$${item.maxDiscount}`}
+        </Text>
+        <Text style={styles.discountLabel}>OFF</Text>
+
+        {!item.isExpired ? (
           <TouchableOpacity
             style={styles.applyButton}
             onPress={() => handleApplyCode(item.code)}
+            activeOpacity={0.8}
           >
             <Text style={styles.applyText}>Apply</Text>
           </TouchableOpacity>
-        )}
-        {item.isExpired && (
+        ) : (
           <View style={styles.expiredBadge}>
             <Text style={styles.expiredText}>Expired</Text>
           </View>
@@ -114,48 +131,70 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+
+      {/* Header Bar */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => (navigation as any).openDrawer()}>
-          <Text style={styles.menuIcon}>☰</Text>
+        <TouchableOpacity
+          onPress={() => (navigation as any).openDrawer?.()}
+          style={styles.menuButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="menu" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Promo Codes</Text>
-        <View style={{ width: 40 }} />
+        <View style={{ width: 44 }} />
       </View>
 
-      {/* Manual Entry */}
-      <View style={styles.manualContainer}>
-        <TextInput
-          style={styles.manualInput}
-          placeholder="Enter promo code"
-          placeholderTextColor={Colors.PlaceholderInactive}
-          value={manualCode}
-          onChangeText={setManualCode}
-          autoCapitalize="characters"
-        />
+      {/* Manual Input Container */}
+      <View style={styles.inputCard}>
+        <View style={styles.inputWrapper}>
+          <Ionicons name="pricetag-outline" size={20} color="#64748B" style={styles.inputIcon} />
+          <TextInput
+            style={styles.textInput}
+            placeholder="Enter promo code (e.g. SAVE20)"
+            placeholderTextColor="#94A3B8"
+            value={manualCode}
+            onChangeText={setManualCode}
+            autoCapitalize="characters"
+          />
+        </View>
         <TouchableOpacity
-          style={[styles.manualApply, !manualCode.trim() && styles.manualApplyDisabled]}
+          style={[styles.inputApplyButton, !manualCode.trim() && styles.inputApplyDisabled]}
           onPress={() => handleApplyCode()}
           disabled={!manualCode.trim() || applying}
+          activeOpacity={0.8}
         >
-          <Text style={styles.manualApplyText}>Apply</Text>
+          <Text style={styles.inputApplyText}>Apply</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Coupon List */}
       <FlatList
-        data={promoCodes || []}
-        keyExtractor={(item) => item.id}
+        data={promoList}
+        keyExtractor={(item) => item.id || item.code || Math.random().toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.ButtonPrimaryColor]}
+            tintColor={Colors.ButtonPrimaryColor}
+          />
+        }
+        ListHeaderComponent={
+          <Text style={styles.sectionTitle}>AVAILABLE PROMOS & OFFERS</Text>
         }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>🏷️</Text>
-              <Text style={styles.emptyTitle}>No promo codes available</Text>
+              <Ionicons name="gift-outline" size={48} color="#CBD5E1" />
+              <Text style={styles.emptyTitle}>No active promo codes</Text>
               <Text style={styles.emptySubtitle}>
-                Check back later for special offers
+                Check back soon or enter a promo code above.
               </Text>
             </View>
           ) : null
@@ -170,160 +209,201 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    borderBottomColor: '#F1F5F9',
   },
-  menuIcon: {
-    fontSize: FontSizes.xl,
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   headerTitle: {
-    fontSize: FontSizes.lg,
+    fontSize: FontSizes.xl,
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
+    color: '#0F172A',
   },
-  manualContainer: {
+  inputCard: {
     flexDirection: 'row',
-    padding: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
-  },
-  manualInput: {
-    flex: 1,
-    backgroundColor: Colors.TextFieldColor,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
-    fontSize: FontSizes.base,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.TitleColor,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    gap: Spacing.sm,
+  },
+  inputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    height: 48,
+  },
+  inputIcon: {
     marginRight: Spacing.sm,
   },
-  manualApply: {
-    backgroundColor: Colors.ButtonPrimaryColor,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.lg,
-    justifyContent: 'center',
-  },
-  manualApplyDisabled: {
-    backgroundColor: Colors.disabledGray,
-  },
-  manualApplyText: {
+  textInput: {
+    flex: 1,
     fontSize: FontSizes.md,
     fontFamily: Fonts.uberMoveMedium,
-    color: Colors.BGColor,
+    color: '#0F172A',
+  },
+  inputApplyButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.xl,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 48,
+  },
+  inputApplyDisabled: {
+    backgroundColor: '#CBD5E1',
+  },
+  inputApplyText: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
   listContent: {
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
   },
-  promoCard: {
+  sectionTitle: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginBottom: Spacing.md,
+    letterSpacing: 0.5,
+  },
+  couponCard: {
     flexDirection: 'row',
-    backgroundColor: Colors.BGColor,
-    borderRadius: BorderRadius.lg,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
-    marginBottom: Spacing.base,
+    marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.CardColor,
-    borderLeftWidth: 4,
+    borderColor: '#E2E8F0',
+    borderLeftWidth: 5,
     borderLeftColor: Colors.ButtonPrimaryColor,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  promoCardExpired: {
-    borderLeftColor: Colors.disabledGray,
-    opacity: 0.7,
+  couponCardExpired: {
+    borderLeftColor: '#CBD5E1',
+    opacity: 0.6,
   },
-  promoLeft: {
+  couponLeft: {
     flex: 1,
+    marginRight: Spacing.md,
   },
-  promoName: {
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  couponName: {
     fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
   },
-  promoCode: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryRight,
-    marginBottom: Spacing.xs,
+  couponCode: {
+    fontSize: FontSizes.xs + 1,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+    marginBottom: 4,
+    letterSpacing: 0.5,
   },
-  promoDesc: {
-    fontSize: FontSizes.sm,
+  couponDesc: {
+    fontSize: FontSizes.xs + 1,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-    marginBottom: Spacing.xs,
+    color: '#64748B',
+    lineHeight: 18,
+    marginBottom: 6,
   },
-  promoExpiry: {
-    fontSize: FontSizes.xs,
+  couponExpiry: {
+    fontSize: 10,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    color: '#94A3B8',
   },
-  promoRight: {
+  couponRight: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: Spacing.md,
+    borderLeftWidth: 1,
+    borderLeftColor: '#F1F5F9',
+    paddingLeft: Spacing.md,
+    minWidth: 80,
   },
-  discountBadge: {
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  discountText: {
-    fontSize: FontSizes.xl,
+  discountValue: {
+    fontSize: FontSizes['2xl'],
     fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
   },
   discountLabel: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.DescriptionTextLight,
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#64748B',
+    marginBottom: Spacing.xs,
   },
   applyButton: {
-    backgroundColor: `${Colors.ButtonPrimaryColor}15`,
+    backgroundColor: Colors.ButtonPrimaryColor,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.md,
   },
   applyText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryColor,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
   expiredBadge: {
-    backgroundColor: Colors.disabledGray,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
     borderRadius: BorderRadius.sm,
   },
   expiredText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.disabledText,
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#94A3B8',
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: Spacing['4xl'],
-  },
-  emptyEmoji: {
-    fontSize: FontSizes['3xl'],
-    marginBottom: Spacing.lg,
+    justifyContent: 'center',
+    paddingVertical: Spacing['3xl'],
   },
   emptyTitle: {
     fontSize: FontSizes.lg,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginTop: Spacing.md,
   },
   emptySubtitle: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    color: '#94A3B8',
     textAlign: 'center',
+    marginTop: 4,
     paddingHorizontal: Spacing.xl,
   },
 });

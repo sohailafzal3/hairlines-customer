@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View,
+import {
+  View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert } from 'react-native';
+  Alert,
+  StatusBar,
+} from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
@@ -14,9 +19,8 @@ import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTButton, VTLoading } from '../../components/common';
 import { JobsApi } from '../../api';
 import { useApi } from '../../hooks';
-import { useJobStore, useAuthStore } from '../../store';
+import { useJobStore } from '../../store';
 import { CostBreakDown } from '../../models';
-import Toast from 'react-native-toast-message';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'JobSummary'>;
@@ -24,7 +28,6 @@ type Props = {
 
 const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
   const { createJob, selectedPromoCode, resetCreateJob } = useJobStore();
-  const { user } = useAuthStore();
   const [costBreakdown, setCostBreakdown] = useState<CostBreakDown | null>(null);
 
   const { loading: estimateLoading, execute: fetchEstimate } = useApi<CostBreakDown>(JobsApi.estimateBreakdown);
@@ -54,12 +57,12 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
 
   const handlePostJob = async () => {
     Alert.alert(
-      'Confirm Booking',
-      'Are you sure you want to post this job?',
+      'Confirm Service Request',
+      'Are you sure you want to confirm and post this booking?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Confirm',
+          text: 'Confirm Booking',
           onPress: async () => {
             try {
               const params = {
@@ -70,16 +73,16 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
               await postJob(params);
               Toast.show({
                 type: 'success',
-                text1: 'Job Posted!',
-                text2: 'Your service request has been sent to available workers.',
+                text1: 'Booking Confirmed!',
+                text2: 'Your request has been dispatched to available barbers.',
               });
               resetCreateJob();
               navigation.navigate('Categories');
             } catch (error: any) {
               Toast.show({
                 type: 'error',
-                text1: 'Booking Failed',
-                text2: error.message || 'Please try again',
+                text1: 'Booking Error',
+                text2: error.message || 'Could not complete booking request.',
               });
             }
           },
@@ -90,122 +93,129 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.back}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Booking Summary</Text>
-          <View style={{ width: 40 }} />
-        </View>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-        {/* Service Details */}
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Booking Summary</Text>
+        <View style={{ width: 44 }} />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Service Details Card */}
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Service</Text>
-          <Text style={styles.cardValue}>{createJob.serviceName}</Text>
-          <Text style={styles.cardSub}>{createJob.subServiceName}</Text>
+          <View style={styles.cardHeaderRow}>
+            <Ionicons name="cut-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+            <Text style={styles.cardTitle}>SERVICE DETAILS</Text>
+          </View>
+          <Text style={styles.cardValue}>{createJob.serviceName || 'Grooming Service'}</Text>
+          <Text style={styles.cardSub}>{createJob.subServiceName || 'Standard Package'}</Text>
         </View>
 
-        {/* Worker Details */}
+        {/* Professional Details Card */}
         {createJob.selectedSp && (
           <View style={styles.card}>
-            <Text style={styles.cardLabel}>Selected Worker</Text>
+            <View style={styles.cardHeaderRow}>
+              <Ionicons name="person-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+              <Text style={styles.cardTitle}>SELECTED BARBER</Text>
+            </View>
             <Text style={styles.cardValue}>{createJob.selectedSp.name}</Text>
-            <Text style={styles.cardSub}>⭐ {createJob.selectedSp.avgRating}</Text>
+            <Text style={styles.cardSub}>⭐ {createJob.selectedSp.avgRating?.toFixed(1) || '5.0'} Rating</Text>
           </View>
         )}
 
-        {/* Date/Location */}
+        {/* Schedule & Location */}
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>When & Where</Text>
+          <View style={styles.cardHeaderRow}>
+            <Ionicons name="calendar-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+            <Text style={styles.cardTitle}>WHEN & WHERE</Text>
+          </View>
           <Text style={styles.cardValue}>
             {createJob.jobStartTime
               ? new Date(createJob.jobStartTime).toLocaleString()
-              : 'Not set'}
+              : 'As Soon As Possible'}
           </Text>
-          <Text style={styles.cardSub}>{createJob.primaryAddress || 'Address not set'}</Text>
+          <Text style={styles.cardSub}>{createJob.primaryAddress || 'Service address specified'}</Text>
         </View>
 
-        {/* Cost Breakdown */}
+        {/* Promo Code Pill */}
+        <TouchableOpacity
+          style={styles.promoPill}
+          onPress={() => navigation.getParent()?.navigate('PromoCodes')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="pricetag-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+          <Text style={styles.promoText}>
+            {selectedPromoCode ? `Promo Applied: ${selectedPromoCode.code}` : 'Apply Promo Code / Coupon'}
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color={Colors.ButtonPrimaryColor} />
+        </TouchableOpacity>
+
+        {/* Cost Breakdown Receipt */}
         <View style={styles.costCard}>
-          <Text style={styles.costTitle}>Cost Breakdown</Text>
+          <Text style={styles.costTitle}>PAYMENT RECEIPT SUMMARY</Text>
 
           <View style={styles.costRow}>
-            <Text style={styles.costLabel}>Service Charges</Text>
+            <Text style={styles.costLabel}>Base Service Charges</Text>
             <Text style={styles.costValue}>
-              {costBreakdown?.currency || '$'}
-              {costBreakdown?.serviceCharges || 0}
+              {costBreakdown?.currency || '$'}{costBreakdown?.serviceCharges?.toFixed(2) || '0.00'}
             </Text>
           </View>
 
           {costBreakdown?.totalLineItemAmount ? (
             <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Line Items</Text>
+              <Text style={styles.costLabel}>Sub-Service Line Items</Text>
               <Text style={styles.costValue}>
-                {costBreakdown.currency}
-                {costBreakdown.totalLineItemAmount}
+                {costBreakdown.currency}{costBreakdown.totalLineItemAmount.toFixed(2)}
               </Text>
             </View>
           ) : null}
 
           {costBreakdown?.discountAmount ? (
             <View style={styles.costRow}>
-              <Text style={[styles.costLabel, styles.discountText]}>Discount</Text>
-              <Text style={[styles.costValue, styles.discountText]}>
-                -{costBreakdown.currency}
-                {costBreakdown.discountAmount}
-              </Text>
-            </View>
-          ) : null}
-
-          {costBreakdown?.referralDiscount ? (
-            <View style={styles.costRow}>
-              <Text style={[styles.costLabel, styles.discountText]}>Referral Discount</Text>
-              <Text style={[styles.costValue, styles.discountText]}>
-                -{costBreakdown.currency}
-                {costBreakdown.referralDiscount}
+              <Text style={styles.discountLabel}>Promo Discount</Text>
+              <Text style={styles.discountValue}>
+                -{costBreakdown.currency}{costBreakdown.discountAmount.toFixed(2)}
               </Text>
             </View>
           ) : null}
 
           {costBreakdown?.walletAmount ? (
             <View style={styles.costRow}>
-              <Text style={[styles.costLabel, styles.discountText]}>Wallet Credit</Text>
-              <Text style={[styles.costValue, styles.discountText]}>
-                -{costBreakdown.currency}
-                {costBreakdown.walletAmount}
+              <Text style={styles.discountLabel}>Wallet Credits</Text>
+              <Text style={styles.discountValue}>
+                -{costBreakdown.currency}{costBreakdown.walletAmount.toFixed(2)}
               </Text>
             </View>
           ) : null}
 
           <View style={styles.divider} />
 
-          <View style={styles.costRow}>
-            <Text style={styles.totalLabel}>Total Amount</Text>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total Due</Text>
             <Text style={styles.totalValue}>
-              {costBreakdown?.currency || '$'}
-              {costBreakdown?.totalAmount || 0}
+              {costBreakdown?.currency || '$'}{costBreakdown?.totalAmount?.toFixed(2) || '0.00'}
             </Text>
           </View>
         </View>
 
-        {/* Promo Code */}
-        <TouchableOpacity
-          style={styles.promoRow}
-          onPress={() => navigation.getParent()?.navigate('PromoCodes')}
-        >
-          <Text style={styles.promoLabel}>
-            {selectedPromoCode ? `Promo: ${selectedPromoCode.code}` : 'Apply Promo Code'}
-          </Text>
-          <Text style={styles.promoArrow}>→</Text>
-        </TouchableOpacity>
-
+        {/* Confirm Button */}
         <VTButton
-          title={posting ? 'Posting...' : 'Confirm & Post Job'}
+          title={posting ? 'Posting Request...' : 'Confirm & Post Booking'}
           onPress={handlePostJob}
           loading={posting}
           style={styles.postButton}
+          textStyle={styles.postButtonText}
         />
       </ScrollView>
 
@@ -217,119 +227,169 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
-  },
-  scrollContent: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing['4xl'],
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  back: {
-    fontSize: FontSizes['2xl'],
-    color: Colors.TitleColor,
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  title: {
-    fontSize: FontSizes.lg,
+  headerTitle: {
+    fontSize: FontSizes.xl,
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
+    color: '#0F172A',
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
   },
   card: {
-    backgroundColor: Colors.BGColor,
-    borderRadius: BorderRadius.lg,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
-    marginBottom: Spacing.base,
+    marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.CardColor,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  cardLabel: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: Spacing.xs,
+  },
+  cardTitle: {
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#64748B',
+    letterSpacing: 0.5,
   },
   cardValue: {
     fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
   },
   cardSub: {
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.xs + 1,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  promoPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF4FF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md + 2,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 45, 99, 0.2)',
+  },
+  promoText: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
   },
   costCard: {
-    backgroundColor: Colors.BGColor,
-    borderRadius: BorderRadius.lg,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
-    marginBottom: Spacing.base,
+    marginBottom: Spacing.xl,
     borderWidth: 1,
-    borderColor: Colors.CardColor,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   costTitle: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
     marginBottom: Spacing.md,
+    letterSpacing: 0.5,
   },
   costRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: Spacing.sm,
   },
   costLabel: {
-    fontSize: FontSizes.base,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
+    color: '#64748B',
   },
   costValue: {
-    fontSize: FontSizes.base,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
   },
-  discountText: {
-    color: '#4CAF50',
+  discountLabel: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#22C55E',
+  },
+  discountValue: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#22C55E',
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.CardColor,
+    backgroundColor: '#F1F5F9',
     marginVertical: Spacing.md,
   },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   totalLabel: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.lg,
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
+    color: '#0F172A',
   },
   totalValue: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes['2xl'],
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.ButtonPrimaryColor,
-  },
-  promoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: `${Colors.ButtonPrimaryColor}08`,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
-  },
-  promoLabel: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryColor,
-  },
-  promoArrow: {
-    fontSize: FontSizes.lg,
     color: Colors.ButtonPrimaryColor,
   },
   postButton: {
-    marginTop: Spacing.lg,
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 54,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  postButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
 });
 

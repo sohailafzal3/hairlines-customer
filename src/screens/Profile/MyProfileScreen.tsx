@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View,
+import {
+  View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert } from 'react-native';
+  Alert,
+  StatusBar,
+} from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import Toast from 'react-native-toast-message';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
@@ -17,7 +23,6 @@ import { ProfileApi } from '../../api';
 import { useApi } from '../../hooks';
 import { useAuthStore } from '../../store';
 import { MyProfile } from '../../models';
-import * as ImagePicker from 'expo-image-picker';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'MyProfile'>;
@@ -51,7 +56,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
       setFirstName(profile.firstName || '');
       setLastName(profile.lastName || '');
       setEmail(profile.email || '');
-      setPhone(`${profile.phonePreFix} ${profile.phoneNumber}`);
+      setPhone(`${profile.phonePreFix || ''} ${profile.phoneNumber || ''}`.trim());
       setAddress(profile.residanceAddress?.primaryAddress || '');
     }
   }, [profile]);
@@ -62,7 +67,14 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleImagePick = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') return;
+    if (status !== 'granted') {
+      Toast.show({
+        type: 'error',
+        text1: 'Permission Required',
+        text2: 'Please allow access to your photo library.',
+      });
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -91,16 +103,25 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
         residanceLatitude: 0,
         residanceLongitude: 0,
       });
+      Toast.show({
+        type: 'success',
+        text1: 'Profile Updated',
+        text2: 'Your account details have been saved.',
+      });
       setIsEditing(false);
     } catch (error: any) {
-      console.error('Update error:', error.message);
+      Toast.show({
+        type: 'error',
+        text1: 'Update Failed',
+        text2: error.message || 'Could not update profile details.',
+      });
     }
   };
 
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone.',
+      'Are you sure you want to delete your Hairlines account? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -121,99 +142,133 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+
+      {/* Top Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => (navigation as any).openDrawer()}>
-          <Text style={styles.menuIcon}>☰</Text>
+        <TouchableOpacity
+          onPress={() => (navigation as any).openDrawer?.()}
+          style={styles.menuButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="menu" size={24} color="#0F172A" />
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>My Profile</Text>
-        <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
+
+        <TouchableOpacity onPress={() => setIsEditing(!isEditing)} activeOpacity={0.7} style={styles.editTouch}>
           <Text style={styles.editText}>{isEditing ? 'Cancel' : 'Edit'}</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Profile Image */}
-        <View style={styles.imageSection}>
-          <TouchableOpacity onPress={isEditing ? handleImagePick : undefined} disabled={!isEditing}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Avatar Banner */}
+        <View style={styles.avatarCard}>
+          <TouchableOpacity
+            onPress={isEditing ? handleImagePick : undefined}
+            disabled={!isEditing}
+            activeOpacity={0.9}
+            style={styles.avatarWrapper}
+          >
             {profileImage ? (
               <Image source={{ uri: profileImage }} style={styles.profileImage} />
             ) : (
               <View style={styles.imagePlaceholder}>
                 <Text style={styles.imagePlaceholderText}>
-                  {firstName?.charAt(0) || 'U'}
-                  {lastName?.charAt(0) || ''}
+                  {firstName?.charAt(0)?.toUpperCase() || 'U'}
+                  {lastName?.charAt(0)?.toUpperCase() || ''}
                 </Text>
               </View>
             )}
             {isEditing && (
-              <View style={styles.editIconContainer}>
-                <Text style={styles.editIcon}>📷</Text>
+              <View style={styles.cameraBadge}>
+                <Ionicons name="camera" size={16} color="#FFFFFF" />
               </View>
             )}
           </TouchableOpacity>
+
           <Text style={styles.nameText}>
-            {profile?.name || `${firstName} ${lastName}`}
+            {profile?.name || `${firstName} ${lastName}`.trim() || 'User Profile'}
           </Text>
+
           {profile?.avgRating ? (
-            <View style={styles.ratingContainer}>
-              <Text style={styles.ratingText}>⭐ {profile.avgRating.toFixed(1)}</Text>
+            <View style={styles.ratingBadge}>
+              <Ionicons name="star" size={14} color="#EAB308" style={{ marginRight: 4 }} />
+              <Text style={styles.ratingText}>{profile.avgRating.toFixed(1)} Rating</Text>
             </View>
           ) : null}
         </View>
 
-        {/* Form Fields */}
+        {/* Profile Inputs */}
         <View style={styles.formSection}>
+          <Text style={styles.sectionLabel}>PERSONAL INFORMATION</Text>
+
+          <View style={styles.rowFields}>
+            <VTTextField
+              label="First Name"
+              value={firstName}
+              onChangeText={setFirstName}
+              editable={isEditing}
+              autoCapitalize="words"
+              style={styles.flexHalf}
+            />
+            <VTTextField
+              label="Last Name"
+              value={lastName}
+              onChangeText={setLastName}
+              editable={isEditing}
+              autoCapitalize="words"
+              style={styles.flexHalf}
+            />
+          </View>
+
           <VTTextField
-            label="First Name"
-            value={firstName}
-            onChangeText={setFirstName}
-            editable={isEditing}
-            autoCapitalize="words"
-          />
-          <VTTextField
-            label="Last Name"
-            value={lastName}
-            onChangeText={setLastName}
-            editable={isEditing}
-            autoCapitalize="words"
-          />
-          <VTTextField
-            label="Email"
+            label="Email Address"
             value={email}
             onChangeText={setEmail}
             editable={isEditing}
             keyboardType="email-address"
             autoCapitalize="none"
+            leftIcon={<Ionicons name="mail-outline" size={18} color="#64748B" />}
           />
+
           <VTTextField
-            label="Phone"
+            label="Phone Number"
             value={phone}
             onChangeText={setPhone}
             editable={false}
             keyboardType="phone-pad"
+            leftIcon={<Ionicons name="call-outline" size={18} color="#64748B" />}
           />
+
           <VTTextField
-            label="Address"
+            label="Primary Address"
             value={address}
             onChangeText={setAddress}
             editable={isEditing}
-            multiline
-            numberOfLines={2}
+            leftIcon={<Ionicons name="location-outline" size={18} color="#64748B" />}
           />
+
+          {isEditing && (
+            <VTButton
+              title="Save Changes"
+              onPress={handleSave}
+              loading={updating}
+              style={styles.saveButton}
+              textStyle={styles.saveButtonText}
+            />
+          )}
         </View>
 
-        {isEditing && (
-          <VTButton
-            title="Save Changes"
-            onPress={handleSave}
-            loading={updating}
-            style={styles.saveButton}
-          />
-        )}
-
         {/* Danger Zone */}
-        <View style={styles.dangerSection}>
-          <TouchableOpacity onPress={handleDeleteAccount} style={styles.deleteButton}>
+        <View style={styles.dangerCard}>
+          <Text style={styles.dangerTitle}>ACCOUNT MANAGEMENT</Text>
+          <TouchableOpacity onPress={handleDeleteAccount} style={styles.deleteButton} activeOpacity={0.8}>
+            <Ionicons name="trash-outline" size={18} color="#EF4444" style={{ marginRight: 6 }} />
             <Text style={styles.deleteText}>Delete Account</Text>
           </TouchableOpacity>
         </View>
@@ -227,57 +282,83 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    borderBottomColor: '#F1F5F9',
   },
-  menuIcon: {
-    fontSize: FontSizes.xl,
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   headerTitle: {
-    fontSize: FontSizes.lg,
+    fontSize: FontSizes.xl,
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
+    color: '#0F172A',
+  },
+  editTouch: {
+    padding: 6,
   },
   editText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryRight,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
   },
   scrollContent: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing['4xl'],
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
   },
-  imageSection: {
+  avatarCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
     alignItems: 'center',
     marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: Spacing.md,
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
   },
   imagePlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: Colors.ButtonPrimaryColor,
     justifyContent: 'center',
     alignItems: 'center',
   },
   imagePlaceholderText: {
-    fontSize: FontSizes.xl,
+    fontSize: FontSizes['2xl'],
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.BGColor,
+    color: '#FFFFFF',
   },
-  editIconContainer: {
+  cameraBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
@@ -288,45 +369,88 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: Colors.BGColor,
-  },
-  editIcon: {
-    fontSize: FontSizes.sm,
+    borderColor: '#FFFFFF',
   },
   nameText: {
     fontSize: FontSizes.xl,
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
-    marginTop: Spacing.md,
+    color: '#0F172A',
   },
-  ratingContainer: {
-    marginTop: Spacing.xs,
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF9C3',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    marginTop: 6,
   },
   ratingText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.RadioActive,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#854D0E',
   },
   formSection: {
-    marginBottom: Spacing.lg,
-  },
-  saveButton: {
     marginBottom: Spacing.xl,
   },
-  dangerSection: {
-    marginTop: Spacing.lg,
-    paddingTop: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.CardColor,
+  sectionLabel: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginBottom: Spacing.sm,
+    letterSpacing: 0.5,
+  },
+  rowFields: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  flexHalf: {
+    flex: 1,
+  },
+  saveButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 54,
+    marginTop: Spacing.md,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  saveButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
+  },
+  dangerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+  },
+  dangerTitle: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#EF4444',
+    marginBottom: Spacing.sm,
+    letterSpacing: 0.5,
   },
   deleteButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    borderRadius: BorderRadius.lg,
     paddingVertical: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
   },
   deleteText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.errorViewColor,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#EF4444',
   },
 });
 

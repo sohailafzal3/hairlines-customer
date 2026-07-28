@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View,
+import {
+  View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  RefreshControl } from 'react-native';
+  RefreshControl,
+  StatusBar,
+} from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
@@ -26,19 +30,31 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
 
   const {
-    data: notifications,
+    data: rawNotifications,
     loading,
     error,
     execute: fetchNotifications,
-  } = useApi<NotificationModel[]>(NotificationsApi.fetchNotifications);
+  } = useApi<any>(NotificationsApi.fetchNotifications);
 
   useEffect(() => {
     loadNotifications();
   }, []);
 
+  const getNotificationsList = (): NotificationModel[] => {
+    if (Array.isArray(rawNotifications)) return rawNotifications;
+    if (rawNotifications && typeof rawNotifications === 'object') {
+      const obj = rawNotifications as any;
+      if (Array.isArray(obj.notifications)) return obj.notifications;
+      if (Array.isArray(obj.data)) return obj.data;
+    }
+    return [];
+  };
+
+  const notificationsList = getNotificationsList();
+
   const loadNotifications = async () => {
     const result = await fetchNotifications(0);
-    if (result) {
+    if (result && Array.isArray(result)) {
       const unreadCount = result.filter((n) => !n.isRead).length;
       setNotificationBadge(unreadCount);
     }
@@ -54,57 +70,80 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
     try {
       await NotificationsApi.actionNotifications('read');
       await loadNotifications();
-    } catch (error) {
-      console.error('Mark read error:', error);
+    } catch (err) {
+      console.error('Mark read error:', err);
     }
   };
 
   const renderItem = ({ item }: { item: NotificationModel }) => (
     <TouchableOpacity
-      style={[styles.notificationItem, !item.isRead && styles.notificationUnread]}
-      activeOpacity={0.8}
+      style={[styles.card, !item.isRead && styles.cardUnread]}
+      activeOpacity={0.85}
     >
-      <View style={styles.iconContainer}>
-        <Text style={styles.icon}>🔔</Text>
+      <View style={[styles.iconCircle, !item.isRead && styles.iconCircleUnread]}>
+        <Ionicons
+          name={!item.isRead ? 'notifications' : 'notifications-outline'}
+          size={20}
+          color={!item.isRead ? Colors.ButtonPrimaryColor : '#64748B'}
+        />
       </View>
-      <View style={styles.contentContainer}>
-        <Text style={styles.notificationTitle}>{item.name || 'Notification'}</Text>
+
+      <View style={styles.cardContent}>
+        <View style={styles.titleRow}>
+          <Text style={styles.notificationTitle}>{item.name || 'Notification'}</Text>
+          <Text style={styles.notificationTime}>{item.timePassed}</Text>
+        </View>
         <Text style={styles.notificationMessage} numberOfLines={2}>
           {item.message}
         </Text>
-        <Text style={styles.notificationTime}>{item.timePassed}</Text>
       </View>
+
       {!item.isRead && <View style={styles.unreadDot} />}
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+
+      {/* Top Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => (navigation as any).openDrawer()}>
-          <Text style={styles.menuIcon}>☰</Text>
+        <TouchableOpacity
+          onPress={() => (navigation as any).openDrawer?.()}
+          style={styles.menuButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="menu" size={24} color="#0F172A" />
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity onPress={handleMarkAllRead}>
-          <Text style={styles.markReadText}>Mark all read</Text>
+
+        <TouchableOpacity onPress={handleMarkAllRead} activeOpacity={0.7} style={styles.markReadTouch}>
+          <Text style={styles.markReadText}>Mark Read</Text>
         </TouchableOpacity>
       </View>
 
       <FlatList
-        data={notifications || []}
-        keyExtractor={(item) => item.notificationId}
+        data={notificationsList}
+        keyExtractor={(item) => item.notificationId || Math.random().toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.ButtonPrimaryColor]}
+            tintColor={Colors.ButtonPrimaryColor}
+          />
         }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>🔕</Text>
-              <Text style={styles.emptyTitle}>No notifications</Text>
+              <Ionicons name="notifications-off-outline" size={48} color="#CBD5E1" />
+              <Text style={styles.emptyTitle}>No notifications yet</Text>
               <Text style={styles.emptySubtitle}>
-                You don't have any notifications yet
+                We'll notify you here about booking updates, promos, and service status.
               </Text>
             </View>
           ) : null
@@ -119,103 +158,126 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    borderBottomColor: '#F1F5F9',
   },
-  menuIcon: {
-    fontSize: FontSizes.xl,
-    width: 40,
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   headerTitle: {
-    fontSize: FontSizes.lg,
+    fontSize: FontSizes.xl,
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
+    color: '#0F172A',
+  },
+  markReadTouch: {
+    padding: 6,
   },
   markReadText: {
     fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryRight,
-    width: 80,
-    textAlign: 'right',
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
   },
   listContent: {
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
   },
-  notificationItem: {
+  card: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: Colors.BGColor,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.base,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md + 2,
+    marginBottom: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.CardColor,
+    borderColor: '#F1F5F9',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  notificationUnread: {
-    backgroundColor: `${Colors.ButtonPrimaryColor}05`,
-    borderColor: `${Colors.ButtonPrimaryColor}20`,
+  cardUnread: {
+    backgroundColor: '#EEF4FF',
+    borderColor: 'rgba(34, 45, 99, 0.2)',
   },
-  iconContainer: {
+  iconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: Spacing.md,
   },
-  icon: {
-    fontSize: FontSizes.xl,
+  iconCircleUnread: {
+    backgroundColor: '#FFFFFF',
   },
-  contentContainer: {
+  cardContent: {
     flex: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
   },
   notificationTitle: {
     fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.xs,
-  },
-  notificationMessage: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-    marginBottom: Spacing.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
   },
   notificationTime: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    color: '#94A3B8',
+  },
+  notificationMessage: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#64748B',
+    lineHeight: 18,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.ButtonPrimaryColor,
+    backgroundColor: '#EF4444',
     marginLeft: Spacing.sm,
-    marginTop: Spacing.sm,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: Spacing['4xl'],
-  },
-  emptyEmoji: {
-    fontSize: FontSizes['3xl'],
-    marginBottom: Spacing.lg,
+    justifyContent: 'center',
+    paddingVertical: Spacing['3xl'],
   },
   emptyTitle: {
     fontSize: FontSizes.lg,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginTop: Spacing.md,
   },
   emptySubtitle: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    color: '#94A3B8',
     textAlign: 'center',
+    marginTop: 4,
     paddingHorizontal: Spacing.xl,
   },
 });

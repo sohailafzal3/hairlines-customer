@@ -8,6 +8,7 @@ import {
   TextStyle,
   TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
@@ -27,6 +28,7 @@ interface VTTextFieldProps {
   editable?: boolean;
   multiline?: boolean;
   numberOfLines?: number;
+  leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   onRightIconPress?: () => void;
 }
@@ -46,6 +48,7 @@ const VTTextField: React.FC<VTTextFieldProps> = ({
   editable = true,
   multiline = false,
   numberOfLines = 1,
+  leftIcon,
   rightIcon,
   onRightIconPress,
 }) => {
@@ -55,7 +58,7 @@ const VTTextField: React.FC<VTTextFieldProps> = ({
   return (
     <View style={[styles.container, style]}>
       {label && (
-        <Text style={[styles.label, isFocused && styles.labelFocused]}>
+        <Text style={[styles.label, isFocused && styles.labelFocused, !!error && styles.labelError]}>
           {label}
         </Text>
       )}
@@ -67,6 +70,8 @@ const VTTextField: React.FC<VTTextFieldProps> = ({
           !editable && styles.inputDisabled,
         ]}
       >
+        {leftIcon && <View style={styles.leftIconWrapper}>{leftIcon}</View>}
+
         <TextInput
           style={[
             styles.input,
@@ -74,7 +79,7 @@ const VTTextField: React.FC<VTTextFieldProps> = ({
             inputStyle,
           ]}
           placeholder={placeholder}
-          placeholderTextColor={Colors.PlaceholderInactive}
+          placeholderTextColor="#94A3B8"
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={isSecure}
@@ -87,18 +92,40 @@ const VTTextField: React.FC<VTTextFieldProps> = ({
           multiline={multiline}
           numberOfLines={multiline ? numberOfLines : 1}
         />
+
         {secureTextEntry && (
-          <TouchableOpacity onPress={() => setIsSecure(!isSecure)} style={styles.iconButton}>
-            <Text style={styles.iconText}>{isSecure ? '👁' : '🙈'}</Text>
+          <TouchableOpacity
+            onPress={() => setIsSecure(!isSecure)}
+            style={styles.iconButton}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name={isSecure ? 'eye-off-outline' : 'eye-outline'}
+              size={20}
+              color={isFocused ? Colors.ButtonPrimaryColor : '#64748B'}
+            />
           </TouchableOpacity>
         )}
+
         {rightIcon && (
-          <TouchableOpacity onPress={onRightIconPress} style={styles.iconButton}>
+          <TouchableOpacity
+            onPress={onRightIconPress}
+            style={styles.iconButton}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             {rightIcon}
           </TouchableOpacity>
         )}
       </View>
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+      {!!error && (
+        <View style={styles.errorRow}>
+          <Ionicons name="alert-circle" size={14} color={Colors.errorViewColor} style={{ marginRight: 4 }} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -110,49 +137,71 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.uberMoveMedium,
-    color: Colors.PlaceholderInactive,
+    color: '#334155',
     marginBottom: Spacing.xs,
   },
   labelFocused: {
-    color: Colors.PlaceholderActive,
+    color: Colors.ButtonPrimaryColor,
+    fontFamily: Fonts.uberMoveBold,
+  },
+  labelError: {
+    color: Colors.errorViewColor,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.TextFieldColor,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    paddingHorizontal: Spacing.base,
-    minHeight: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: Spacing.md,
+    minHeight: 52,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   inputFocused: {
-    borderColor: Colors.PlaceholderActive,
+    borderColor: Colors.ButtonPrimaryColor,
+    backgroundColor: '#FFFFFF',
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   inputError: {
     borderColor: Colors.errorViewColor,
+    backgroundColor: '#FEF2F2',
   },
   inputDisabled: {
-    backgroundColor: Colors.disabledGray,
+    backgroundColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
+  },
+  leftIconWrapper: {
+    marginRight: Spacing.sm,
   },
   input: {
     flex: 1,
     fontSize: FontSizes.base,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.TitleColor,
+    fontFamily: Fonts.uberMoveMedium,
+    color: '#0F172A',
     paddingVertical: Spacing.sm,
   },
   iconButton: {
     padding: Spacing.xs,
+    marginLeft: Spacing.xs,
   },
-  iconText: {
-    fontSize: FontSizes.base,
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
   errorText: {
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.uberMoveRegular,
     color: Colors.errorViewColor,
-    marginTop: Spacing.xs,
   },
 });
 

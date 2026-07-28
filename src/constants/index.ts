@@ -1,7 +1,7 @@
 // Constants matching iOS Constants.swift
 export const kSocketUrl = 'https://api.hairlines.app';
-// export const kBaseUrl = 'https://api.hairlines.app/api/v1/en/';
-export const kBaseUrl = 'https://stagingapi.hairlines.app/api/v1/en/';
+export const kBaseUrl = 'https://api.hairlines.app/api/v1/en/';
+// export const kBaseUrl = 'https://stagingapi.hairlines.app/api/v1/en/';
 
 // Third-party Keys
 // TODO: Move these to .env / EAS Secrets (see AGENTS.md Security Considerations)

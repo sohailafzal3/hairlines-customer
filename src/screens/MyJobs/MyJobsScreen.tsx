@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View,
+import {
+  View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
   Image,
-  RefreshControl } from 'react-native';
+  RefreshControl,
+  StatusBar,
+} from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
@@ -16,179 +20,231 @@ import { VTLoading } from '../../components/common';
 import { JobsApi } from '../../api';
 import { useApi } from '../../hooks';
 import { Job } from '../../models';
-import { JobStatus } from '../../constants';
+import { SPJobStatus } from '../../constants';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'MyJobs'>;
 };
 
-type TabType = 'scheduled' | 'history';
-
-const getStatusLabel = (status: number): string => {
-  switch (status) {
-    case JobStatus.Open: return 'Open';
-    case JobStatus.Accepted: return 'Accepted';
-    case JobStatus.Started: return 'Started';
-    case JobStatus.Arrived: return 'Arrived';
-    case JobStatus.StartJob: return 'In Progress';
-    case JobStatus.Completed: return 'Completed';
-    case JobStatus.Finished: return 'Finished';
-    case JobStatus.Rejected: return 'Rejected';
-    case JobStatus.Cancelled: return 'Cancelled';
-    default: return 'Unknown';
-  }
-};
-
-const getStatusColor = (status: number): string => {
-  switch (status) {
-    case JobStatus.Open: return Colors.ButtonPrimaryRight;
-    case JobStatus.Accepted: return '#4CAF50';
-    case JobStatus.Started:
-    case JobStatus.Arrived:
-    case JobStatus.StartJob: return '#FF9800';
-    case JobStatus.Completed:
-    case JobStatus.Finished: return '#4CAF50';
-    case JobStatus.Rejected:
-    case JobStatus.Cancelled: return Colors.errorViewColor;
-    default: return Colors.DescriptionTextLight;
-  }
-};
+type SegmentTab = 'upcoming' | 'history';
 
 const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('scheduled');
+  const [activeTab, setActiveTab] = useState<SegmentTab>('upcoming');
   const [refreshing, setRefreshing] = useState(false);
 
   const {
-    data: scheduledJobs,
-    loading: scheduledLoading,
-    execute: fetchScheduled,
-  } = useApi<Job[]>(JobsApi.fetchJobListing);
-
-  const {
-    data: historyJobs,
-    loading: historyLoading,
-    execute: fetchHistory,
-  } = useApi<Job[]>(JobsApi.fetchJobListing);
+    data: jobsData,
+    loading,
+    execute: fetchMyJobs,
+  } = useApi<any>(JobsApi.fetchMyJobs);
 
   useEffect(() => {
-    loadData();
-  }, [activeTab]);
+    loadJobs();
+  }, []);
 
-  const loadData = async () => {
-    if (activeTab === 'scheduled') {
-      await fetchScheduled('upcoming', 0);
-    } else {
-      await fetchHistory('past', 0);
-    }
+  const loadJobs = async () => {
+    await fetchMyJobs(0);
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await loadJobs();
     setRefreshing(false);
   };
 
-  const jobs = activeTab === 'scheduled' ? scheduledJobs : historyJobs;
-  const loading = activeTab === 'scheduled' ? scheduledLoading : historyLoading;
+  const getJobsArray = (): Job[] => {
+    if (Array.isArray(jobsData)) return jobsData;
+    if (jobsData && typeof jobsData === 'object') {
+      const obj = jobsData as any;
+      if (Array.isArray(obj.jobs)) return obj.jobs;
+      if (Array.isArray(obj.data)) return obj.data;
+      if (Array.isArray(obj.list)) return obj.list;
+    }
+    return [];
+  };
 
-  const renderItem = ({ item }: { item: Job }) => (
-    <TouchableOpacity
-      style={styles.jobCard}
-      onPress={() =>
-        navigation.getParent()?.navigate('HomeStack', {
-          screen: 'JobDetails',
-          params: { jobId: item.id },
-        })
-      }
-      activeOpacity={0.8}
-    >
-      <View style={styles.jobHeader}>
-        {item.serviceImage ? (
-          <Image source={{ uri: item.serviceImage }} style={styles.serviceImage} />
-        ) : (
-          <View style={styles.serviceImagePlaceholder}>
-            <Text>📦</Text>
+  const allJobs = getJobsArray();
+
+  const filteredJobs = allJobs.filter((job) => {
+    const isCompletedOrCancelled =
+      job.spJobStatus === SPJobStatus.completed ||
+      job.spJobStatus === SPJobStatus.cancelledBySP ||
+      job.spJobStatus === SPJobStatus.cancelledByUser;
+
+    return activeTab === 'upcoming' ? !isCompletedOrCancelled : isCompletedOrCancelled;
+  });
+
+  const getStatusStyle = (status: number) => {
+    switch (status) {
+      case SPJobStatus.open:
+        return { bg: '#FEF3C7', text: '#D97706' };
+      case SPJobStatus.spAccepted:
+      case SPJobStatus.spStarted:
+      case SPJobStatus.spArrivedAtLocation:
+        return { bg: '#DBEAFE', text: '#2563EB' };
+      case SPJobStatus.completed:
+        return { bg: '#DCFCE7', text: '#16A34A' };
+      case SPJobStatus.cancelledBySP:
+      case SPJobStatus.cancelledByUser:
+        return { bg: '#FEE2E2', text: '#DC2626' };
+      default:
+        return { bg: '#F1F5F9', text: '#64748B' };
+    }
+  };
+
+  const getStatusLabel = (status: number) => {
+    switch (status) {
+      case SPJobStatus.open:
+        return 'Searching Barber';
+      case SPJobStatus.spAccepted:
+        return 'Confirmed';
+      case SPJobStatus.spStarted:
+        return 'In Progress';
+      case SPJobStatus.spArrivedAtLocation:
+        return 'Arrived';
+      case SPJobStatus.completed:
+        return 'Completed';
+      case SPJobStatus.cancelledBySP:
+        return 'Cancelled';
+      case SPJobStatus.cancelledByUser:
+        return 'Cancelled';
+      default:
+        return 'Pending';
+    }
+  };
+
+  const renderItem = ({ item }: { item: Job }) => {
+    const statusStyle = getStatusStyle(item.spJobStatus);
+
+    return (
+      <TouchableOpacity
+        style={styles.jobCard}
+        onPress={() => (navigation as any).navigate('HomeStack', { screen: 'JobDetails', params: { jobId: item.id } })}
+        activeOpacity={0.85}
+      >
+        <View style={styles.cardHeader}>
+          {item.profileImage ? (
+            <Image source={{ uri: item.profileImage }} style={styles.spImage} />
+          ) : (
+            <View style={styles.spImagePlaceholder}>
+              <Text style={styles.spImageText}>{item.name?.charAt(0) || 'B'}</Text>
+            </View>
+          )}
+
+          <View style={styles.spInfo}>
+            <Text style={styles.spName}>{item.name || 'Assigned Barber'}</Text>
+            <Text style={styles.serviceName}>{item.serviceName || 'Grooming Service'}</Text>
+            <Text style={styles.addressText} numberOfLines={1}>
+              📍 {item.primaryAddress || 'Customer Location'}
+            </Text>
           </View>
-        )}
-        <View style={styles.jobInfo}>
-          <Text style={styles.serviceName}>{item.serviceName}</Text>
-          <Text style={styles.spName}>{item.name}</Text>
-          <Text style={styles.address} numberOfLines={1}>{item.primaryAddress}</Text>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(item.spJobStatus)}15` }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.spJobStatus) }]}>
-            {getStatusLabel(item.spJobStatus)}
-          </Text>
-        </View>
-      </View>
 
-      <View style={styles.jobFooter}>
-        <Text style={styles.dateText}>{item.jobStartTime}</Text>
-        <Text style={styles.amountText}>
-          {item.currency}{item.totalAmount}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+          <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+            <Text style={[styles.statusText, { color: statusStyle.text }]}>
+              {getStatusLabel(item.spJobStatus)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.cardFooter}>
+          <View style={styles.dateRow}>
+            <Ionicons name="calendar-outline" size={14} color="#64748B" style={{ marginRight: 4 }} />
+            <Text style={styles.dateText}>{item.jobStartTime || 'Scheduled Time'}</Text>
+          </View>
+
+          <View style={styles.footerRight}>
+            <TouchableOpacity
+              style={styles.chatPill}
+              onPress={() => (navigation as any).navigate('HomeStack', { screen: 'Chat', params: { jobId: item.id, spName: item.name } })}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={14} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
+              <Text style={styles.chatPillText}>Chat</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.amountText}>
+              {item.currency || '$'}{item.totalAmount || '0.00'}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+
+      {/* Top Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => (navigation as any).openDrawer()}>
-          <Text style={styles.menuIcon}>☰</Text>
+        <TouchableOpacity
+          onPress={() => (navigation as any).openDrawer?.()}
+          style={styles.menuButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="menu" size={24} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Services</Text>
-        <View style={{ width: 40 }} />
+        <Text style={styles.headerTitle}>My Bookings</Text>
+        <View style={{ width: 44 }} />
       </View>
 
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
+      {/* Segment Tab Bar */}
+      <View style={styles.tabBar}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'scheduled' && styles.tabActive]}
-          onPress={() => setActiveTab('scheduled')}
+          style={[styles.tabSegment, activeTab === 'upcoming' && styles.tabSegmentActive]}
+          onPress={() => setActiveTab('upcoming')}
+          activeOpacity={0.8}
         >
-          <Text style={[styles.tabText, activeTab === 'scheduled' && styles.tabTextActive]}>
-            Scheduled
+          <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>
+            Upcoming Bookings
           </Text>
         </TouchableOpacity>
+
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'history' && styles.tabActive]}
+          style={[styles.tabSegment, activeTab === 'history' && styles.tabSegmentActive]}
           onPress={() => setActiveTab('history')}
+          activeOpacity={0.8}
         >
           <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>
-            History
+            Booking History
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Job List */}
+      {/* Jobs List */}
       <FlatList
-        data={jobs || []}
-        keyExtractor={(item) => item.id}
+        data={filteredJobs}
+        keyExtractor={(item) => item.id || Math.random().toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.ButtonPrimaryColor]}
+            tintColor={Colors.ButtonPrimaryColor}
+          />
         }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>📋</Text>
+              <Ionicons name="calendar-outline" size={48} color="#CBD5E1" />
               <Text style={styles.emptyTitle}>
-                No {activeTab} jobs
+                {activeTab === 'upcoming' ? 'No upcoming bookings' : 'No past bookings'}
               </Text>
               <Text style={styles.emptySubtitle}>
-                {activeTab === 'scheduled'
-                  ? 'Book a service to see your scheduled jobs here'
-                  : 'Your completed jobs will appear here'}
+                {activeTab === 'upcoming'
+                  ? 'Book a new haircut or grooming service to get started.'
+                  : 'Your completed and cancelled booking history will appear here.'}
               </Text>
             </View>
           ) : null
         }
       />
 
-      <VTLoading visible={loading && !refreshing} />
+      <VTLoading visible={loading && !refreshing && allJobs.length === 0} />
     </SafeAreaView>
   );
 };
@@ -196,151 +252,192 @@ const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    borderBottomColor: '#F1F5F9',
   },
-  menuIcon: {
-    fontSize: FontSizes.xl,
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   headerTitle: {
-    fontSize: FontSizes.lg,
+    fontSize: FontSizes.xl,
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
+    color: '#0F172A',
   },
-  tabContainer: {
+  tabBar: {
     flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.base,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.xs,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    borderBottomColor: '#F1F5F9',
+    gap: Spacing.sm,
   },
-  tab: {
+  tabSegment: {
     flex: 1,
-    paddingVertical: Spacing.md,
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.lg,
   },
-  tabActive: {
-    borderBottomColor: Colors.ButtonPrimaryColor,
+  tabSegmentActive: {
+    backgroundColor: '#EEF4FF',
   },
   tabText: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.xs + 1,
     fontFamily: Fonts.uberMoveMedium,
-    color: Colors.DescriptionTextLight,
+    color: '#64748B',
   },
   tabTextActive: {
+    fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
   },
   listContent: {
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
   },
   jobCard: {
-    backgroundColor: Colors.BGColor,
-    borderRadius: BorderRadius.lg,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
-    marginBottom: Spacing.base,
+    marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.CardColor,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  jobHeader: {
+  cardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: Spacing.md,
   },
-  serviceImage: {
-    width: 50,
-    height: 50,
-    borderRadius: BorderRadius.base,
+  spImage: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    marginRight: Spacing.md,
   },
-  serviceImagePlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: BorderRadius.base,
-    backgroundColor: Colors.TextFieldColor,
+  spImagePlaceholder: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.ButtonPrimaryColor,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: Spacing.md,
   },
-  jobInfo: {
+  spImageText: {
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
+  },
+  spInfo: {
     flex: 1,
-    marginLeft: Spacing.md,
-  },
-  serviceName: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-    marginBottom: 2,
+    marginRight: Spacing.xs,
   },
   spName: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-    marginBottom: 2,
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
   },
-  address: {
+  serviceName: {
+    fontSize: FontSizes.xs + 1,
+    fontFamily: Fonts.uberMoveMedium,
+    color: Colors.ButtonPrimaryColor,
+    marginTop: 2,
+  },
+  addressText: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    color: '#64748B',
+    marginTop: 2,
   },
   statusBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
   },
   statusText: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.uberMoveMedium,
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
   },
-  jobFooter: {
+  cardFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: Colors.CardColor,
+    justifyContent: 'space-between',
     paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   dateText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveMedium,
+    color: '#64748B',
+  },
+  footerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  chatPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF4FF',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 45, 99, 0.15)',
+  },
+  chatPillText: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
   },
   amountText: {
     fontSize: FontSizes.md,
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.ButtonPrimaryColor,
+    color: '#0F172A',
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: Spacing['4xl'],
-  },
-  emptyEmoji: {
-    fontSize: FontSizes['3xl'],
-    marginBottom: Spacing.lg,
+    justifyContent: 'center',
+    paddingVertical: Spacing['3xl'],
   },
   emptyTitle: {
     fontSize: FontSizes.lg,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginTop: Spacing.md,
   },
   emptySubtitle: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    color: '#94A3B8',
     textAlign: 'center',
+    marginTop: 4,
     paddingHorizontal: Spacing.xl,
   },
 });

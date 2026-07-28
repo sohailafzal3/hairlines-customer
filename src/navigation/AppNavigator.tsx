@@ -7,6 +7,7 @@ import NotificationsScreen from '../screens/Notifications/NotificationsScreen';
 import MyProfileScreen from '../screens/Profile/MyProfileScreen';
 import WalletScreen from '../screens/Wallet/WalletScreen';
 import PaymentsScreen from '../screens/Payments/PaymentsScreen';
+import AddCardScreen from '../screens/Payments/AddCardScreen';
 import PromoCodesScreen from '../screens/PromoCodes/PromoCodesScreen';
 import ShareReferralScreen from '../screens/Share/ShareReferralScreen';
 import ContactSupportScreen from '../screens/ContactSupport/ContactSupportScreen';
@@ -21,6 +22,7 @@ export type AppDrawerParamList = {
   MyProfile: undefined;
   Wallet: undefined;
   Payments: undefined;
+  AddCard: undefined;
   PromoCodes: undefined;
   ShareReferral: undefined;
   ContactSupport: undefined;
@@ -47,6 +49,7 @@ const AppNavigator = () => {
       <Drawer.Screen name="MyProfile" component={MyProfileScreen} />
       <Drawer.Screen name="Wallet" component={WalletScreen} />
       <Drawer.Screen name="Payments" component={PaymentsScreen} />
+      <Drawer.Screen name="AddCard" component={AddCardScreen} />
       <Drawer.Screen name="PromoCodes" component={PromoCodesScreen} />
       <Drawer.Screen name="ShareReferral" component={ShareReferralScreen} />
       <Drawer.Screen name="ContactSupport" component={ContactSupportScreen} />
