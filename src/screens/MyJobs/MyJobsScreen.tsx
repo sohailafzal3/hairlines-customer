@@ -21,6 +21,7 @@ import { JobsApi } from '../../api';
 import { useApi } from '../../hooks';
 import { Job } from '../../models';
 import { SPJobStatus } from '../../constants';
+import { formatJobDate } from '../../utils/helpers';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'MyJobs'>;
@@ -149,7 +150,7 @@ const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.cardFooter}>
           <View style={styles.dateRow}>
             <Ionicons name="calendar-outline" size={14} color="#64748B" style={{ marginRight: 4 }} />
-            <Text style={styles.dateText}>{item.jobStartTime || 'Scheduled Time'}</Text>
+            <Text style={styles.dateText}>{formatJobDate(item.jobStartTime, 'Scheduled Time')}</Text>
           </View>
 
           <View style={styles.footerRight}>

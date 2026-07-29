@@ -11,9 +11,7 @@ import {
 import MapView, { Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { Colors } from '../../theme/colors';
-import { Fonts, FontSizes } from '../../theme/fonts';
-import { Spacing, BorderRadius } from '../../theme/spacing';
+import { Colors, Fonts, FontSizes, Spacing, BorderRadius } from '../../theme';
 import { VTButton } from '../../components/common';
 
 const MapScreen = ({ navigation, route }: any) => {
@@ -63,13 +61,17 @@ const MapScreen = ({ navigation, route }: any) => {
   };
 
   const handleConfirm = () => {
-    navigation.navigate('SetLocation', {
-      selectedArea: addressText,
-      selectedCity: city,
-      selectedState: state,
-      selectedCountry: country,
-      latitude: region.latitude,
-      longitude: region.longitude,
+    navigation.navigate({
+      name: 'SetLocation',
+      params: {
+        selectedArea: addressText,
+        selectedCity: city,
+        selectedState: state,
+        selectedCountry: country,
+        latitude: region.latitude,
+        longitude: region.longitude,
+      },
+      merge: true,
     });
   };
 

@@ -9,6 +9,8 @@ import {
   Image,
   Alert,
   StatusBar,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -161,118 +163,123 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
       >
-        {/* Avatar Banner */}
-        <View style={styles.avatarCard}>
-          <TouchableOpacity
-            onPress={isEditing ? handleImagePick : undefined}
-            disabled={!isEditing}
-            activeOpacity={0.9}
-            style={styles.avatarWrapper}
-          >
-            {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.profileImage} />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <Text style={styles.imagePlaceholderText}>
-                  {firstName?.charAt(0)?.toUpperCase() || 'U'}
-                  {lastName?.charAt(0)?.toUpperCase() || ''}
-                </Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Avatar Banner */}
+          <View style={styles.avatarCard}>
+            <TouchableOpacity
+              onPress={isEditing ? handleImagePick : undefined}
+              disabled={!isEditing}
+              activeOpacity={0.9}
+              style={styles.avatarWrapper}
+            >
+              {profileImage ? (
+                <Image source={{ uri: profileImage }} style={styles.profileImage} />
+              ) : (
+                <View style={styles.imagePlaceholder}>
+                  <Text style={styles.imagePlaceholderText}>
+                    {firstName?.charAt(0)?.toUpperCase() || 'U'}
+                    {lastName?.charAt(0)?.toUpperCase() || ''}
+                  </Text>
+                </View>
+              )}
+              {isEditing && (
+                <View style={styles.cameraBadge}>
+                  <Ionicons name="camera" size={16} color="#FFFFFF" />
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <Text style={styles.nameText}>
+              {profile?.name || `${firstName} ${lastName}`.trim() || 'User Profile'}
+            </Text>
+
+            {profile?.avgRating ? (
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={14} color="#EAB308" style={{ marginRight: 4 }} />
+                <Text style={styles.ratingText}>{profile.avgRating.toFixed(1)} Rating</Text>
               </View>
-            )}
-            {isEditing && (
-              <View style={styles.cameraBadge}>
-                <Ionicons name="camera" size={16} color="#FFFFFF" />
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <Text style={styles.nameText}>
-            {profile?.name || `${firstName} ${lastName}`.trim() || 'User Profile'}
-          </Text>
-
-          {profile?.avgRating ? (
-            <View style={styles.ratingBadge}>
-              <Ionicons name="star" size={14} color="#EAB308" style={{ marginRight: 4 }} />
-              <Text style={styles.ratingText}>{profile.avgRating.toFixed(1)} Rating</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {/* Profile Inputs */}
-        <View style={styles.formSection}>
-          <Text style={styles.sectionLabel}>PERSONAL INFORMATION</Text>
-
-          <View style={styles.rowFields}>
-            <VTTextField
-              label="First Name"
-              value={firstName}
-              onChangeText={setFirstName}
-              editable={isEditing}
-              autoCapitalize="words"
-              style={styles.flexHalf}
-            />
-            <VTTextField
-              label="Last Name"
-              value={lastName}
-              onChangeText={setLastName}
-              editable={isEditing}
-              autoCapitalize="words"
-              style={styles.flexHalf}
-            />
+            ) : null}
           </View>
 
-          <VTTextField
-            label="Email Address"
-            value={email}
-            onChangeText={setEmail}
-            editable={isEditing}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            leftIcon={<Ionicons name="mail-outline" size={18} color="#64748B" />}
-          />
+          {/* Profile Inputs */}
+          <View style={styles.formSection}>
+            <Text style={styles.sectionLabel}>PERSONAL INFORMATION</Text>
 
-          <VTTextField
-            label="Phone Number"
-            value={phone}
-            onChangeText={setPhone}
-            editable={false}
-            keyboardType="phone-pad"
-            leftIcon={<Ionicons name="call-outline" size={18} color="#64748B" />}
-          />
+            <View style={styles.rowFields}>
+              <VTTextField
+                label="First Name"
+                value={firstName}
+                onChangeText={setFirstName}
+                editable={isEditing}
+                autoCapitalize="words"
+                style={styles.flexHalf}
+              />
+              <VTTextField
+                label="Last Name"
+                value={lastName}
+                onChangeText={setLastName}
+                editable={isEditing}
+                autoCapitalize="words"
+                style={styles.flexHalf}
+              />
+            </View>
 
-          <VTTextField
-            label="Primary Address"
-            value={address}
-            onChangeText={setAddress}
-            editable={isEditing}
-            leftIcon={<Ionicons name="location-outline" size={18} color="#64748B" />}
-          />
-
-          {isEditing && (
-            <VTButton
-              title="Save Changes"
-              onPress={handleSave}
-              loading={updating}
-              style={styles.saveButton}
-              textStyle={styles.saveButtonText}
+            <VTTextField
+              label="Email Address"
+              value={email}
+              onChangeText={setEmail}
+              editable={isEditing}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              leftIcon={<Ionicons name="mail-outline" size={18} color="#64748B" />}
             />
-          )}
-        </View>
 
-        {/* Danger Zone */}
-        <View style={styles.dangerCard}>
-          <Text style={styles.dangerTitle}>ACCOUNT MANAGEMENT</Text>
-          <TouchableOpacity onPress={handleDeleteAccount} style={styles.deleteButton} activeOpacity={0.8}>
-            <Ionicons name="trash-outline" size={18} color="#EF4444" style={{ marginRight: 6 }} />
-            <Text style={styles.deleteText}>Delete Account</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+            <VTTextField
+              label="Phone Number"
+              value={phone}
+              onChangeText={setPhone}
+              editable={false}
+              keyboardType="phone-pad"
+              leftIcon={<Ionicons name="call-outline" size={18} color="#64748B" />}
+            />
+
+            <VTTextField
+              label="Primary Address"
+              value={address}
+              onChangeText={setAddress}
+              editable={isEditing}
+              leftIcon={<Ionicons name="location-outline" size={18} color="#64748B" />}
+            />
+
+            {isEditing && (
+              <VTButton
+                title="Save Changes"
+                onPress={handleSave}
+                loading={updating}
+                style={styles.saveButton}
+                textStyle={styles.saveButtonText}
+              />
+            )}
+          </View>
+
+          {/* Danger Zone */}
+          <View style={styles.dangerCard}>
+            <Text style={styles.dangerTitle}>ACCOUNT MANAGEMENT</Text>
+            <TouchableOpacity onPress={handleDeleteAccount} style={styles.deleteButton} activeOpacity={0.8}>
+              <Ionicons name="trash-outline" size={18} color="#EF4444" style={{ marginRight: 6 }} />
+              <Text style={styles.deleteText}>Delete Account</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <VTLoading visible={loading} />
     </SafeAreaView>
@@ -283,6 +290,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

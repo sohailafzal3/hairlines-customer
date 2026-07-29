@@ -17,9 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import Toast from 'react-native-toast-message';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
-import { Colors } from '../../theme/colors';
-import { Fonts, FontSizes } from '../../theme/fonts';
-import { Spacing, BorderRadius } from '../../theme/spacing';
+import { Colors, Fonts, FontSizes, Spacing, BorderRadius } from '../../theme';
 import { VTButton, VTTextField } from '../../components/common';
 import { useJobStore, useUserStore } from '../../store';
 import { NewAddress } from '../../models';
@@ -148,7 +146,7 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
           text1: 'Location Detected',
           text2: fullAddr,
         });
-        navigation.goBack();
+        exitLocationFlow();
       }
     } catch (error) {
       console.error('Location error:', error);
@@ -160,6 +158,28 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
     } finally {
       setLoadingLocation(false);
     }
+  };
+
+  const exitLocationFlow = () => {
+    setShowForm(false);
+    const routes = navigation.getState()?.routes || [];
+    let targetIndex = -1;
+    for (let i = routes.length - 1; i >= 0; i--) {
+      const rName = routes[i].name;
+      if (rName !== 'SetLocation' && rName !== 'Map') {
+        targetIndex = i;
+        break;
+      }
+    }
+
+    if (targetIndex >= 0) {
+      const popCount = (routes.length - 1) - targetIndex;
+      if (popCount > 0) {
+        navigation.pop(popCount);
+        return;
+      }
+    }
+    navigation.goBack();
   };
 
   const handleOpenMap = () => {
@@ -183,7 +203,7 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
       text1: `${savedAddr.type} Address Selected`,
       text2: savedAddr.primaryAddress,
     });
-    navigation.goBack();
+    exitLocationFlow();
   };
 
   const handleStartAddOrEdit = (tag: 'Home' | 'Work', savedAddr?: NewAddress) => {
@@ -258,8 +278,7 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
       text1: 'Address Saved',
       text2: `${addressTag} address saved successfully.`,
     });
-    setShowForm(false);
-    navigation.goBack();
+    exitLocationFlow();
   };
 
   return (

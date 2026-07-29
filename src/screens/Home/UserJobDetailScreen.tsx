@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
@@ -16,13 +16,11 @@ import { RouteProp } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
-import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
-import { Colors } from '../../theme/colors';
-import { Fonts, FontSizes } from '../../theme/fonts';
-import { Spacing, BorderRadius } from '../../theme/spacing';
+import { Colors, Fonts, FontSizes, Spacing, BorderRadius } from '../../theme';
 import { VTButton, VTTextField } from '../../components/common';
 import { useJobStore } from '../../store';
+import { formatJobDate, parseDate } from '../../utils/helpers';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'UserJobDetail'>;
@@ -33,11 +31,18 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { serviceInfo } = route.params || {};
   const { createJob, setCreateJobField } = useJobStore();
 
-  const [date, setDate] = useState(new Date());
+  const [date] = useState(new Date());
   const [description, setDescription] = useState(createJob.descriptionText || '');
   const [specialInstructions, setSpecialInstructions] = useState(createJob.specialInstruction || '');
   const [locationMode, setLocationMode] = useState<'user' | 'sp'>(createJob.atSpLocation ? 'sp' : 'user');
   const [styleImage, setStyleImage] = useState(createJob.stylePreferenceImage || '');
+
+  useEffect(() => {
+    // Sanitize any stale invalid date string stored in Zustand / AsyncStorage
+    if (createJob.jobStartTime && !parseDate(createJob.jobStartTime)) {
+      setCreateJobField('jobStartTime', '');
+    }
+  }, []);
 
   const handleOpenDatePicker = () => {
     navigation.navigate('Calendar');
@@ -78,27 +83,11 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     navigation.navigate('SuggestedMovers');
   };
 
-  const formatDate = (d: Date) => {
-    if (createJob.jobStartTime) {
-      try {
-        return new Date(createJob.jobStartTime).toLocaleString('en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-      } catch (e) {
-        // fallback
-      }
+  const getDisplayDateText = () => {
+    if (createJob.jobStartTime && parseDate(createJob.jobStartTime)) {
+      return formatJobDate(createJob.jobStartTime);
     }
-    return d.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatJobDate(date);
   };
 
   return (
@@ -162,7 +151,7 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.dateLabel}>Date & Time</Text>
-              <Text style={styles.dateValueText}>{formatDate(date)}</Text>
+              <Text style={styles.dateValueText}>{getDisplayDateText()}</Text>
             </View>
             <View style={styles.changePill}>
               <Text style={styles.changePillText}>Change</Text>

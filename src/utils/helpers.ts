@@ -3,8 +3,57 @@ import { Platform } from 'react-native';
 export const isIOS = Platform.OS === 'ios';
 export const isAndroid = Platform.OS === 'android';
 
-export function formatDate(date: Date | string, format: string = 'MM/dd/yyyy'): string {
-  const d = new Date(date);
+export function parseDate(dateInput: Date | string | number | undefined | null): Date | null {
+  if (!dateInput) return null;
+  if (dateInput instanceof Date) {
+    return isNaN(dateInput.getTime()) ? null : dateInput;
+  }
+  if (typeof dateInput === 'number') {
+    const d = new Date(dateInput);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof dateInput !== 'string') return null;
+
+  const cleaned = dateInput.trim();
+  if (!cleaned) return null;
+
+  // Try standard parse
+  let d = new Date(cleaned);
+  if (!isNaN(d.getTime())) return d;
+
+  // Handle "YYYY-MM-DD hh:mm AM/PM" or "YYYY-MM-DD HH:mm:ss" or "YYYY-MM-DD HH:mm"
+  const match12 = cleaned.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?$/i);
+  if (match12) {
+    let [_, yearStr, monthStr, dayStr, hoursStr, minutesStr, secondsStr, ampm] = match12;
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10) - 1;
+    const day = parseInt(dayStr, 10);
+    let hours = hoursStr ? parseInt(hoursStr, 10) : 0;
+    const minutes = minutesStr ? parseInt(minutesStr, 10) : 0;
+    const seconds = secondsStr ? parseInt(secondsStr, 10) : 0;
+
+    if (ampm) {
+      const isPM = ampm.toUpperCase() === 'PM';
+      if (isPM && hours < 12) hours += 12;
+      if (!isPM && hours === 12) hours = 0;
+    }
+    d = new Date(year, month, day, hours, minutes, seconds);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  // Try replacing '-' with '/' or replacing space with 'T'
+  d = new Date(cleaned.replace(/-/g, '/'));
+  if (!isNaN(d.getTime())) return d;
+
+  d = new Date(cleaned.replace(' ', 'T'));
+  if (!isNaN(d.getTime())) return d;
+
+  return null;
+}
+
+export function formatDate(date: Date | string | number | undefined | null, format: string = 'MM/dd/yyyy'): string {
+  const d = parseDate(date);
+  if (!d) return '';
   const pad = (n: number) => n.toString().padStart(2, '0');
   const map: Record<string, string> = {
     MM: pad(d.getMonth() + 1),
@@ -15,6 +64,30 @@ export function formatDate(date: Date | string, format: string = 'MM/dd/yyyy'): 
     ss: pad(d.getSeconds()),
   };
   return format.replace(/MM|dd|yyyy|HH|mm|ss/g, match => map[match]);
+}
+
+export function formatJobDate(dateInput: Date | string | number | undefined | null, fallback: string = 'Select Date & Time'): string {
+  const d = parseDate(dateInput);
+  if (!d) {
+    if (
+      typeof dateInput === 'string' &&
+      dateInput.trim() &&
+      !/invalid/i.test(dateInput) &&
+      !/nan/i.test(dateInput) &&
+      !/null/i.test(dateInput) &&
+      !/undefined/i.test(dateInput)
+    ) {
+      return dateInput.trim();
+    }
+    return fallback;
+  }
+  return d.toLocaleString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 export function formatPhoneNumber(phone: string): string {

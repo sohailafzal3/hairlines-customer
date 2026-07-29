@@ -23,6 +23,7 @@ import { JobsApi } from '../../api';
 import { useApi } from '../../hooks';
 import { JobDetail } from '../../models';
 import { JobStatus } from '../../constants';
+import { formatJobDate } from '../../utils/helpers';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'JobDetails'>;
@@ -261,7 +262,7 @@ const JobDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
 
               <InfoRow icon="cut-outline" label="Service" value={job.serviceName} />
               <InfoRow icon="location-outline" label="Address" value={job.primaryAddress} />
-              <InfoRow icon="calendar-outline" label="Date & Time" value={job.jobStartTime || job.expectedJobStartTime || 'Scheduled'} />
+              <InfoRow icon="calendar-outline" label="Date & Time" value={formatJobDate(job.jobStartTime || job.expectedJobStartTime, 'Scheduled')} />
               <InfoRow icon="cash-outline" label="Total Amount" value={`${job.currency || '$'}${job.totalAmount || '0.00'}`} />
               {job.specialInstruction ? (
                 <InfoRow icon="information-circle-outline" label="Instructions" value={job.specialInstruction} />

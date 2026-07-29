@@ -22,6 +22,8 @@ import { useApi } from '../../hooks';
 import { useJobStore } from '../../store';
 import { CostBreakDown } from '../../models';
 
+import { formatJobDate } from '../../utils/helpers';
+
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'JobSummary'>;
 };
@@ -141,9 +143,7 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.cardTitle}>WHEN & WHERE</Text>
           </View>
           <Text style={styles.cardValue}>
-            {createJob.jobStartTime
-              ? new Date(createJob.jobStartTime).toLocaleString()
-              : 'As Soon As Possible'}
+            {formatJobDate(createJob.jobStartTime, 'As Soon As Possible')}
           </Text>
           <Text style={styles.cardSub}>{createJob.primaryAddress || 'Service address specified'}</Text>
         </View>

@@ -66,6 +66,12 @@ const initialJobState: CreateJobData = {
   isOldJob: false,
 };
 
+const zustandStorage = {
+  getItem: (name: string) => AsyncStorage.getItem(name),
+  setItem: (name: string, value: string) => AsyncStorage.setItem(name, value),
+  removeItem: (name: string) => AsyncStorage.removeItem(name),
+};
+
 export const useJobStore = create<JobState>()(
   persist(
     (set) => ({
@@ -93,7 +99,7 @@ export const useJobStore = create<JobState>()(
     }),
     {
       name: 'job-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => zustandStorage),
     }
   )
 );

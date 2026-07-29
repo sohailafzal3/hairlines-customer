@@ -19,6 +19,8 @@ import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTButton } from '../../components/common';
 import { useJobStore } from '../../store';
 
+import { parseDate } from '../../utils/helpers';
+
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Calendar'>;
 };
@@ -51,8 +53,14 @@ const CalendarScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
-    setCreateJobField('jobStartTime', `${selectedDate} ${selectedTime}`);
-    setCreateJobField('weekDay', new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' }));
+    const fullDateStr = `${selectedDate} ${selectedTime}`;
+    const parsedObj = parseDate(fullDateStr) || parseDate(selectedDate);
+    const weekDay = parsedObj
+      ? parsedObj.toLocaleDateString('en-US', { weekday: 'long' })
+      : 'Monday';
+
+    setCreateJobField('jobStartTime', fullDateStr);
+    setCreateJobField('weekDay', weekDay);
 
     Toast.show({
       type: 'success',
