@@ -313,5 +313,3 @@ const styles = StyleSheet.create({
 });
 
 export default LoginSignUpScreen;
-
-export default LoginSignUpScreen;
