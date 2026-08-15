@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FontAwesome, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -15,38 +14,12 @@ import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTButton } from '../../components/common';
-import { AuthApi } from '../../api';
-import { useAuthStore } from '../../store';
-import { Storage } from '../../utils/storage';
-import { STORAGE_KEYS } from '../../constants';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'LoginSignUp'>;
 };
 
 const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
-  const { setAccount, setLoggedIn } = useAuthStore();
-
-  const handleGuestLogin = async () => {
-    try {
-      const deviceToken = '0000000000000000000000000000000000000000000000000000000000000000';
-      const account = await AuthApi.signUpGuest({
-        countryCode: '+1',
-        phoneNumber: '',
-        deviceToken,
-        deviceType: Platform.OS === 'ios' ? 'ios' : 'android',
-      });
-      if (account) {
-        setAccount(account);
-        setLoggedIn(true);
-        await Storage.setItem(STORAGE_KEYS.kIsGuestUserLoggedIn, 'true');
-        await Storage.setItem(STORAGE_KEYS.kIsUserLoggedIn, 'true');
-      }
-    } catch (error) {
-      console.error('Guest login error:', error);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
@@ -90,44 +63,26 @@ const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.bottomSection}>
           {/* Sign Up Button */}
           <VTButton
-            title="Sign Up"
+            title="SIGN UP NOW"
             onPress={() => navigation.navigate('SignIn', { isSignUp: true })}
             style={styles.signUpButton}
             textStyle={styles.signUpButtonText}
           />
 
-          {/* Sign In Button */}
-          <VTButton
-            title="Sign In"
-            variant="outline"
+          {/* Facebook sign-in */}
+          <TouchableOpacity style={styles.facebookButton} activeOpacity={0.8}>
+            <FontAwesome name="facebook" size={22} color="#FFFFFF" />
+            <Text style={styles.facebookText}>Sign In with Facebook</Text>
+          </TouchableOpacity>
+
+          {/* Existing account link */}
+          <TouchableOpacity
             onPress={() => navigation.navigate('SignIn', { isSignUp: false })}
-            style={styles.signInButton}
-            textStyle={styles.signInButtonText}
-          />
-
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or continue with</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Social Row */}
-          <View style={styles.socialRow}>
-            <TouchableOpacity style={styles.socialCircle} activeOpacity={0.8}>
-              <FontAwesome name="facebook" size={20} color="#1877F2" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialCircle} activeOpacity={0.8}>
-              <FontAwesome name="google" size={20} color="#EA4335" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialCircle} activeOpacity={0.8}>
-              <FontAwesome name="apple" size={22} color="#0F172A" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Guest Link */}
-          <TouchableOpacity onPress={handleGuestLogin} style={styles.guestTouch} activeOpacity={0.7}>
-            <Text style={styles.guestText}>Continue as Guest</Text>
+            style={styles.accountTouch}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.accountPrompt}>Already have an account? </Text>
+            <Text style={styles.accountLink}>SIGN IN</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -251,60 +206,34 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.uberMoveBold,
     color: '#FFFFFF',
   },
-  signInButton: {
-    borderColor: '#CBD5E1',
-    borderRadius: BorderRadius.lg,
+  facebookButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xl,
     minHeight: 54,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: '#4A6BAA',
     marginBottom: Spacing.lg,
-    backgroundColor: '#FFFFFF',
-  },
-  signInButtonText: {
-    fontSize: FontSizes.base,
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.ButtonPrimaryColor,
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E2E8F0',
-  },
-  dividerText: {
-    marginHorizontal: Spacing.md,
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.uberMoveMedium,
-    color: '#94A3B8',
-  },
-  socialRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.lg,
-    marginBottom: Spacing.lg,
-  },
-  socialCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
     elevation: 2,
   },
-  guestTouch: {
+  facebookText: {
+    color: '#FFFFFF',
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveRegular,
+  },
+  accountTouch: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: Spacing.xs,
   },
-  guestText: {
+  accountPrompt: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#A0A0A0',
+  },
+  accountLink: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
