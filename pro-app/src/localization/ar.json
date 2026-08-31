@@ -1,0 +1,81 @@
+{
+  "appName": "HareCut Professional",
+  "common": {
+    "ok": "موافق",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "next": "التالي",
+    "back": "رجوع",
+    "submit": "إرسال",
+    "loading": "جارٍ التحميل…",
+    "retry": "إعادة المحاولة",
+    "done": "تم",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "logout": "تسجيل الخروج",
+    "online": "متصل",
+    "offline": "غير متصل"
+  },
+  "auth": {
+    "welcome": "مرحباً",
+    "signIn": "تسجيل الدخول",
+    "signUp": "إنشاء حساب",
+    "guest": "المتابعة كضيف",
+    "phoneNumber": "رقم الهاتف",
+    "password": "كلمة المرور",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "verificationCode": "رمز التحقق",
+    "didntReceiveCode": "لم تستلم الرمز؟",
+    "resend": "إعادة الإرسال",
+    "enterCode": "أدخل الرمز المكون من 4 أرقام"
+  },
+  "onboarding": {
+    "personalInfo": "المعلومات الشخصية",
+    "services": "الخدمات",
+    "certificates": "الترخيص المهني",
+    "identity": "وثائق الهوية",
+    "banking": "البنك واللغات",
+    "availability": "التوفر",
+    "thankYou": "شكراً لك!",
+    "completeProfile": "أكمل ملفك الشخصي لبدء استقبال الطلبات."
+  },
+  "home": {
+    "title": "الرئيسية",
+    "noJobs": "لا توجد طلبات",
+    "newOffer": "عرض عمل جديد",
+    "accept": "قبول",
+    "reject": "رفض",
+    "startDriving": "بدء التوجه",
+    "arrived": "تم الوصول",
+    "startService": "بدء الخدمة",
+    "complete": "إنهاء",
+    "cancel": "إلغاء الطلب"
+  },
+  "job": {
+    "details": "تفاصيل الطلب",
+    "costBreakdown": "تفاصيل التكلفة",
+    "lineItems": "البنود",
+    "addLineItem": "إضافة بند",
+    "rateUser": "تقييم العميل",
+    "call": "اتصال",
+    "chat": "محادثة",
+    "specialInstructions": "تعليمات خاصة"
+  },
+  "drawer": {
+    "home": "الرئيسية",
+    "notifications": "الإشعارات",
+    "profile": "الملف الشخصي",
+    "wallet": "المحفظة",
+    "earnings": "الأرباح",
+    "settings": "الإعدادات",
+    "share": "شارك واحصل على خصم",
+    "terms": "الشروط",
+    "referral": "الإحالة",
+    "support": "الدعم"
+  },
+  "validation": {
+    "required": "هذا الحقل مطلوب",
+    "invalidEmail": "البريد الإلكتروني غير صالح",
+    "passwordMismatch": "كلمتا المرور غير متطابقتين"
+  }
+}

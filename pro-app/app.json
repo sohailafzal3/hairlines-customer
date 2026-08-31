@@ -1,0 +1,84 @@
+{
+  "expo": {
+    "name": "Hairlines Pro",
+    "slug": "HairlinesProRN",
+    "version": "1.0.10",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "hairlinespro",
+    "ios": {
+      "bundleIdentifier": "com.apps.hairlinespro",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Hairlines Pro uses your location to show nearby jobs and track service visits.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Hairlines Pro tracks your location in the background while you are on a job.",
+        "NSLocationAlwaysUsageDescription": "Hairlines Pro tracks your location in the background while you are on a job.",
+        "NSCameraUsageDescription": "Hairlines Pro needs camera access to upload profile and document photos.",
+        "NSPhotoLibraryUsageDescription": "Hairlines Pro needs photo library access to upload profile and document photos.",
+        "GMSApiKey": "AIzaSyBRO8-9PkS3p4ZTay5BjR53QJUOQoFvg6M",
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "remote-notification",
+          "voip"
+        ]
+      }
+    },
+    "android": {
+      "package": "com.apps.hairlinespro",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "POST_NOTIFICATIONS",
+        "INTERNET"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBRO8-9PkS3p4ZTay5BjR53QJUOQoFvg6M"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.apps.hairlinespro",
+          "enableGooglePay": true
+        }
+      ],
+      "expo-localization",
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Hairlines Pro tracks your location in the background while you are on a job.",
+          "locationWhenInUsePermission": "Hairlines Pro uses your location to show nearby jobs and track service visits."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2E7D32"
+        }
+      ],
+      "expo-font"
+    ]
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "appName": "HareCut Professional",
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "next": "Next",
+    "back": "Back",
+    "submit": "Submit",
+    "loading": "Loading…",
+    "retry": "Retry",
+    "done": "Done",
+    "delete": "Delete",
+    "edit": "Edit",
+    "logout": "Logout",
+    "online": "Online",
+    "offline": "Offline"
+  },
+  "auth": {
+    "welcome": "Welcome",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "guest": "Continue as Guest",
+    "phoneNumber": "Phone Number",
+    "password": "Password",
+    "forgotPassword": "Forgot Password?",
+    "verificationCode": "Verification Code",
+    "didntReceiveCode": "Didn't receive a code?",
+    "resend": "Resend",
+    "enterCode": "Enter the 4-digit code we sent you"
+  },
+  "onboarding": {
+    "personalInfo": "Personal Info",
+    "services": "Services",
+    "certificates": "Professional License",
+    "identity": "Identity Documents",
+    "banking": "Banking & Languages",
+    "availability": "Availability",
+    "thankYou": "Thank You!",
+    "completeProfile": "Complete your profile to start receiving jobs."
+  },
+  "home": {
+    "title": "Home",
+    "noJobs": "No jobs available",
+    "newOffer": "New Job Offer",
+    "accept": "Accept",
+    "reject": "Reject",
+    "startDriving": "Start Driving",
+    "arrived": "Arrived",
+    "startService": "Start Service",
+    "complete": "Complete",
+    "cancel": "Cancel Job"
+  },
+  "job": {
+    "details": "Job Details",
+    "costBreakdown": "Cost Breakdown",
+    "lineItems": "Line Items",
+    "addLineItem": "Add Line Item",
+    "rateUser": "Rate Customer",
+    "call": "Call",
+    "chat": "Chat",
+    "specialInstructions": "Special Instructions"
+  },
+  "drawer": {
+    "home": "Home",
+    "notifications": "Notifications",
+    "profile": "Profile",
+    "wallet": "In-app Wallet",
+    "earnings": "Payment History",
+    "settings": "Settings",
+    "share": "Share & Get Discount",
+    "terms": "Terms & Services",
+    "referral": "Referral",
+    "support": "Contact Support"
+  },
+  "validation": {
+    "required": "This field is required",
+    "invalidEmail": "Please enter a valid email",
+    "passwordMismatch": "Passwords do not match"
+  }
+}

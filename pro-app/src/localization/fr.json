@@ -1,0 +1,81 @@
+{
+  "appName": "HareCut Professional",
+  "common": {
+    "ok": "OK",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "next": "Suivant",
+    "back": "Retour",
+    "submit": "Envoyer",
+    "loading": "Chargement…",
+    "retry": "Réessayer",
+    "done": "Terminé",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "logout": "Déconnexion",
+    "online": "En ligne",
+    "offline": "Hors ligne"
+  },
+  "auth": {
+    "welcome": "Bienvenue",
+    "signIn": "Connexion",
+    "signUp": "Inscription",
+    "guest": "Continuer en invité",
+    "phoneNumber": "Numéro de téléphone",
+    "password": "Mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "verificationCode": "Code de vérification",
+    "didntReceiveCode": "Vous n'avez pas reçu de code ?",
+    "resend": "Renvoyer",
+    "enterCode": "Entrez le code à 4 chiffres"
+  },
+  "onboarding": {
+    "personalInfo": "Infos personnelles",
+    "services": "Services",
+    "certificates": "Licence professionnelle",
+    "identity": "Documents d'identité",
+    "banking": "Banque & langues",
+    "availability": "Disponibilité",
+    "thankYou": "Merci !",
+    "completeProfile": "Complétez votre profil pour commencer à recevoir des demandes."
+  },
+  "home": {
+    "title": "Accueil",
+    "noJobs": "Aucune demande",
+    "newOffer": "Nouvelle offre",
+    "accept": "Accepter",
+    "reject": "Refuser",
+    "startDriving": "Commencer le trajet",
+    "arrived": "Arrivé",
+    "startService": "Démarrer le service",
+    "complete": "Terminer",
+    "cancel": "Annuler la demande"
+  },
+  "job": {
+    "details": "Détails",
+    "costBreakdown": "Détail des coûts",
+    "lineItems": "Articles",
+    "addLineItem": "Ajouter un article",
+    "rateUser": "Noter le client",
+    "call": "Appeler",
+    "chat": "Chat",
+    "specialInstructions": "Instructions spéciales"
+  },
+  "drawer": {
+    "home": "Accueil",
+    "notifications": "Notifications",
+    "profile": "Profil",
+    "wallet": "Portefeuille",
+    "earnings": "Historique de paiement",
+    "settings": "Paramètres",
+    "share": "Partager & obtenir une remise",
+    "terms": "Conditions",
+    "referral": "Parrainage",
+    "support": "Support"
+  },
+  "validation": {
+    "required": "Ce champ est requis",
+    "invalidEmail": "E-mail invalide",
+    "passwordMismatch": "Les mots de passe ne correspondent pas"
+  }
+}

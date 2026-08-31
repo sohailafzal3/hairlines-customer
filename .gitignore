@@ -1,4 +1,11 @@
-node_modules
-.env
-package-lock.json
-dist
+customer-app/node_modules
+customer-app/.env
+customer-app/package-lock.json
+customer-app/dist
+customer-app/AGENTS.md
+
+pro-app/node_modules
+pro-app/.env
+pro-app/package-lock.json
+pro-app/dist
+pro-app/AGENTS.md
