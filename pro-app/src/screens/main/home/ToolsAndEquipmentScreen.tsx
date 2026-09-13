@@ -78,16 +78,21 @@ export function ToolsAndEquipmentScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   content: { padding: 16, flex: 1 },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEE",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
-  tool: { fontSize: 15, color: "#333" },
-  remove: { color: "#C62828", fontSize: 16, fontWeight: "700" },
+  tool: { fontSize: 15, fontWeight: "500", color: "#0F172A" },
+  remove: { color: "#EF4444", fontSize: 16, fontWeight: "700" },
 });
+

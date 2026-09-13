@@ -2,14 +2,17 @@ import { NavigatorScreenParams } from "@react-navigation/native";
 
 export type AuthStackParamList = {
   Landing: undefined;
-  SignIn: { mode?: "signIn" | "signUp" } | undefined;
+  SignIn: { mode?: "signIn" | "signUp"; isSignUp?: boolean; selectedCountryCode?: string; selectedFlag?: string } | undefined;
+  SignUp: { selectedCountryCode?: string; selectedFlag?: string } | undefined;
   Verification: {
     phoneNumber: string;
     countryCode: string;
     code: string;
     isSignUp: boolean;
+    isForgotPassword?: boolean;
   };
-  ForgotPassword: { phoneNumber?: string } | undefined;
+  ForgotPassword: { phoneNumber?: string; selectedCountryCode?: string; selectedFlag?: string } | undefined;
+  SelectCountry: { selectedCode?: string; returnScreen?: "SignIn" | "SignUp" | "ForgotPassword" } | undefined;
 };
 
 export type OnboardingStackParamList = {

@@ -25,6 +25,9 @@ export const JobsApi = {
   fetchJobListing: (listType: string, offset: number = 0) =>
     apiClient.get<Job[]>(`user/job/listing?listType=${listType}&offset=${offset}&limit=${kOffSet}`),
 
+  fetchMyJobs: (offset: number = 0) =>
+    apiClient.get<Job[]>(`user/job/listing?listType=my_jobs&offset=${offset}&limit=${kOffSet}`),
+
   fetchJobDetail: (jobId: string) =>
     apiClient.get<JobDetail>(`user/job/${jobId}/detail`),
 

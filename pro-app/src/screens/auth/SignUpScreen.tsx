@@ -14,22 +14,21 @@ import {
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthStackParamList } from "../../navigation/types";
-import { Button } from "../../components/Button";
-import { LoadingOverlay } from "../../components/LoadingOverlay";
-import { api } from "../../services/api";
 import { Colors } from "../../theme/colors";
 import { FontSizes, FontWeights } from "../../theme/fonts";
 import { Spacing, BorderRadius } from "../../theme/spacing";
+import { Button } from "../../components/Button";
+import { LoadingOverlay } from "../../components/LoadingOverlay";
+import { api } from "../../services/api";
 
-type Props = NativeStackScreenProps<AuthStackParamList, "ForgotPassword">;
+type Props = NativeStackScreenProps<AuthStackParamList, "SignUp">;
 
-export function ForgotPasswordScreen({ route, navigation }: Props) {
-  const [phoneNumber, setPhoneNumber] = useState(route.params?.phoneNumber ?? "");
+export function SignUpScreen({ route, navigation }: Props) {
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [countryCode, setCountryCode] = useState(route.params?.selectedCountryCode || "+1");
   const [flagEmoji, setFlagEmoji] = useState(route.params?.selectedFlag || "🇺🇸");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
 
   useEffect(() => {
     if (route.params?.selectedCountryCode) {
@@ -44,13 +43,17 @@ export function ForgotPasswordScreen({ route, navigation }: Props) {
     if (!phoneNumber.trim()) return;
 
     setErrorMsg("");
-    setSuccessMsg("");
     setLoading(true);
     try {
-      await api.forgotPassword(phoneNumber);
-      setSuccessMsg("Password reset instructions have been sent successfully.");
-    } catch (e: any) {
-      setErrorMsg(e.message || "Failed to process request. Please try again.");
+      await api.sendVerificationCode(phoneNumber, countryCode);
+      navigation.navigate("Verification", {
+        countryCode,
+        phoneNumber,
+        code: "",
+        isSignUp: true,
+      });
+    } catch (error: any) {
+      setErrorMsg(error.message || "Failed to send verification code. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -86,13 +89,13 @@ export function ForgotPasswordScreen({ route, navigation }: Props) {
 
             {/* Title Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Retrieve Password</Text>
+              <Text style={styles.title}>Create Partner Account</Text>
               <Text style={styles.subtitle}>
-                Enter your registered mobile phone number to receive reset instructions
+                Enter your phone number to get started with Hairlines Pro
               </Text>
             </View>
 
-            {/* Error Banner */}
+            {/* Inline Error Banner */}
             {!!errorMsg && (
               <View style={styles.errorContainer}>
                 <Ionicons
@@ -105,20 +108,7 @@ export function ForgotPasswordScreen({ route, navigation }: Props) {
               </View>
             )}
 
-            {/* Success Banner */}
-            {!!successMsg && (
-              <View style={styles.successContainer}>
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={18}
-                  color="#059669"
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={styles.successBannerText}>{successMsg}</Text>
-              </View>
-            )}
-
-            {/* Form Fields */}
+            {/* Input Form Fields */}
             <View style={styles.formCard}>
               <Text style={styles.inputLabel}>Mobile Phone Number</Text>
               <View style={styles.phoneRow}>
@@ -129,7 +119,7 @@ export function ForgotPasswordScreen({ route, navigation }: Props) {
                   onPress={() =>
                     navigation.navigate("SelectCountry", {
                       selectedCode: countryCode,
-                      returnScreen: "ForgotPassword",
+                      returnScreen: "SignUp",
                     })
                   }
                 >
@@ -156,7 +146,7 @@ export function ForgotPasswordScreen({ route, navigation }: Props) {
           {/* Bottom Section - Submit Button & Footer Link */}
           <View style={styles.bottomSection}>
             <Button
-              title="Send Reset Instructions"
+              title="Continue to Sign Up"
               onPress={handleSubmit}
               loading={loading}
               disabled={!phoneNumber.trim()}
@@ -165,18 +155,13 @@ export function ForgotPasswordScreen({ route, navigation }: Props) {
             />
 
             <View style={styles.footerRow}>
+              <Text style={styles.footerText}>Already have an account? </Text>
               <TouchableOpacity
                 onPress={() => navigation.navigate("SignIn", { mode: "signIn" })}
-                style={styles.backToSignInTouch}
                 activeOpacity={0.7}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons
-                  name="arrow-back-circle-outline"
-                  size={18}
-                  color={Colors.ButtonPrimaryColor}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={styles.backToSignInText}>Back to Sign In</Text>
+                <Text style={styles.footerLinkText}>Sign In</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -251,22 +236,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.medium,
     color: Colors.errorViewColor,
-  },
-  successContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ECFDF5",
-    borderWidth: 1,
-    borderColor: "#A7F3D0",
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  successBannerText: {
-    flex: 1,
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.medium,
-    color: "#059669",
   },
   formCard: {
     width: "100%",
@@ -348,16 +317,17 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   footerRow: {
-    alignItems: "center",
+    flexDirection: "row",
     justifyContent: "center",
-    paddingTop: Spacing.xl,
+    alignItems: "center",
+    paddingTop: Spacing.lg,
     paddingBottom: Spacing.xs,
   },
-  backToSignInTouch: {
-    flexDirection: "row",
-    alignItems: "center",
+  footerText: {
+    fontSize: FontSizes.md,
+    color: "#64748B",
   },
-  backToSignInText: {
+  footerLinkText: {
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
     color: Colors.ButtonPrimaryColor,

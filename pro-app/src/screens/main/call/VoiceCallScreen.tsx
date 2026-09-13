@@ -47,9 +47,10 @@ export function VoiceCallScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  name: { fontSize: 24, fontWeight: "700", marginTop: 20, color: "#333" },
-  number: { fontSize: 16, color: "#666", marginTop: 6 },
+  name: { fontSize: 24, fontWeight: "700", marginTop: 20, color: "#1E293B" },
+  number: { fontSize: 16, color: "#64748B", marginTop: 6 },
   actions: { padding: 24, paddingBottom: 40 },
 });
+

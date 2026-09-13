@@ -71,19 +71,21 @@ export function CancellationReasonsScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   content: { padding: 16, paddingBottom: 32 },
-  title: { fontSize: 20, fontWeight: "700", marginBottom: 16, color: "#333" },
+  title: { fontSize: 20, fontWeight: "700", marginBottom: 16, color: "#1E293B" },
   reason: {
     padding: 14,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#DDD",
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
     marginBottom: 8,
   },
   reasonSelected: {
-    borderColor: "#C62828",
-    backgroundColor: "#FFEBEE",
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
   },
-  reasonText: { fontSize: 15, color: "#333" },
+  reasonText: { fontSize: 15, color: "#1E293B" },
 });
+

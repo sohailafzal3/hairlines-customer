@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Ionicons } from "@expo/vector-icons";
 import { MainDrawerParamList } from "../../../navigation/types";
 import { Header } from "../../../components/Header";
 import { Button } from "../../../components/Button";
@@ -9,6 +10,9 @@ import { LoadingOverlay } from "../../../components/LoadingOverlay";
 import { api } from "../../../services/api";
 import { showAlert } from "../../../utils/helpers";
 import { Service, SubServiceDetail } from "../../../types";
+import { Colors } from "../../../theme/colors";
+import { FontSizes, FontWeights } from "../../../theme/fonts";
+import { BorderRadius, Spacing } from "../../../theme/spacing";
 
 type Props = NativeStackScreenProps<MainDrawerParamList, "CreateWorker">;
 
@@ -57,58 +61,113 @@ export function CreateWorkerScreen({ navigation }: Props) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <View style={styles.container}>
       <Header title="Invite Worker" onBackPress={() => navigation.goBack()} />
-      <LoadingOverlay visible={loading} />
-      <Input label="Name" value={name} onChangeText={setName} />
-      <Input label="Email" value={email} onChangeText={setEmail} />
-      <Input label="Phone" value={phone} onChangeText={setPhone} />
-      <Text style={styles.section}>Assign Services</Text>
-      {services.map((service) => (
-        <View key={service._id} style={styles.card}>
-          <Text style={styles.serviceName}>{service.serviceName}</Text>
-          {service.subServiceDetails?.map((sub: SubServiceDetail) => (
-            <TouchableOpacity
-              key={sub._id}
-              onPress={() => toggleSub(sub._id)}
-              style={styles.row}
-            >
-              <Text style={styles.subText}>{sub.subServiceName}</Text>
-              <Text style={styles.check}>
-                {selected.has(sub._id || "") ? "✓" : "○"}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <LoadingOverlay visible={loading} />
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Worker Information</Text>
+          <Input label="Full Name" placeholder="e.g. Alex Johnson" value={name} onChangeText={setName} />
+          <Input label="Email Address" placeholder="alex@example.com" value={email} onChangeText={setEmail} keyboardType="email-address" />
+          <Input label="Phone Number" placeholder="512345678" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
         </View>
-      ))}
-      <Button title="Send Invite" onPress={submit} />
-    </ScrollView>
+
+        <Text style={styles.section}>ASSIGN SERVICES</Text>
+        {services.map((service) => (
+          <View key={service._id} style={styles.serviceCard}>
+            <Text style={styles.serviceName}>{service.serviceName}</Text>
+            {service.subServiceDetails?.map((sub: SubServiceDetail) => {
+              const isChecked = selected.has(sub._id || "");
+              return (
+                <TouchableOpacity
+                  key={sub._id}
+                  onPress={() => toggleSub(sub._id)}
+                  style={styles.row}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.subText, isChecked && styles.subTextChecked]}>
+                    {sub.subServiceName}
+                  </Text>
+                  <Ionicons
+                    name={isChecked ? "checkbox" : "square-outline"}
+                    size={22}
+                    color={isChecked ? Colors.ButtonPrimaryColor : "#94A3B8"}
+                  />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ))}
+
+        <Button title="Send Invite to Worker" onPress={submit} style={styles.submitBtn} />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: "#fff", flexGrow: 1 },
-  section: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginTop: 16,
-    marginBottom: 8,
-    color: "#333",
+  container: { flex: 1, backgroundColor: Colors.ScreenBG },
+  content: {
+    padding: Spacing.base,
+    paddingBottom: Spacing["3xl"],
   },
   card: {
-    backgroundColor: "#FAFAFA",
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.base,
     borderWidth: 1,
-    borderColor: "#EEE",
+    borderColor: Colors.BorderColor,
+    marginBottom: Spacing.base,
   },
-  serviceName: { fontSize: 16, fontWeight: "700", color: "#333", marginBottom: 8 },
+  cardTitle: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+    marginBottom: Spacing.base,
+  },
+  section: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.bold,
+    marginBottom: Spacing.sm,
+    color: Colors.DescriptionTextDark,
+    letterSpacing: 0.5,
+  },
+  serviceCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.base,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.BorderColor,
+  },
+  serviceName: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+    marginBottom: Spacing.xs,
+  },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 8,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
   },
-  subText: { fontSize: 14, color: "#555" },
-  check: { fontSize: 16, color: "#2E7D32", fontWeight: "700" },
+  subText: {
+    fontSize: FontSizes.sm,
+    color: "#475569",
+  },
+  subTextChecked: {
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  submitBtn: {
+    marginTop: Spacing.base,
+  },
 });
+

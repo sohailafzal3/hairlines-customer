@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { OnboardingStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
+import { Header } from "../../components/Header";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
 import { api } from "../../services/api";
 import { showAlert } from "../../utils/helpers";
@@ -47,33 +48,36 @@ export function ServicesScreen({ navigation }: Props) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <LoadingOverlay visible={loading} />
-      <Text style={styles.title}>{t("onboarding:services")}</Text>
-      {services.map((service) => (
-        <View key={service._id} style={styles.card}>
-          <TouchableOpacity onPress={() => toggleService(service._id)}>
-            <View style={styles.row}>
-              <Text style={styles.serviceName}>{service.serviceName}</Text>
-              <Text style={styles.check}>
-                {selected.has(service._id || "") ? "✓" : "○"}
+    <View style={styles.container}>
+      <Header title={t("onboarding:services")} onBackPress={() => navigation.goBack()} />
+      <ScrollView contentContainerStyle={styles.content}>
+        <LoadingOverlay visible={loading} />
+        {services.map((service) => (
+          <View key={service._id} style={styles.card}>
+            <TouchableOpacity onPress={() => toggleService(service._id)}>
+              <View style={styles.row}>
+                <Text style={styles.serviceName}>{service.serviceName}</Text>
+                <Text style={styles.check}>
+                  {selected.has(service._id || "") ? "✓" : "○"}
+                </Text>
+              </View>
+            </TouchableOpacity>
+            {service.subServiceDetails?.map((sub: SubServiceDetail) => (
+              <Text key={sub._id} style={styles.sub}>
+                • {sub.subServiceName}
               </Text>
-            </View>
-          </TouchableOpacity>
-          {service.subServiceDetails?.map((sub: SubServiceDetail) => (
-            <Text key={sub._id} style={styles.sub}>
-              • {sub.subServiceName}
-            </Text>
-          ))}
-        </View>
-      ))}
-      <Button title={t("common:next")} onPress={submit} />
-    </ScrollView>
+            ))}
+          </View>
+        ))}
+        <Button title={t("common:next")} onPress={submit} />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, backgroundColor: "#fff", flexGrow: 1 },
+  container: { flex: 1, backgroundColor: "#fff" },
+  content: { padding: 24, paddingBottom: 40 },
   title: { fontSize: 24, fontWeight: "700", marginBottom: 16, color: "#333" },
   card: {
     backgroundColor: "#FAFAFA",
@@ -89,6 +93,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   serviceName: { fontSize: 16, fontWeight: "600", color: "#333" },
-  check: { fontSize: 18, color: "#2E7D32", fontWeight: "700" },
+  check: { fontSize: 18, color: "#222D63", fontWeight: "700" },
   sub: { fontSize: 13, color: "#666", marginTop: 4 },
 });
+

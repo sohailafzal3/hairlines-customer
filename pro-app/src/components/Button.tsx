@@ -7,6 +7,9 @@ import {
   ViewStyle,
   TextStyle,
 } from "react-native";
+import { Colors } from "../theme/colors";
+import { BorderRadius, Spacing } from "../theme/spacing";
+import { FontSizes, FontWeights } from "../theme/fonts";
 
 interface Props {
   title: string;
@@ -41,7 +44,13 @@ export function Button({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === "primary" ? "#fff" : "#333"} />
+        <ActivityIndicator
+          color={
+            variant === "primary" || variant === "danger"
+              ? Colors.ButtonTextColor
+              : Colors.ButtonPrimaryColor
+          }
+        />
       ) : (
         <Text style={[styles.text, styles[`${variant}Text`], textStyle]}>
           {title}
@@ -54,20 +63,50 @@ export function Button({
 const styles = StyleSheet.create({
   button: {
     paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.lg,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 50,
   },
-  primary: { backgroundColor: "#2E7D32" },
-  secondary: { backgroundColor: "#E0E0E0" },
-  danger: { backgroundColor: "#C62828" },
-  ghost: { backgroundColor: "transparent", borderWidth: 1, borderColor: "#2E7D32" },
-  disabled: { opacity: 0.5 },
-  text: { fontSize: 16, fontWeight: "600" },
-  primaryText: { color: "#fff" },
-  secondaryText: { color: "#333" },
-  dangerText: { color: "#fff" },
-  ghostText: { color: "#2E7D32" },
+  primary: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  secondary: {
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: Colors.BorderColor,
+  },
+  danger: {
+    backgroundColor: Colors.errorViewColor,
+    shadowColor: Colors.errorViewColor,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  ghost: {
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: Colors.ButtonPrimaryColor,
+  },
+  disabled: {
+    opacity: 0.5,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  text: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.semibold,
+  },
+  primaryText: { color: Colors.ButtonTextColor },
+  secondaryText: { color: Colors.TitleColor },
+  dangerText: { color: Colors.ButtonTextColor },
+  ghostText: { color: Colors.ButtonPrimaryColor },
 });
+

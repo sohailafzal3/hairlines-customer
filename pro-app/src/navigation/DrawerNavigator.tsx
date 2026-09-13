@@ -2,8 +2,7 @@ import React from "react";
 import {
   createDrawerNavigator,
   DrawerContentScrollView,
-  DrawerItem,
-  DrawerItemList,
+  DrawerContentComponentProps,
 } from "@react-navigation/drawer";
 import { MainDrawerParamList } from "./types";
 import { HomeTabNavigator } from "./HomeTabNavigator";
@@ -20,14 +19,46 @@ import { CreateWorkerScreen } from "../screens/main/workers/CreateWorkerScreen";
 import { HistoryScreen } from "../screens/main/history/HistoryScreen";
 import { useUser } from "../context/UserContext";
 import { api } from "../services/api";
-import { View, Text, StyleSheet, Image } from "react-native";
+import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { TERMS_URL } from "../constants";
+import { Colors } from "../theme/colors";
+import { FontSizes, FontWeights } from "../theme/fonts";
+import { BorderRadius, Spacing } from "../theme/spacing";
 
 const Drawer = createDrawerNavigator<MainDrawerParamList>();
 
-function CustomDrawerContent(props: any) {
+interface MenuItem {
+  label: string;
+  iconName: keyof typeof Ionicons.glyphMap;
+  route: string;
+  params?: any;
+  badge?: string;
+}
+
+const menuItems: MenuItem[] = [
+  { label: "Home Dashboard", iconName: "home-outline", route: "HomeTab" },
+  { label: "Notifications", iconName: "notifications-outline", route: "Notifications" },
+  { label: "My Profile", iconName: "person-outline", route: "Profile" },
+  { label: "Wallet & Balance", iconName: "wallet-outline", route: "Wallet" },
+  { label: "Earnings & Payouts", iconName: "cash-outline", route: "Earnings" },
+  { label: "Manage Workers", iconName: "people-outline", route: "Workers" },
+  { label: "Job History", iconName: "time-outline", route: "History" },
+  { label: "Settings", iconName: "settings-outline", route: "Settings" },
+  { label: "Share & Earn", iconName: "gift-outline", route: "ShareReferral", badge: "Rewards" },
+  {
+    label: "Terms & Policies",
+    iconName: "document-text-outline",
+    route: "Terms",
+    params: { url: TERMS_URL, title: "Terms & Services" },
+  },
+  { label: "Help & Support", iconName: "headset-outline", route: "Support" },
+];
+
+function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { user, clearUser } = useUser();
+  const { navigation, state } = props;
 
   const handleLogout = async () => {
     try {
@@ -39,87 +70,153 @@ function CustomDrawerContent(props: any) {
     await clearUser();
   };
 
-  return (
-    <DrawerContentScrollView {...props} contentContainerStyle={{ flex: 1 }}>
-      <View style={styles.profile}>
-        {user.profileImage ? (
-          <Image source={{ uri: user.profileImage }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarPlaceholder]}>
-            <Text style={styles.initial}>
-              {user.name ? user.name.charAt(0).toUpperCase() : "?"}
-            </Text>
-          </View>
-        )}
-        <Text style={styles.name}>{user.name || "Service Provider"}</Text>
-        <Text style={styles.status}>
-          {user.isApproved ? "Approved" : "Pending Approval"}
-        </Text>
-      </View>
+  const getUserDisplayName = () => {
+    if (user.name) return user.name;
+    const combined = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+    if (combined) return combined;
+    return "Service Provider";
+  };
 
-      <DrawerItem
-        label="Home"
-        icon={({ color }) => <Ionicons name="home-outline" size={22} color={color} />}
-        onPress={() => props.navigation.navigate("HomeTab")}
-      />
-      <DrawerItem
-        label="Notifications"
-        icon={({ color }) => <Ionicons name="notifications-outline" size={22} color={color} />}
-        onPress={() => props.navigation.navigate("Notifications")}
-      />
-      <DrawerItem
-        label="Profile"
-        icon={({ color }) => <Ionicons name="person-outline" size={22} color={color} />}
-        onPress={() => props.navigation.navigate("Profile")}
-      />
-      <DrawerItem
-        label="Wallet"
-        icon={({ color }) => <Ionicons name="wallet-outline" size={22} color={color} />}
-        onPress={() => props.navigation.navigate("Wallet")}
-      />
-      <DrawerItem
-        label="Payment History"
-        icon={({ color }) => <Ionicons name="cash-outline" size={22} color={color} />}
-        onPress={() => props.navigation.navigate("Earnings")}
-      />
-      <DrawerItem
-        label="Settings"
-        icon={({ color }) => <Ionicons name="settings-outline" size={22} color={color} />}
-        onPress={() => props.navigation.navigate("Settings")}
-      />
-      <DrawerItem
-        label="Workers"
-        icon={({ color }) => <Ionicons name="people-outline" size={22} color={color} />}
-        onPress={() => props.navigation.navigate("Workers")}
-      />
-      <DrawerItem
-        label="History"
-        icon={({ color }) => <Ionicons name="time-outline" size={22} color={color} />}
-        onPress={() => props.navigation.navigate("History")}
-      />
-      <DrawerItem
-        label="Share & Get Discount"
-        icon={({ color }) => <Ionicons name="share-outline" size={22} color={color} />}
-        onPress={() => props.navigation.navigate("ShareReferral")}
-      />
-      <DrawerItem
-        label="Terms & Services"
-        icon={({ color }) => <Ionicons name="document-text-outline" size={22} color={color} />}
-        onPress={() =>
-          props.navigation.navigate("Terms", { url: TERMS_URL, title: "Terms & Services" })
-        }
-      />
-      <DrawerItem
-        label="Contact Support"
-        icon={({ color }) => <Ionicons name="headset-outline" size={22} color={color} />}
-        onPress={() => props.navigation.navigate("Support")}
-      />
-      <DrawerItem
-        label="Logout"
-        icon={({ color }) => <Ionicons name="log-out-outline" size={22} color={color} />}
-        onPress={handleLogout}
-      />
-    </DrawerContentScrollView>
+  const getUserSubText = () => {
+    if (user.phoneNumber) {
+      return `${user.phoneCode || ""} ${user.phoneNumber}`.trim();
+    }
+    if (user.email) return user.email;
+    return "Hairlines Professional";
+  };
+
+  const getInitials = () => {
+    const nameStr = getUserDisplayName();
+    const parts = nameStr.split(" ");
+    if (parts.length >= 2) {
+      return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+    }
+    return nameStr.charAt(0).toUpperCase() || "P";
+  };
+
+  const getUserRating = () => {
+    if (user.avgRating && user.avgRating > 0) return user.avgRating.toFixed(1);
+    return "5.0";
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <DrawerContentScrollView
+        {...props}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Pro Profile Header Card */}
+        <View style={styles.profileCard}>
+          <View style={styles.avatarWrapper}>
+            {user.profileImage ? (
+              <Image source={{ uri: user.profileImage }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarText}>{getInitials()}</Text>
+              </View>
+            )}
+            <View style={styles.onlineBadge} />
+          </View>
+
+          <View style={styles.profileInfo}>
+            <Text style={styles.userName} numberOfLines={1}>
+              {getUserDisplayName()}
+            </Text>
+            <Text style={styles.userPhone} numberOfLines={1}>
+              {getUserSubText()}
+            </Text>
+
+            <View style={styles.tagRow}>
+              <View style={styles.proTag}>
+                <Ionicons
+                  name="shield-checkmark"
+                  size={10}
+                  color={Colors.ButtonPrimaryColor}
+                  style={{ marginRight: 3 }}
+                />
+                <Text style={styles.proTagText}>
+                  {user.isApproved ? "Verified Pro" : "Pending"}
+                </Text>
+              </View>
+
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={10} color="#854D0E" style={{ marginRight: 3 }} />
+                <Text style={styles.ratingText}>{getUserRating()} ★</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* Navigation Menu Options */}
+        <View style={styles.menuSection}>
+          {menuItems.map((item, index) => {
+            const isFocused = state?.routes[state.index]?.name === item.route;
+
+            return (
+              <TouchableOpacity
+                key={index}
+                style={[styles.menuItem, isFocused && styles.menuItemActive]}
+                onPress={() => navigation.navigate(item.route, item.params)}
+                activeOpacity={0.7}
+              >
+                <View
+                  style={[
+                    styles.iconContainer,
+                    isFocused && styles.iconContainerActive,
+                  ]}
+                >
+                  <Ionicons
+                    name={item.iconName}
+                    size={20}
+                    color={isFocused ? Colors.ButtonPrimaryColor : "#64748B"}
+                  />
+                </View>
+
+                <Text
+                  style={[styles.menuLabel, isFocused && styles.menuLabelActive]}
+                >
+                  {item.label}
+                </Text>
+
+                {item.badge && (
+                  <View style={styles.badgeContainer}>
+                    <Text style={styles.badgeText}>{item.badge}</Text>
+                  </View>
+                )}
+
+                <Ionicons
+                  name="chevron-forward"
+                  size={16}
+                  color={isFocused ? Colors.ButtonPrimaryColor : "#CBD5E1"}
+                  style={styles.arrowIcon}
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </DrawerContentScrollView>
+
+      {/* Footer Area - Logout */}
+      <View style={styles.footerContainer}>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={handleLogout}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={20}
+            color={Colors.errorViewColor}
+            style={{ marginRight: 10 }}
+          />
+          <Text style={styles.logoutText}>Logout Account</Text>
+        </TouchableOpacity>
+        <Text style={styles.appVersionText}>Hairlines Pro v1.0.0</Text>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -127,7 +224,13 @@ export function DrawerNavigator() {
   return (
     <Drawer.Navigator
       drawerContent={(props) => <CustomDrawerContent {...props} />}
-      screenOptions={{ headerShown: false }}
+      screenOptions={{
+        headerShown: false,
+        drawerStyle: {
+          width: "82%",
+          backgroundColor: "#FFFFFF",
+        },
+      }}
     >
       <Drawer.Screen name="HomeTab" component={HomeTabNavigator} />
       <Drawer.Screen name="Notifications" component={NotificationsScreen} />
@@ -146,24 +249,197 @@ export function DrawerNavigator() {
 }
 
 const styles = StyleSheet.create({
-  profile: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEE",
-    marginBottom: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
   },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    marginBottom: 10,
+  scrollContent: {
+    paddingTop: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  profileCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.BorderColor,
+  },
+  avatarWrapper: {
+    position: "relative",
+    marginRight: Spacing.md,
+  },
+  avatarImage: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
   },
   avatarPlaceholder: {
-    backgroundColor: "#E0E0E0",
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: Colors.ButtonPrimaryColor,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  avatarText: {
+    color: "#FFFFFF",
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+  },
+  onlineBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#22C55E",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
+    color: "#0F172A",
+    marginBottom: 2,
+  },
+  userPhone: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.regular,
+    color: "#64748B",
+    marginBottom: 4,
+  },
+  tagRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  proTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EEF4FF",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  proTagText: {
+    fontSize: 9,
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+    textTransform: "uppercase",
+  },
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF9C3",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  ratingText: {
+    fontSize: 9,
+    fontWeight: FontWeights.bold,
+    color: "#854D0E",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#F1F5F9",
+    marginBottom: Spacing.md,
+  },
+  menuSection: {
+    width: "100%",
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    borderRadius: BorderRadius.lg,
+    marginBottom: 4,
+  },
+  menuItemActive: {
+    backgroundColor: "#EEF4FF",
+  },
+  iconContainer: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: Spacing.md,
+  },
+  iconContainerActive: {
+    backgroundColor: "#FFFFFF",
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  menuLabel: {
+    flex: 1,
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.medium,
+    color: "#334155",
+  },
+  menuLabelActive: {
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  badgeContainer: {
+    backgroundColor: Colors.errorViewColor,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginRight: 6,
+  },
+  badgeText: {
+    fontSize: 9,
+    fontWeight: FontWeights.bold,
+    color: "#FFFFFF",
+  },
+  arrowIcon: {
+    marginLeft: 4,
+  },
+  footerContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  logoutButton: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#FEF2F2",
+    borderRadius: BorderRadius.lg,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
   },
-  initial: { fontSize: 24, fontWeight: "700", color: "#555" },
-  name: { fontSize: 16, fontWeight: "600", color: "#333" },
-  status: { fontSize: 13, color: "#777", marginTop: 2 },
+  logoutText: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
+    color: Colors.errorViewColor,
+  },
+  appVersionText: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.regular,
+    color: "#94A3B8",
+    textAlign: "center",
+    marginTop: Spacing.sm,
+  },
 });
+

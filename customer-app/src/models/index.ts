@@ -213,7 +213,7 @@ export interface Service {
   serviceDescription: string;
   serviceName: string;
   serviceHourlyRate?: number;
-  subServices: SubService[];
+  subServices?: SubService[];
   serviceTypeName?: string;
   serviceTypeDescription?: string;
   serviceTypeImage?: string;
@@ -248,6 +248,7 @@ export interface Job {
   primaryAddress: string;
   serviceName: string;
   serviceImage?: string;
+  profileImage?: string;
   spProfileId: string;
   avgRating: number;
   name: string;

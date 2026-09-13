@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { MaterialCommunityIcons, Ionicons, FontAwesome } from "@expo/vector-icons";
 import { AuthStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
@@ -13,6 +14,9 @@ import {
   signInWithFacebook,
   signInWithGoogle,
 } from "../../services/socialAuth";
+import { Colors } from "../../theme/colors";
+import { FontSizes, FontWeights } from "../../theme/fonts";
+import { BorderRadius, Spacing } from "../../theme/spacing";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Landing">;
 
@@ -67,33 +71,102 @@ export function LandingScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <LoadingOverlay visible={loading} />
-      <View style={styles.logoContainer}>
-        <View style={styles.logo}>
-          <Text style={styles.logoText}>HL</Text>
-        </View>
-        <Text style={styles.title}>{t("appName")}</Text>
-        <Text style={styles.subtitle}>{t("onboarding:completeProfile")}</Text>
-      </View>
 
-      <View style={styles.buttons}>
-        <Button
-          title={t("auth:signIn")}
-          onPress={() => navigation.navigate("SignIn", { mode: "signIn" })}
-        />
-        <View style={{ height: 12 }} />
-        <Button
-          title={t("auth:signUp")}
-          variant="secondary"
-          onPress={() => navigation.navigate("SignIn", { mode: "signUp" })}
-        />
-        <View style={{ height: 12 }} />
-        <Button title="Continue with Apple" variant="ghost" onPress={() => socialSignIn("apple")} />
-        <View style={{ height: 8 }} />
-        <Button title="Continue with Facebook" variant="ghost" onPress={() => socialSignIn("facebook")} />
-        <View style={{ height: 8 }} />
-        <Button title="Continue with Google" variant="ghost" onPress={() => socialSignIn("google")} />
-        <View style={{ height: 12 }} />
-        <Button title={t("auth:guest")} variant="secondary" onPress={continueAsGuest} />
+      {/* Decorative Background Ambient Circles */}
+      <View style={styles.ambientCircleTopRight} />
+      <View style={styles.ambientCircleBottomLeft} />
+
+      <View style={styles.content}>
+        {/* Top Header / Branding Section */}
+        <View style={styles.header}>
+          {/* Logo Badge */}
+          <View style={styles.logoBadgeContainer}>
+            <View style={styles.logoBadge}>
+              <MaterialCommunityIcons name="content-cut" size={40} color="#FFFFFF" />
+              <View style={styles.sparkleBadge}>
+                <Ionicons name="sparkles" size={13} color={Colors.gold} />
+              </View>
+            </View>
+          </View>
+
+          {/* App Name */}
+          <Text style={styles.appName}>HAIRLINES</Text>
+
+          {/* Feature Pill */}
+          <View style={styles.featurePill}>
+            <Ionicons
+              name="shield-checkmark"
+              size={12}
+              color={Colors.ButtonPrimaryColor}
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.featurePillText}>PROFESSIONAL PARTNER NETWORK</Text>
+          </View>
+
+          {/* Tagline */}
+          <Text style={styles.tagline}>
+            Manage your clients, appointments, and earnings seamlessly. Join thousands of verified stylists & barbers.
+          </Text>
+        </View>
+
+        {/* Flexible spacer */}
+        <View style={styles.spacer} />
+
+        {/* Bottom Actions Section */}
+        <View style={styles.bottomSection}>
+          <Button
+            title="SIGN IN TO PRO"
+            onPress={() => navigation.navigate("SignIn", { mode: "signIn" })}
+            style={styles.signInButton}
+          />
+
+          <View style={{ height: 10 }} />
+
+          <Button
+            title="JOIN AS A PARTNER"
+            variant="secondary"
+            onPress={() => navigation.navigate("SignIn", { mode: "signUp" })}
+          />
+
+          {/* Social Sign In Options */}
+          <View style={styles.socialRow}>
+            <TouchableOpacity
+              style={styles.socialIconBtn}
+              onPress={() => socialSignIn("google")}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="logo-google" size={18} color="#EA4335" />
+              <Text style={styles.socialBtnText}>Google</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.socialIconBtn}
+              onPress={() => socialSignIn("apple")}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="logo-apple" size={18} color="#0F172A" />
+              <Text style={styles.socialBtnText}>Apple</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.socialIconBtn}
+              onPress={() => socialSignIn("facebook")}
+              activeOpacity={0.8}
+            >
+              <FontAwesome name="facebook" size={18} color="#1877F2" />
+              <Text style={styles.socialBtnText}>Facebook</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Guest Mode */}
+          <TouchableOpacity
+            style={styles.guestLink}
+            onPress={continueAsGuest}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.guestLinkText}>Explore as Guest Partner</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -102,27 +175,144 @@ export function LandingScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingHorizontal: 24,
-    justifyContent: "center",
+    backgroundColor: Colors.ScreenBG,
   },
-  logoContainer: { alignItems: "center", marginBottom: 36 },
-  logo: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: "#2E7D32",
+  ambientCircleTopRight: {
+    position: "absolute",
+    top: -90,
+    right: -90,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: "rgba(34, 45, 99, 0.08)",
+  },
+  ambientCircleBottomLeft: {
+    position: "absolute",
+    bottom: -100,
+    left: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: "rgba(43, 118, 200, 0.07)",
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing["2xl"],
+    paddingBottom: Spacing.xl,
+  },
+  header: {
+    alignItems: "center",
+    marginTop: Spacing["2xl"],
+  },
+  logoBadgeContainer: {
+    marginBottom: Spacing.base,
+  },
+  logoBadge: {
+    width: 90,
+    height: 90,
+    borderRadius: 26,
+    backgroundColor: Colors.ButtonPrimaryColor,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    elevation: 8,
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    position: "relative",
+  },
+  sparkleBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#1E293B",
+    borderRadius: 10,
+    width: 22,
+    height: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.gold,
+  },
+  appName: {
+    fontSize: FontSizes["3xl"],
+    fontWeight: FontWeights.heavy,
+    color: Colors.ButtonPrimaryColor,
+    letterSpacing: 2,
+    marginBottom: Spacing.xs,
+  },
+  featurePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EEF4FF",
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginBottom: Spacing.base,
+  },
+  featurePillText: {
+    fontSize: 10,
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+    letterSpacing: 0.8,
+  },
+  tagline: {
+    fontSize: FontSizes.sm,
+    color: Colors.DescriptionTextDark,
+    textAlign: "center",
+    lineHeight: 20,
+    paddingHorizontal: Spacing.sm,
+  },
+  spacer: {
+    flex: 1,
+  },
+  bottomSection: {
+    width: "100%",
+  },
+  signInButton: {
+    marginBottom: 2,
+  },
+  socialRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+    marginTop: Spacing.base,
+    marginBottom: Spacing.sm,
+  },
+  socialIconBtn: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.BorderColor,
+    paddingVertical: 11,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+    gap: 6,
   },
-  logoText: { color: "#fff", fontSize: 36, fontWeight: "800" },
-  title: { fontSize: 28, fontWeight: "700", color: "#333" },
-  subtitle: {
-    fontSize: 14,
-    color: "#777",
-    textAlign: "center",
-    marginTop: 8,
+  socialBtnText: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.semibold,
+    color: Colors.TitleColor,
   },
-  buttons: { width: "100%" },
+  guestLink: {
+    alignItems: "center",
+    paddingVertical: Spacing.sm,
+    marginTop: 4,
+  },
+  guestLinkText: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.medium,
+    color: Colors.DescriptionTextDark,
+  },
 });
+

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { OnboardingStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
+import { Header } from "../../components/Header";
 import { Input } from "../../components/Input";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
 import { api } from "../../services/api";
@@ -47,46 +48,49 @@ export function BankingLanguagesScreen({ navigation }: Props) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <LoadingOverlay visible={loading} />
-      <Text style={styles.title}>{t("onboarding:banking")}</Text>
-      <Input label="Account Holder Name" value={accountName} onChangeText={setAccountName} />
-      <Input label="Routing Number" value={routingNumber} onChangeText={setRoutingNumber} />
-      <Input label="Account Number" value={accountNumber} onChangeText={setAccountNumber} />
-      <Input label="SSN Last 4" maxLength={4} value={ssn} onChangeText={setSsn} />
+    <View style={styles.container}>
+      <Header title={t("onboarding:banking")} onBackPress={() => navigation.goBack()} />
+      <ScrollView contentContainerStyle={styles.content}>
+        <LoadingOverlay visible={loading} />
+        <Input label="Account Holder Name" value={accountName} onChangeText={setAccountName} />
+        <Input label="Routing Number" value={routingNumber} onChangeText={setRoutingNumber} />
+        <Input label="Account Number" value={accountNumber} onChangeText={setAccountNumber} />
+        <Input label="SSN Last 4" maxLength={4} value={ssn} onChangeText={setSsn} />
 
-      <Text style={styles.section}>Languages</Text>
-      {languages.map((lang) => (
-        <TouchableOpacity
-          key={lang.id}
-          style={[
-            styles.row,
-            selectedLang === lang.id && styles.rowSelected,
-          ]}
-          onPress={() => setSelectedLang(lang.id || "")}
-        >
-          <Text style={styles.rowText}>{lang.name}</Text>
-        </TouchableOpacity>
-      ))}
-      {levels.map((lvl) => (
-        <TouchableOpacity
-          key={lvl.id}
-          style={[
-            styles.row,
-            selectedLevel === lvl.id && styles.rowSelected,
-          ]}
-          onPress={() => setSelectedLevel(lvl.id || "")}
-        >
-          <Text style={styles.rowText}>{lvl.name}</Text>
-        </TouchableOpacity>
-      ))}
-      <Button title={t("common:next")} onPress={submit} />
-    </ScrollView>
+        <Text style={styles.section}>Languages</Text>
+        {languages.map((lang) => (
+          <TouchableOpacity
+            key={lang.id}
+            style={[
+              styles.row,
+              selectedLang === lang.id && styles.rowSelected,
+            ]}
+            onPress={() => setSelectedLang(lang.id || "")}
+          >
+            <Text style={styles.rowText}>{lang.name}</Text>
+          </TouchableOpacity>
+        ))}
+        {levels.map((lvl) => (
+          <TouchableOpacity
+            key={lvl.id}
+            style={[
+              styles.row,
+              selectedLevel === lvl.id && styles.rowSelected,
+            ]}
+            onPress={() => setSelectedLevel(lvl.id || "")}
+          >
+            <Text style={styles.rowText}>{lvl.name}</Text>
+          </TouchableOpacity>
+        ))}
+        <Button title={t("common:next")} onPress={submit} />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, backgroundColor: "#fff", flexGrow: 1 },
+  container: { flex: 1, backgroundColor: "#fff" },
+  content: { padding: 24, paddingBottom: 40 },
   title: { fontSize: 24, fontWeight: "700", marginBottom: 16, color: "#333" },
   section: {
     fontSize: 16,
@@ -103,8 +107,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   rowSelected: {
-    borderColor: "#2E7D32",
-    backgroundColor: "#E8F5E9",
+    borderColor: "#222D63",
+    backgroundColor: "#EEF4FF",
   },
-  rowText: { fontSize: 15, color: "#333" },
+  rowText: { fontSize: 15, color: "#1E293B" },
 });
+

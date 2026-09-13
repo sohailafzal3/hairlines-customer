@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { OnboardingStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
+import { Header } from "../../components/Header";
 import { Input } from "../../components/Input";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
 import { api } from "../../services/api";
@@ -48,39 +49,42 @@ export function AvailabilityScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <LoadingOverlay visible={loading} />
-      <Text style={styles.title}>{t("onboarding:availability")}</Text>
-      <Text style={styles.label}>Working Days</Text>
-      <View style={styles.daysRow}>
-        {days.map((day, i) => (
-          <TouchableOpacity
-            key={day}
-            style={[
-              styles.day,
-              selectedDays.includes(i + 1) && styles.daySelected,
-            ]}
-            onPress={() => toggleDay(i + 1)}
-          >
-            <Text
+      <Header title={t("onboarding:availability")} onBackPress={() => navigation.goBack()} />
+      <View style={styles.content}>
+        <LoadingOverlay visible={loading} />
+        <Text style={styles.label}>Working Days</Text>
+        <View style={styles.daysRow}>
+          {days.map((day, i) => (
+            <TouchableOpacity
+              key={day}
               style={[
-                styles.dayText,
-                selectedDays.includes(i + 1) && styles.dayTextSelected,
+                styles.day,
+                selectedDays.includes(i + 1) && styles.daySelected,
               ]}
+              onPress={() => toggleDay(i + 1)}
             >
-              {day}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.dayText,
+                  selectedDays.includes(i + 1) && styles.dayTextSelected,
+                ]}
+              >
+                {day}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Input label="Start Time (HH:MM)" value={startTime} onChangeText={setStartTime} />
+        <Input label="End Time (HH:MM)" value={endTime} onChangeText={setEndTime} />
+        <Button title={t("common:next")} onPress={submit} />
       </View>
-      <Input label="Start Time (HH:MM)" value={startTime} onChangeText={setStartTime} />
-      <Input label="End Time (HH:MM)" value={endTime} onChangeText={setEndTime} />
-      <Button title={t("common:next")} onPress={submit} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 24 },
+  container: { flex: 1, backgroundColor: "#fff" },
+  content: { padding: 24, flex: 1 },
   title: { fontSize: 24, fontWeight: "700", marginBottom: 16, color: "#333" },
   label: { fontSize: 14, fontWeight: "500", marginBottom: 8, color: "#333" },
   daysRow: {
@@ -99,9 +103,10 @@ const styles = StyleSheet.create({
     margin: 4,
   },
   daySelected: {
-    backgroundColor: "#2E7D32",
-    borderColor: "#2E7D32",
+    backgroundColor: "#222D63",
+    borderColor: "#222D63",
   },
   dayText: { fontSize: 12, color: "#333" },
   dayTextSelected: { color: "#fff", fontWeight: "700" },
 });
+

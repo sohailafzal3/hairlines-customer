@@ -7,9 +7,13 @@ import { Header } from "../../../components/Header";
 import { Card } from "../../../components/Card";
 import { LoadingOverlay } from "../../../components/LoadingOverlay";
 import { Avatar } from "../../../components/Avatar";
+import { EmptyState } from "../../../components/EmptyState";
 import { api } from "../../../services/api";
 import { showAlert } from "../../../utils/helpers";
 import { Mover } from "../../../types";
+import { Colors } from "../../../theme/colors";
+import { FontSizes, FontWeights } from "../../../theme/fonts";
+import { BorderRadius, Spacing } from "../../../theme/spacing";
 
 type Props = DrawerScreenProps<MainDrawerParamList, "Workers">;
 
@@ -26,12 +30,21 @@ export function WorkersListScreen({ navigation }: Props) {
   }, []);
 
   const renderItem = ({ item }: { item: Mover }) => (
-    <Card>
+    <Card style={styles.workerCard}>
       <View style={styles.row}>
-        <Avatar uri={item.profileImage} name={item.name} />
+        <Avatar uri={item.profileImage} name={item.name} size={48} />
         <View style={styles.info}>
           <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.meta}>Jobs: {item.jobsDone} • Rating: {item.avgRating}</Text>
+          <View style={styles.metaRow}>
+            <View style={styles.badgePill}>
+              <Ionicons name="briefcase-outline" size={11} color={Colors.ButtonPrimaryColor} style={{ marginRight: 3 }} />
+              <Text style={styles.badgeText}>{item.jobsDone || 0} jobs</Text>
+            </View>
+            <View style={styles.ratingPill}>
+              <Ionicons name="star" size={11} color="#854D0E" style={{ marginRight: 3 }} />
+              <Text style={styles.ratingText}>{item.avgRating ? item.avgRating.toFixed(1) : "5.0"}</Text>
+            </View>
+          </View>
         </View>
       </View>
     </Card>
@@ -40,11 +53,15 @@ export function WorkersListScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <Header
-        title="Workers"
+        title="Team / Workers"
         onMenuPress={() => navigation.openDrawer()}
         right={
-          <TouchableOpacity onPress={() => navigation.navigate("CreateWorker")}>
-            <Ionicons name="add" size={28} color="#2E7D32" />
+          <TouchableOpacity
+            onPress={() => navigation.navigate("CreateWorker")}
+            style={styles.addBtn}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={22} color="#FFFFFF" />
           </TouchableOpacity>
         }
       />
@@ -52,7 +69,16 @@ export function WorkersListScreen({ navigation }: Props) {
         data={workers}
         renderItem={renderItem}
         keyExtractor={(item) => item.id || item.name || `${Math.random()}`}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          !loading ? (
+            <EmptyState
+              icon="people-outline"
+              message="No workers added yet. Tap '+' to invite team members."
+            />
+          ) : null
+        }
       />
       <LoadingOverlay visible={loading} />
     </View>
@@ -60,9 +86,61 @@ export function WorkersListScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: Colors.ScreenBG },
+  listContent: {
+    padding: Spacing.base,
+    paddingBottom: Spacing["3xl"],
+  },
+  workerCard: {
+    marginVertical: 4,
+    padding: Spacing.md,
+  },
   row: { flexDirection: "row", alignItems: "center" },
   info: { flex: 1, marginLeft: 12 },
-  name: { fontSize: 16, fontWeight: "600", color: "#333" },
-  meta: { fontSize: 13, color: "#666", marginTop: 2 },
+  name: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 4,
+  },
+  badgePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EEF4FF",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  ratingPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF9C3",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  ratingText: {
+    fontSize: 10,
+    fontWeight: FontWeights.bold,
+    color: "#854D0E",
+  },
+  addBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.ButtonPrimaryColor,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 });
+

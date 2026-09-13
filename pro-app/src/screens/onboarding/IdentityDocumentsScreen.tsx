@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { OnboardingStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
+import { Header } from "../../components/Header";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
 import { api } from "../../services/api";
 import { showAlert } from "../../utils/helpers";
@@ -62,43 +63,46 @@ export function IdentityDocumentsScreen({ navigation }: Props) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <LoadingOverlay visible={loading} />
-      <Text style={styles.title}>{t("onboarding:identity")}</Text>
-      <Text style={styles.label}>Document Type</Text>
-      {types.map((doc) => (
-        <TouchableOpacity
-          key={doc.id}
-          style={[
-            styles.typeRow,
-            selectedType === doc.id && styles.typeRowSelected,
-          ]}
-          onPress={() => setSelectedType(doc.id || "")}
-        >
-          <Text style={styles.typeText}>{doc.name}</Text>
+    <View style={styles.container}>
+      <Header title={t("onboarding:identity")} onBackPress={() => navigation.goBack()} />
+      <ScrollView contentContainerStyle={styles.content}>
+        <LoadingOverlay visible={loading} />
+        <Text style={styles.label}>Document Type</Text>
+        {types.map((doc) => (
+          <TouchableOpacity
+            key={doc.id}
+            style={[
+              styles.typeRow,
+              selectedType === doc.id && styles.typeRowSelected,
+            ]}
+            onPress={() => setSelectedType(doc.id || "")}
+          >
+            <Text style={styles.typeText}>{doc.name}</Text>
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity onPress={() => pick(setFront)} style={styles.imageBox}>
+          {front ? (
+            <Image source={{ uri: front }} style={styles.image} />
+          ) : (
+            <Text style={styles.imageLabel}>Front Image</Text>
+          )}
         </TouchableOpacity>
-      ))}
-      <TouchableOpacity onPress={() => pick(setFront)} style={styles.imageBox}>
-        {front ? (
-          <Image source={{ uri: front }} style={styles.image} />
-        ) : (
-          <Text style={styles.imageLabel}>Front Image</Text>
-        )}
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => pick(setBack)} style={styles.imageBox}>
-        {back ? (
-          <Image source={{ uri: back }} style={styles.image} />
-        ) : (
-          <Text style={styles.imageLabel}>Back Image (optional)</Text>
-        )}
-      </TouchableOpacity>
-      <Button title={t("common:next")} onPress={submit} />
-    </ScrollView>
+        <TouchableOpacity onPress={() => pick(setBack)} style={styles.imageBox}>
+          {back ? (
+            <Image source={{ uri: back }} style={styles.image} />
+          ) : (
+            <Text style={styles.imageLabel}>Back Image (optional)</Text>
+          )}
+        </TouchableOpacity>
+        <Button title={t("common:next")} onPress={submit} />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, backgroundColor: "#fff", flexGrow: 1 },
+  container: { flex: 1, backgroundColor: "#fff" },
+  content: { padding: 24, paddingBottom: 40 },
   title: { fontSize: 24, fontWeight: "700", marginBottom: 16, color: "#333" },
   label: { fontSize: 14, fontWeight: "500", marginBottom: 8, color: "#333" },
   typeRow: {
@@ -109,10 +113,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   typeRowSelected: {
-    borderColor: "#2E7D32",
-    backgroundColor: "#E8F5E9",
+    borderColor: "#222D63",
+    backgroundColor: "#EEF4FF",
   },
-  typeText: { fontSize: 15, color: "#333" },
+  typeText: { fontSize: 15, color: "#1E293B" },
+
   imageBox: {
     height: 160,
     borderRadius: 10,

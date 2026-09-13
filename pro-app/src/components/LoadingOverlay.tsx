@@ -1,11 +1,12 @@
 import React from "react";
 import { View, ActivityIndicator, StyleSheet, Modal } from "react-native";
+import { Colors } from "../theme/colors";
 
 export function LoadingOverlay({ visible }: { visible: boolean }) {
   return (
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.overlay}>
-        <ActivityIndicator size="large" color="#2E7D32" />
+        <ActivityIndicator size="large" color={Colors.ButtonPrimaryColor} />
       </View>
     </Modal>
   );
@@ -14,8 +15,9 @@ export function LoadingOverlay({ visible }: { visible: boolean }) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(255,255,255,0.7)",
+    backgroundColor: "rgba(15, 23, 42, 0.4)",
     alignItems: "center",
     justifyContent: "center",
   },
 });
+

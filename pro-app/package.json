@@ -60,5 +60,8 @@
     "web": "expo start --web",
     "ts:check": "tsc --noEmit"
   },
+  "overrides": {
+    "react-native-worklets": "0.5.1"
+  },
   "private": true
 }

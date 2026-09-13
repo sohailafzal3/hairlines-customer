@@ -1,5 +1,7 @@
 import React from "react";
 import { Image, View, Text, StyleSheet } from "react-native";
+import { Colors } from "../theme/colors";
+import { FontWeights } from "../theme/fonts";
 
 interface Props {
   uri?: string;
@@ -8,7 +10,7 @@ interface Props {
 }
 
 export function Avatar({ uri, name, size = 48 }: Props) {
-  const initial = name ? name.charAt(0).toUpperCase() : "?";
+  const initial = name ? name.charAt(0).toUpperCase() : "P";
   return (
     <View
       style={[
@@ -23,7 +25,7 @@ export function Avatar({ uri, name, size = 48 }: Props) {
           resizeMode="cover"
         />
       ) : (
-        <Text style={[styles.initial, { fontSize: size * 0.4 }]}>{initial}</Text>
+        <Text style={[styles.initial, { fontSize: size * 0.42 }]}>{initial}</Text>
       )}
     </View>
   );
@@ -31,10 +33,16 @@ export function Avatar({ uri, name, size = 48 }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#E0E0E0",
+    backgroundColor: Colors.ButtonPrimaryColor,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+    borderWidth: 1.5,
+    borderColor: Colors.BorderColor,
   },
-  initial: { color: "#555", fontWeight: "700" },
+  initial: {
+    color: Colors.ButtonTextColor,
+    fontWeight: FontWeights.bold,
+  },
 });
+

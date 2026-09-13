@@ -7,6 +7,10 @@ import {
   ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Colors } from "../theme/colors";
+import { FontSizes, FontWeights } from "../theme/fonts";
+import { Spacing } from "../theme/spacing";
 
 interface Props {
   title?: string;
@@ -23,16 +27,24 @@ export function Header({
   right,
   style,
 }: Props) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={[styles.header, style]}>
+    <View
+      style={[
+        styles.header,
+        { paddingTop: insets.top, height: 56 + insets.top },
+        style,
+      ]}
+    >
       <View style={styles.side}>
         {onMenuPress ? (
           <TouchableOpacity onPress={onMenuPress} hitSlop={10}>
-            <Ionicons name="menu" size={28} color="#333" />
+            <Ionicons name="menu" size={26} color={Colors.NavigationTitle} />
           </TouchableOpacity>
         ) : onBackPress ? (
           <TouchableOpacity onPress={onBackPress} hitSlop={10}>
-            <Ionicons name="arrow-back" size={28} color="#333" />
+            <Ionicons name="arrow-back" size={24} color={Colors.NavigationTitle} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -46,21 +58,21 @@ export function Header({
 
 const styles = StyleSheet.create({
   header: {
-    height: 56,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    backgroundColor: "#fff",
+    paddingHorizontal: Spacing.base,
+    backgroundColor: Colors.BGColor,
     borderBottomWidth: 1,
-    borderBottomColor: "#EEE",
+    borderBottomColor: Colors.BorderColor,
   },
-  side: { width: 40, alignItems: "center" },
+  side: { width: 40, alignItems: "flex-start", justifyContent: "center" },
   title: {
     flex: 1,
     textAlign: "center",
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+    color: Colors.NavigationTitle,
   },
 });
+

@@ -127,6 +127,7 @@ const SubServicesScreen: React.FC<Props> = ({ navigation, route }) => {
       duration: style.duration,
       durationUnit: style.durationUnit,
       hasDuration: true,
+      subServiceId: style.id,
     };
 
     navigation.navigate('UserJobDetail', {

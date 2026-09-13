@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Linking,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Ionicons } from "@expo/vector-icons";
 import { HomeTabParamList } from "../../../navigation/types";
 import { Header } from "../../../components/Header";
 import { Button } from "../../../components/Button";
@@ -12,6 +20,9 @@ import { api } from "../../../services/api";
 import { showAlert, formatCurrency } from "../../../utils/helpers";
 import { JobDetail } from "../../../types";
 import { JobStatus } from "../../../constants";
+import { Colors } from "../../../theme/colors";
+import { FontSizes, FontWeights } from "../../../theme/fonts";
+import { BorderRadius, Spacing } from "../../../theme/spacing";
 
 type Props = NativeStackScreenProps<HomeTabParamList, "JobDetails">;
 
@@ -66,6 +77,7 @@ export function JobDetailsScreen({ route, navigation }: Props) {
           <Button
             title={t("home:startDriving")}
             onPress={() => updateStatus(JobStatus.onTheWay)}
+            style={styles.mainActionBtn}
           />
         );
       case JobStatus.onTheWay:
@@ -73,6 +85,7 @@ export function JobDetailsScreen({ route, navigation }: Props) {
           <Button
             title={t("home:arrived")}
             onPress={() => updateStatus(JobStatus.arrived)}
+            style={styles.mainActionBtn}
           />
         );
       case JobStatus.arrived:
@@ -80,11 +93,16 @@ export function JobDetailsScreen({ route, navigation }: Props) {
           <Button
             title={t("home:startService")}
             onPress={() => updateStatus(JobStatus.started)}
+            style={styles.mainActionBtn}
           />
         );
       case JobStatus.started:
         return (
-          <Button title={t("home:complete")} onPress={() => updateStatus(JobStatus.completed)} />
+          <Button
+            title={t("home:complete")}
+            onPress={() => updateStatus(JobStatus.completed)}
+            style={styles.mainActionBtn}
+          />
         );
       default:
         return null;
@@ -104,61 +122,140 @@ export function JobDetailsScreen({ route, navigation }: Props) {
     );
   }
 
+  const statusName =
+    (job.spJobStatus !== undefined ? JobStatus[job.spJobStatus] : null) ||
+    "Upcoming";
+
+
   return (
     <View style={styles.container}>
       <Header title={t("job:details")} onBackPress={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Card>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Customer Profile Card */}
+        <Card style={styles.userCard}>
           <View style={styles.row}>
-            <Avatar uri={job.userProfileImage} name={job.userName} size={56} />
+            <Avatar uri={job.userProfileImage} name={job.userName} size={58} />
             <View style={styles.userInfo}>
-              <Text style={styles.name}>{job.userName}</Text>
+              <View style={styles.userHeaderRow}>
+                <Text style={styles.name} numberOfLines={1}>
+                  {job.userName || "Customer"}
+                </Text>
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusPillText}>{statusName}</Text>
+                </View>
+              </View>
               <Text style={styles.sub}>{job.serviceName}</Text>
             </View>
           </View>
+
           <View style={styles.actionsRow}>
-            <TouchableOpacity onPress={callUser} style={styles.iconBtn}>
-              <Text style={styles.iconText}>{t("job:call")}</Text>
+            <TouchableOpacity
+              onPress={callUser}
+              style={styles.contactBtn}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="call-outline"
+                size={18}
+                color={Colors.ButtonPrimaryColor}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.contactBtnText}>{t("job:call")}</Text>
             </TouchableOpacity>
+
             <TouchableOpacity
               onPress={() =>
                 navigation.navigate("Chat", { jobId, title: job.userName })
               }
-              style={styles.iconBtn}
+              style={styles.contactBtn}
+              activeOpacity={0.8}
             >
-              <Text style={styles.iconText}>{t("job:chat")}</Text>
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={18}
+                color={Colors.ButtonPrimaryColor}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.contactBtnText}>{t("job:chat")}</Text>
             </TouchableOpacity>
           </View>
         </Card>
 
-        <Card>
-          <Text style={styles.label}>Address</Text>
-          <Text style={styles.value}>
-            {job.streetAddress}, {job.city}, {job.state}
-          </Text>
-          <Text style={styles.label}>Instructions</Text>
-          <Text style={styles.value}>{job.specialInstruction || "None"}</Text>
+        {/* Location & Instructions Card */}
+        <Card style={styles.detailsCard}>
+          <View style={styles.sectionRow}>
+            <Ionicons
+              name="location"
+              size={20}
+              color={Colors.ButtonPrimaryColor}
+              style={{ marginRight: 8, marginTop: 2 }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionLabel}>Service Location</Text>
+              <Text style={styles.sectionValue}>
+                {job.streetAddress ? `${job.streetAddress}, ` : ""}
+                {job.city || ""}{job.state ? `, ${job.state}` : ""}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.cardDivider} />
+
+          <View style={styles.sectionRow}>
+            <Ionicons
+              name="reader-outline"
+              size={20}
+              color={Colors.ButtonPrimaryColor}
+              style={{ marginRight: 8, marginTop: 2 }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionLabel}>Special Instructions</Text>
+              <Text style={styles.sectionValue}>
+                {job.specialInstruction || "No special instructions provided."}
+              </Text>
+            </View>
+          </View>
         </Card>
 
-        <Card>
-          <Text style={styles.label}>Total</Text>
-          <Text style={styles.total}>
-            {formatCurrency(job.totalAmount, job.costBreakDown?.currency)}
-          </Text>
+        {/* Pricing / Total Card */}
+        <Card style={styles.priceCard}>
+          <View style={styles.priceRow}>
+            <View>
+              <Text style={styles.priceLabel}>Estimated Total</Text>
+              <Text style={styles.totalPrice}>
+                {formatCurrency(job.totalAmount, job.costBreakDown?.currency)}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.breakdownBtn}
+              onPress={() => navigation.navigate("CostBreakdown", { jobId })}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.breakdownBtnText}>
+                {t("job:costBreakdown")}
+              </Text>
+              <Ionicons
+                name="chevron-forward"
+                size={14}
+                color={Colors.ButtonPrimaryColor}
+              />
+            </TouchableOpacity>
+          </View>
+        </Card>
+
+        {/* Action Buttons */}
+        <View style={styles.buttonGroup}>
+          {renderAction()}
           <Button
-            title={t("job:costBreakdown")}
+            title={t("home:cancel")}
             variant="ghost"
-            onPress={() => navigation.navigate("CostBreakdown", { jobId })}
+            style={styles.cancelBtn}
+            textStyle={{ color: Colors.errorViewColor }}
+            onPress={() =>
+              navigation.navigate("CancellationReasons", { jobId })
+            }
           />
-        </Card>
-
-        {renderAction()}
-        <View style={{ height: 10 }} />
-        <Button
-          title={t("home:cancel")}
-          variant="danger"
-          onPress={() => navigation.navigate("CancellationReasons", { jobId })}
-        />
+        </View>
       </ScrollView>
       <LoadingOverlay visible={loading} />
     </View>
@@ -166,25 +263,135 @@ export function JobDetailsScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  content: { padding: 16, paddingBottom: 32 },
+  container: { flex: 1, backgroundColor: Colors.ScreenBG },
+  content: { padding: Spacing.base, paddingBottom: Spacing["3xl"] },
+  userCard: {
+    padding: Spacing.base,
+    marginBottom: Spacing.sm,
+  },
   row: { flexDirection: "row", alignItems: "center" },
-  userInfo: { marginLeft: 12 },
-  name: { fontSize: 17, fontWeight: "700", color: "#333" },
-  sub: { fontSize: 14, color: "#666", marginTop: 2 },
+  userInfo: { flex: 1, marginLeft: 12 },
+  userHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  name: {
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+    flex: 1,
+  },
+  sub: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.medium,
+    color: Colors.ButtonPrimaryColor,
+    marginTop: 2,
+  },
+  statusPill: {
+    backgroundColor: "#EEF4FF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+    textTransform: "uppercase",
+  },
   actionsRow: {
     flexDirection: "row",
-    marginTop: 16,
-    justifyContent: "space-around",
+    marginTop: Spacing.base,
+    gap: 12,
   },
-  iconBtn: {
-    backgroundColor: "#F5F5F5",
-    paddingHorizontal: 24,
+  contactBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F1F5F9",
+    borderRadius: BorderRadius.lg,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.BorderColor,
   },
-  iconText: { fontWeight: "600", color: "#333" },
-  label: { fontSize: 13, color: "#999", marginTop: 10 },
-  value: { fontSize: 15, color: "#333", marginTop: 4 },
-  total: { fontSize: 24, fontWeight: "700", color: "#2E7D32", marginVertical: 8 },
+  contactBtnText: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.semibold,
+    color: Colors.TitleColor,
+  },
+  detailsCard: {
+    padding: Spacing.base,
+    marginBottom: Spacing.sm,
+  },
+  sectionRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  sectionLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.bold,
+    color: Colors.DescriptionTextDark,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  sectionValue: {
+    fontSize: FontSizes.sm,
+    color: Colors.TitleColor,
+    lineHeight: 20,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: "#F1F5F9",
+    marginVertical: Spacing.md,
+  },
+  priceCard: {
+    padding: Spacing.base,
+    marginBottom: Spacing.base,
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  priceLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.bold,
+    color: Colors.DescriptionTextDark,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  totalPrice: {
+    fontSize: FontSizes["2xl"],
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+    marginTop: 2,
+  },
+  breakdownBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EEF4FF",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.lg,
+    gap: 4,
+  },
+  breakdownBtnText: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  buttonGroup: {
+    marginTop: Spacing.sm,
+    gap: 10,
+  },
+  mainActionBtn: {
+    width: "100%",
+  },
+  cancelBtn: {
+    borderColor: Colors.BorderColor,
+  },
 });
+

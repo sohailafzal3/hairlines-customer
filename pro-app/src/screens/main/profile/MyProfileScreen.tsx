@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from "react-native";
 import { useTranslation } from "react-i18next";
 import { DrawerScreenProps } from "@react-navigation/drawer";
+import { Ionicons } from "@expo/vector-icons";
 import { MainDrawerParamList } from "../../../navigation/types";
 import { Header } from "../../../components/Header";
 import { Button } from "../../../components/Button";
@@ -13,6 +14,9 @@ import { useUser } from "../../../context/UserContext";
 import { MyProfile as MyProfileType } from "../../../types";
 import * as ImagePicker from "expo-image-picker";
 import { UploadImageType } from "../../../constants";
+import { Colors } from "../../../theme/colors";
+import { FontSizes, FontWeights } from "../../../theme/fonts";
+import { BorderRadius, Spacing } from "../../../theme/spacing";
 
 type Props = DrawerScreenProps<MainDrawerParamList, "Profile">;
 
@@ -86,31 +90,58 @@ export function MyProfileScreen({ navigation }: Props) {
     }
   };
 
+  const initial = user.name
+    ? user.name.charAt(0).toUpperCase()
+    : user.firstName
+    ? user.firstName.charAt(0).toUpperCase()
+    : "P";
+
   return (
     <View style={styles.container}>
       <Header title={t("drawer:profile")} onMenuPress={() => navigation.openDrawer()} />
-      <ScrollView contentContainerStyle={styles.content}>
-        <TouchableOpacity onPress={pickImage} style={styles.avatarWrap}>
-          {user.profileImage ? (
-            <Image source={{ uri: user.profileImage }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.placeholder]}>
-              <Text style={styles.initial}>
-                {user.name ? user.name.charAt(0).toUpperCase() : "?"}
-              </Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Avatar Section */}
+        <View style={styles.avatarSection}>
+          <TouchableOpacity onPress={pickImage} style={styles.avatarWrap} activeOpacity={0.8}>
+            {user.profileImage ? (
+              <Image source={{ uri: user.profileImage }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.placeholder]}>
+                <Text style={styles.initial}>{initial}</Text>
+              </View>
+            )}
+            <View style={styles.cameraIconBadge}>
+              <Ionicons name="camera" size={16} color="#FFFFFF" />
             </View>
-          )}
-          <Text style={styles.change}>Change Photo</Text>
-        </TouchableOpacity>
-        <Input label="First Name" value={firstName} onChangeText={setFirstName} />
-        <Input label="Last Name" value={lastName} onChangeText={setLastName} />
-        <Input label="Email" value={email} onChangeText={setEmail} />
-        <Input label="Bio" multiline value={bio} onChangeText={setBio} />
-        <Button title="Save" onPress={save} />
+          </TouchableOpacity>
+          <Text style={styles.change}>Tap to Change Photo</Text>
+        </View>
+
+        {/* Info Card */}
+        <View style={styles.formCard}>
+          <Input label="First Name" value={firstName} onChangeText={setFirstName} />
+          <Input label="Last Name" value={lastName} onChangeText={setLastName} />
+          <Input label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" />
+          <Input
+            label="Professional Bio"
+            multiline
+            numberOfLines={3}
+            value={bio}
+            onChangeText={setBio}
+          />
+        </View>
+
+        {/* Buttons */}
+        <Button title="Save Changes" onPress={save} />
         <View style={{ height: 12 }} />
-        <Button title="Change Password" variant="secondary" onPress={() => {}} />
-        <View style={{ height: 12 }} />
-        <Button title="Delete Account" variant="danger" onPress={deleteAccount} />
+        <Button
+          title="Delete Account"
+          variant="danger"
+          onPress={deleteAccount}
+        />
       </ScrollView>
       <LoadingOverlay visible={loading} />
     </View>
@@ -118,15 +149,54 @@ export function MyProfileScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  content: { padding: 16, paddingBottom: 32 },
-  avatarWrap: { alignItems: "center", marginBottom: 20 },
-  avatar: { width: 100, height: 100, borderRadius: 50 },
+  container: { flex: 1, backgroundColor: Colors.ScreenBG },
+  content: { padding: Spacing.base, paddingBottom: Spacing["3xl"] },
+  avatarSection: { alignItems: "center", marginVertical: Spacing.lg },
+  avatarWrap: { position: "relative" },
+  avatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 2,
+    borderColor: Colors.ButtonPrimaryColor,
+  },
   placeholder: {
-    backgroundColor: "#E0E0E0",
+    backgroundColor: Colors.ButtonPrimaryColor,
     alignItems: "center",
     justifyContent: "center",
   },
-  initial: { fontSize: 36, fontWeight: "700", color: "#555" },
-  change: { color: "#2E7D32", marginTop: 8, fontWeight: "500" },
+  initial: { fontSize: 36, fontWeight: FontWeights.bold, color: "#FFFFFF" },
+  cameraIconBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.ButtonPrimaryColor,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  change: {
+    color: Colors.ButtonPrimaryColor,
+    marginTop: Spacing.sm,
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.semibold,
+  },
+  formCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.BorderColor,
+    marginBottom: Spacing.xl,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
 });
+

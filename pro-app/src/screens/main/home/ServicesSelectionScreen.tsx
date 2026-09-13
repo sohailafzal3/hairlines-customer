@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { HomeTabParamList } from "../../../navigation/types";
 import { Header } from "../../../components/Header";
@@ -67,16 +68,27 @@ export function ServicesSelectionScreen({ route, navigation }: Props) {
                 key={sub._id}
                 onPress={() => toggleSub(service._id || "", sub._id)}
                 style={styles.subRow}
+                activeOpacity={0.7}
               >
                 <Text style={styles.subText}>{sub.subServiceName}</Text>
-                <Text style={styles.check}>
-                  {selected[service._id || ""]?.includes(sub._id || "") ? "✓" : "○"}
-                </Text>
+                <Ionicons
+                  name={
+                    selected[service._id || ""]?.includes(sub._id || "")
+                      ? "checkbox"
+                      : "square-outline"
+                  }
+                  size={22}
+                  color={
+                    selected[service._id || ""]?.includes(sub._id || "")
+                      ? "#222D63"
+                      : "#94A3B8"
+                  }
+                />
               </TouchableOpacity>
             ))}
           </View>
         ))}
-        <Button title="Add Selected" onPress={submit} />
+        <Button title="Add Selected Services" onPress={submit} />
       </ScrollView>
       <LoadingOverlay visible={loading} />
     </View>
@@ -84,22 +96,25 @@ export function ServicesSelectionScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   content: { padding: 16, paddingBottom: 32 },
   card: {
-    backgroundColor: "#FAFAFA",
-    borderRadius: 10,
-    padding: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#EEE",
+    borderColor: "#E2E8F0",
   },
-  serviceName: { fontSize: 16, fontWeight: "700", color: "#333", marginBottom: 8 },
+  serviceName: { fontSize: 16, fontWeight: "700", color: "#1E293B", marginBottom: 8 },
   subRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 8,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
   },
-  subText: { fontSize: 14, color: "#555" },
-  check: { fontSize: 16, color: "#2E7D32", fontWeight: "700" },
+  subText: { fontSize: 14, color: "#334155" },
 });
+

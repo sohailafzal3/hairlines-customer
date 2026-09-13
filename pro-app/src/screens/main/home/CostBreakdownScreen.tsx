@@ -123,21 +123,22 @@ export function CostBreakdownScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   content: { padding: 16, paddingBottom: 32 },
-  total: { fontSize: 26, fontWeight: "700", color: "#2E7D32", marginBottom: 12 },
-  row: { fontSize: 14, color: "#555", marginTop: 4 },
+  total: { fontSize: 26, fontWeight: "700", color: "#222D63", marginBottom: 12 },
+  row: { fontSize: 14, color: "#475569", marginTop: 4 },
   section: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#333",
+    color: "#1E293B",
     marginTop: 16,
     marginBottom: 8,
   },
-  itemCard: { paddingVertical: 10, paddingHorizontal: 14 },
+  itemCard: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12 },
   itemRow: { flexDirection: "row", alignItems: "center" },
-  itemName: { fontSize: 15, fontWeight: "600" },
-  itemQty: { fontSize: 12, color: "#999" },
-  itemPrice: { flex: 1, textAlign: "right", fontWeight: "700" },
-  remove: { color: "#C62828", fontSize: 16, marginLeft: 12, fontWeight: "700" },
+  itemName: { fontSize: 15, fontWeight: "600", color: "#0F172A" },
+  itemQty: { fontSize: 12, color: "#64748B" },
+  itemPrice: { flex: 1, textAlign: "right", fontWeight: "700", color: "#0F172A" },
+  remove: { color: "#EF4444", fontSize: 16, marginLeft: 12, fontWeight: "700" },
 });
+

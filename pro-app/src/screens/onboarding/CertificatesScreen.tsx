@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { OnboardingStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
+import { Header } from "../../components/Header";
 import { Input } from "../../components/Input";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
 import { api } from "../../services/api";
@@ -57,32 +58,35 @@ export function CertificatesScreen({ navigation }: Props) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <LoadingOverlay visible={loading} />
-      <Text style={styles.title}>{t("onboarding:certificates")}</Text>
-      <Input label="License Title" value={title} onChangeText={setTitle} />
-      <Input label="Expiry Date (YYYY-MM-DD)" value={expiry} onChangeText={setExpiry} />
-      <TouchableOpacity onPress={() => pick(setFront)} style={styles.imageBox}>
-        {front ? (
-          <Image source={{ uri: front }} style={styles.image} />
-        ) : (
-          <Text style={styles.imageLabel}>Front Image</Text>
-        )}
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => pick(setBack)} style={styles.imageBox}>
-        {back ? (
-          <Image source={{ uri: back }} style={styles.image} />
-        ) : (
-          <Text style={styles.imageLabel}>Back Image (optional)</Text>
-        )}
-      </TouchableOpacity>
-      <Button title={t("common:next")} onPress={submit} />
-    </ScrollView>
+    <View style={styles.container}>
+      <Header title={t("onboarding:certificates")} onBackPress={() => navigation.goBack()} />
+      <ScrollView contentContainerStyle={styles.content}>
+        <LoadingOverlay visible={loading} />
+        <Input label="License Title" value={title} onChangeText={setTitle} />
+        <Input label="Expiry Date (YYYY-MM-DD)" value={expiry} onChangeText={setExpiry} />
+        <TouchableOpacity onPress={() => pick(setFront)} style={styles.imageBox}>
+          {front ? (
+            <Image source={{ uri: front }} style={styles.image} />
+          ) : (
+            <Text style={styles.imageLabel}>Front Image</Text>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => pick(setBack)} style={styles.imageBox}>
+          {back ? (
+            <Image source={{ uri: back }} style={styles.image} />
+          ) : (
+            <Text style={styles.imageLabel}>Back Image (optional)</Text>
+          )}
+        </TouchableOpacity>
+        <Button title={t("common:next")} onPress={submit} />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, backgroundColor: "#fff", flexGrow: 1 },
+  container: { flex: 1, backgroundColor: "#fff" },
+  content: { padding: 24, paddingBottom: 40 },
   title: { fontSize: 24, fontWeight: "700", marginBottom: 16, color: "#333" },
   imageBox: {
     height: 160,

@@ -37,6 +37,7 @@ const defaultMainServices: Service[] = [
     serviceDescription: 'Classic & precision haircuts tailored to your head shape.',
     serviceHourlyRate: 35,
     serviceImage: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=400&q=80',
+    subServices: [],
   },
   {
     id: 'styled-haircuts-2',
@@ -44,6 +45,7 @@ const defaultMainServices: Service[] = [
     serviceDescription: 'Custom razor lineups, fades, pompadours & modern styling.',
     serviceHourlyRate: 45,
     serviceImage: 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=400&q=80',
+    subServices: [],
   },
   {
     id: 'group-cuts-3',
@@ -51,6 +53,7 @@ const defaultMainServices: Service[] = [
     serviceDescription: 'Family packages, wedding parties & multi-person bookings.',
     serviceHourlyRate: 90,
     serviceImage: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=400&q=80',
+    subServices: [],
   },
   {
     id: 'addon-services-4',
@@ -58,6 +61,7 @@ const defaultMainServices: Service[] = [
     serviceDescription: 'Beard trimming, hot towel shave, hair color & scalp treatment.',
     serviceHourlyRate: 25,
     serviceImage: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=400&q=80',
+    subServices: [],
   },
 ];
 

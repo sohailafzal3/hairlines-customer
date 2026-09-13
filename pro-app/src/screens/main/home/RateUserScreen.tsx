@@ -54,12 +54,15 @@ export function RateUserScreen({ route, navigation }: Props) {
           ))}
         </View>
         <Input
-          label="Review (optional)"
+          label="Feedback / Notes (optional)"
+          placeholder="How was your experience with this customer?"
           multiline
+          numberOfLines={3}
           value={review}
           onChangeText={setReview}
+          containerStyle={{ width: "100%" }}
         />
-        <Button title="Submit Rating" onPress={submit} />
+        <Button title="Submit Rating" onPress={submit} style={{ width: "100%", marginTop: 8 }} />
       </View>
       <LoadingOverlay visible={loading} />
     </View>
@@ -67,11 +70,12 @@ export function RateUserScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   content: { padding: 24, alignItems: "center" },
-  name: { fontSize: 20, fontWeight: "700", marginTop: 16, color: "#333" },
-  label: { fontSize: 14, color: "#777", marginTop: 20 },
-  stars: { flexDirection: "row", marginVertical: 12 },
-  star: { fontSize: 40, color: "#DDD", marginHorizontal: 6 },
-  starSelected: { color: "#FBC02D" },
+  name: { fontSize: 20, fontWeight: "700", marginTop: 16, color: "#1E293B" },
+  label: { fontSize: 14, color: "#64748B", marginTop: 20 },
+  stars: { flexDirection: "row", marginVertical: 14 },
+  star: { fontSize: 42, color: "#CBD5E1", marginHorizontal: 6 },
+  starSelected: { color: "#E5B652" },
 });
+

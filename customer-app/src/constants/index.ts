@@ -37,6 +37,19 @@ export enum JobStatus {
   Cancelled = 9,
 }
 
+export enum SPJobStatus {
+  open = 1,
+  spAccepted = 2,
+  spStarted = 3,
+  spArrivedAtLocation = 4,
+  startJob = 5,
+  completed = 6,
+  finished = 7,
+  rejected = 8,
+  cancelledBySP = 9,
+  cancelledByUser = 10,
+}
+
 export enum SenderType {
   user = 1,
   sp = 2,

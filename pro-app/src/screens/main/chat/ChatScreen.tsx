@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { View, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { GiftedChat, IMessage } from "react-native-gifted-chat";
+import { GiftedChat, IMessage, Bubble } from "react-native-gifted-chat";
 import { HomeTabParamList } from "../../../navigation/types";
 import { Header } from "../../../components/Header";
 import { LoadingOverlay } from "../../../components/LoadingOverlay";
@@ -10,6 +10,8 @@ import { api } from "../../../services/api";
 import { socketManager } from "../../../services/socket";
 import { useUser } from "../../../context/UserContext";
 import { Message } from "../../../types";
+import { Colors } from "../../../theme/colors";
+import { NotificationType } from "../../../constants";
 
 type Props = NativeStackScreenProps<HomeTabParamList, "Chat">;
 
@@ -38,14 +40,19 @@ export function ChatScreen({ route, navigation }: Props) {
         const list = (res.messages ?? []).reverse().map(mapMessage);
         setMessages(list);
       })
+      .catch(() => {})
       .finally(() => setLoading(false));
 
-    const unsubscribe = socketManager.on("messageSendingToReceiverKey", (data) => {
-      const incoming: Message = data?.resource || data?.message;
-      if (incoming?.jobId === jobId) {
-        setMessages((prev) => [mapMessage(incoming), ...prev]);
+    const unsubscribe = socketManager.on(
+      NotificationType.newMessage,
+      (data) => {
+        const incoming: Message = data?.resource || data?.message;
+        if (incoming?.jobId === jobId) {
+          setMessages((prev) => [mapMessage(incoming), ...prev]);
+        }
       }
-    });
+    );
+
     return unsubscribe;
   }, [jobId]);
 
@@ -59,6 +66,7 @@ export function ChatScreen({ route, navigation }: Props) {
     [jobId, user.id]
   );
 
+
   return (
     <View style={styles.container}>
       <Header title={title || t("job:chat")} onBackPress={() => navigation.goBack()} />
@@ -67,6 +75,27 @@ export function ChatScreen({ route, navigation }: Props) {
         onSend={onSend}
         user={{ _id: user.id }}
         isInverted
+        renderBubble={(props) => (
+          <Bubble
+            {...props}
+            wrapperStyle={{
+              right: {
+                backgroundColor: Colors.ButtonPrimaryColor,
+                padding: 4,
+                borderRadius: 14,
+              },
+              left: {
+                backgroundColor: "#F1F5F9",
+                padding: 4,
+                borderRadius: 14,
+              },
+            }}
+            textStyle={{
+              right: { color: "#FFFFFF" },
+              left: { color: "#0F172A" },
+            }}
+          />
+        )}
       />
       <LoadingOverlay visible={loading} />
     </View>
@@ -74,5 +103,5 @@ export function ChatScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: Colors.ScreenBG },
 });
