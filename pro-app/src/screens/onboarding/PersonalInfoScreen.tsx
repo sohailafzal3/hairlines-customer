@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
 import { OnboardingStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
@@ -92,6 +93,26 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
       if (photo) {
         profileImage = await api.uploadImage(photo, UploadImageType.profileImage);
       }
+
+      let finalLat = latitude;
+      let finalLng = longitude;
+      if (typeof finalLat !== "number" || typeof finalLng !== "number") {
+        try {
+          const fullQuery = [address, city, state, postalCode.trim()].filter(Boolean).join(", ");
+          const geocoded = await Location.geocodeAsync(fullQuery);
+          if (geocoded && geocoded.length > 0) {
+            finalLat = geocoded[0].latitude;
+            finalLng = geocoded[0].longitude;
+          }
+        } catch (err) {
+          console.warn("Geocoding fallback warning:", err);
+        }
+      }
+
+      // Default to Florida coordinates if geocoding was unavailable
+      if (typeof finalLat !== "number") finalLat = 27.5959;
+      if (typeof finalLng !== "number") finalLng = -81.5062;
+
       await api.addBasicInfo({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -104,8 +125,8 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
         city,
         state,
         postalCode: postalCode.trim(),
-        latitude,
-        longitude,
+        latitude: finalLat,
+        longitude: finalLng,
         referralCode: referralCode.trim(),
         profileImage,
         userType: 2,
