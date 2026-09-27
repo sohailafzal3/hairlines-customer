@@ -72,10 +72,20 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
   };
 
   const submit = async () => {
-    if (!firstName || !lastName || !email || !password || password !== confirmPassword) {
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password || password !== confirmPassword) {
       showAlert(t("validation:required"));
       return;
     }
+
+    const usZipRegex = /^\d{5}(-\d{4})?$/;
+    if (!postalCode.trim() || !usZipRegex.test(postalCode.trim())) {
+      showAlert(
+        "Invalid Postal Code",
+        "Please provide a valid 5-digit US postal code (e.g. 33825, 10001, or 90210)."
+      );
+      return;
+    }
+
     try {
       setLoading(true);
       let profileImage = "";
@@ -83,9 +93,9 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
         profileImage = await api.uploadImage(photo, UploadImageType.profileImage);
       }
       await api.addBasicInfo({
-        firstName,
-        lastName,
-        email,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
         password,
         confirmPassword,
         gender,
@@ -93,10 +103,10 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
         address,
         city,
         state,
-        postalCode,
+        postalCode: postalCode.trim(),
         latitude,
         longitude,
-        referralCode,
+        referralCode: referralCode.trim(),
         profileImage,
         userType: 2,
       });
@@ -283,10 +293,12 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
 
             <View style={styles.rowFields}>
               <Input
-                label="Postal Code"
-                placeholder="Postal Code"
+                label="US Postal Code"
+                placeholder="e.g. 33825"
                 value={postalCode}
                 onChangeText={setPostalCode}
+                keyboardType="numeric"
+                maxLength={10}
                 containerStyle={styles.flexHalf}
               />
               <Input
