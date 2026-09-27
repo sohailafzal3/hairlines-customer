@@ -8,7 +8,10 @@ export const kBaseUrl = "https://stagingapi.hairlines.app/api/v1/en/";
 
 // Third-party Keys
 // TODO: Move these to .env / EAS Secrets (see AGENTS.md Security Considerations)
-export const kGoogleApiKey = process.env.EXPO_PUBLIC_GOOGLE_API_KEY || '';
+export const kGoogleApiKey =
+  process.env.EXPO_PUBLIC_GOOGLE_API_KEY ||
+  process.env.GOOGLE_API_KEY ||
+  'AIzaSyBRO8-9PkS3p4ZTay5BjR53QJUOQoFvg6M';
 export const kStripeKey = process.env.EXPO_PUBLIC_STRIPE_KEY || '';
 
 // S3 / AWS

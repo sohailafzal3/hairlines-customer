@@ -20,8 +20,11 @@ export const ANDROID_APP_URL =
   "https://play.google.com/store/apps/details?id=apps.hairlines.pro.worker";
 
 // MARK: Third-party keys
-export const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; 
-export const STRIPE_PUBLISHABLE_KEY =process.env.STRIPE_PUBLISHABLE_KEY
+export const GOOGLE_API_KEY =
+  process.env.EXPO_PUBLIC_GOOGLE_API_KEY ||
+  process.env.GOOGLE_API_KEY ||
+  "AIzaSyBRO8-9PkS3p4ZTay5BjR53QJUOQoFvg6M";
+export const STRIPE_PUBLISHABLE_KEY = process.env.STRIPE_PUBLISHABLE_KEY;
 
 // MARK: S3
 export const S3_PREFIX = "https://hairlines-lives2.s3.us-east-1.amazonaws.com/";
