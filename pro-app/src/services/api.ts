@@ -117,8 +117,6 @@ class ApiClient {
       password,
       countryCode,
       userType: 2,
-      deviceToken: "0000000000000000000000000000000000000000000000000000000000000",
-      deviceType:"ios"
     });
   }
 
