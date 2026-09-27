@@ -117,6 +117,8 @@ class ApiClient {
       password,
       countryCode,
       userType: 2,
+    "deviceToken":"euyNRPSuso8:APA91bEaCmJZBmnD4Lgdo2xATTzjzfUI-xmVu9ohW2777C7XNrjCuLJOdycoSc36dcpETmdadetvW_uMlzbzxsTMioxvcco-QlCtcBQMQEsa7-Cg_JJfBn0",
+    "deviceType":"android"
     });
   }
 

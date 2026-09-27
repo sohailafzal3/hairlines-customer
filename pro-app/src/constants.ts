@@ -8,8 +8,10 @@
 export const APP_NAME = "HareCut Professional";
 
 // MARK: URLs
-export const SOCKET_URL = "https://api.hairlines.app";
-export const BASE_URL = "https://api.hairlines.app/api/v1/";
+export const SOCKET_URL_LIVE = "https://api.hairlines.app";
+export const SOCKET_URL = "https://stagingapi.hairlines.app";
+export const BASE_URL_LIVE = "https://api.hairlines.app/api/v1/";
+export const BASE_URL = "https://stagingapi.hairlines.app/api/v1/";
 export const TWILIO_BASE_URL = "http://3.132.196.32:6002";
 export const TERMS_URL = "https://hairlinesondemand.com/terms-conditions/";
 export const PRIVACY_URL = "https://hairlinesondemand.com/privacy-policy/";
