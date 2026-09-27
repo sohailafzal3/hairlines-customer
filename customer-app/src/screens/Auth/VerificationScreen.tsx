@@ -21,6 +21,8 @@ import { useAuthStore } from '../../store';
 import { Storage } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../constants';
 
+import Toast from 'react-native-toast-message';
+
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Verification'>;
   route: RouteProp<AuthStackParamList, 'Verification'>;
@@ -28,7 +30,7 @@ type Props = {
 
 const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   const { countryCode, phoneNumber, isSignUp, isForgotPassword } = route.params;
-  const { setAccount, setLoggedIn } = useAuthStore();
+  const { setAccount, login } = useAuthStore();
 
   const [code, setCode] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -62,8 +64,18 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
     setTimer(60);
     try {
       await AuthApi.sendVerificationCode(countryCode, phoneNumber);
-    } catch (error) {
+      Toast.show({
+        type: 'success',
+        text1: 'Code Resent',
+        text2: 'A new code has been sent to your phone',
+      });
+    } catch (error: any) {
       console.error('Resend error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error?.message || 'Failed to resend code',
+      });
     }
   };
 
@@ -84,11 +96,15 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
           deviceType: 'ios',
         });
         if (account) {
-          setAccount(account);
           if (account.isSignUpCompleted) {
-            setLoggedIn(true);
-            await Storage.setItem(STORAGE_KEYS.kIsUserLoggedIn, 'true');
+            Toast.show({
+              type: 'success',
+              text1: 'Verified',
+              text2: 'Welcome to Hairlines!',
+            });
+            await login(account);
           } else {
+            setAccount(account);
             navigation.navigate('SignUpFirst');
           }
         }
@@ -101,13 +117,21 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
           deviceType: 'ios',
         });
         if (account) {
-          setAccount(account);
-          setLoggedIn(true);
-          await Storage.setItem(STORAGE_KEYS.kIsUserLoggedIn, 'true');
+          Toast.show({
+            type: 'success',
+            text1: 'Verified',
+            text2: 'Welcome to Hairlines!',
+          });
+          await login(account);
         }
       }
     } catch (error: any) {
       console.error('Verification error:', error.message);
+      Toast.show({
+        type: 'error',
+        text1: 'Verification Failed',
+        text2: error?.message || 'Invalid code entered',
+      });
     } finally {
       setLoading(false);
     }

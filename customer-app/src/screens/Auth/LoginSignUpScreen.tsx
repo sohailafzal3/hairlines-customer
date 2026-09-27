@@ -19,12 +19,14 @@ import { useAuthStore } from '../../store';
 import { Storage } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../constants';
 
+import Toast from 'react-native-toast-message';
+
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'LoginSignUp'>;
 };
 
 const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
-  const { setAccount, setLoggedIn } = useAuthStore();
+  const { loginGuest } = useAuthStore();
 
   const handleGuestLogin = async () => {
     try {
@@ -36,13 +38,20 @@ const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
         deviceType: 'ios',
       });
       if (account) {
-        setAccount(account);
-        setLoggedIn(true);
-        await Storage.setItem(STORAGE_KEYS.kIsGuestUserLoggedIn, 'true');
-        await Storage.setItem(STORAGE_KEYS.kIsUserLoggedIn, 'true');
+        Toast.show({
+          type: 'success',
+          text1: 'Welcome',
+          text2: 'Logged in as Guest',
+        });
+        await loginGuest(account);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Guest login error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Guest Login Failed',
+        text2: error?.message || 'Unable to continue as guest',
+      });
     }
   };
 

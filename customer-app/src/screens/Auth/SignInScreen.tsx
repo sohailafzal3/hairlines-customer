@@ -21,6 +21,8 @@ import { useAuthStore } from '../../store';
 import { Storage } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../constants';
 
+import Toast from 'react-native-toast-message';
+
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'SignIn'>;
   route: RouteProp<AuthStackParamList, 'SignIn'>;
@@ -28,7 +30,7 @@ type Props = {
 
 const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
   const { isSignUp } = route.params;
-  const { setAccount, setLoggedIn } = useAuthStore();
+  const { setAccount, login } = useAuthStore();
 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
@@ -50,6 +52,11 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
           deviceToken,
           deviceType: 'ios',
         });
+        Toast.show({
+          type: 'success',
+          text1: 'Code Sent',
+          text2: 'Verification code sent to your phone',
+        });
         navigation.navigate('Verification', {
           countryCode,
           phoneNumber,
@@ -58,6 +65,11 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
         });
       } else if (isSignUp) {
         await AuthApi.sendVerificationCode(countryCode, phoneNumber);
+        Toast.show({
+          type: 'success',
+          text1: 'Code Sent',
+          text2: 'Verification code sent to your phone',
+        });
         navigation.navigate('Verification', {
           countryCode,
           phoneNumber,
@@ -72,13 +84,21 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
           deviceType: 'ios',
         });
         if (account) {
-          setAccount(account);
-          setLoggedIn(true);
-          await Storage.setItem(STORAGE_KEYS.kIsUserLoggedIn, 'true');
+          Toast.show({
+            type: 'success',
+            text1: 'Signed In',
+            text2: 'Welcome to Hairlines!',
+          });
+          await login(account);
         }
       }
     } catch (error: any) {
       console.error('Auth error:', error.message);
+      Toast.show({
+        type: 'error',
+        text1: 'Sign In Failed',
+        text2: error.message || 'Please check your phone number and password',
+      });
     } finally {
       setLoading(false);
     }

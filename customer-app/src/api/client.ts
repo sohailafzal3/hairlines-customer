@@ -37,14 +37,21 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response: AxiosResponse<ApiResponse>) => {
         const { data } = response;
-        if (data.success) {
-          return { ...response, data: data.data };
+        if (
+          data &&
+          (data.success === true ||
+            (data as any).success === 1 ||
+            (data as any).success === '1' ||
+            (data as any).response === 1 ||
+            (data as any).response === 200)
+        ) {
+          return { ...response, data: data.data !== undefined ? data.data : data };
         }
         // Business logic error
-        if (data.message) {
+        if (data?.message) {
           return Promise.reject(new Error(data.message));
         }
-        return Promise.reject(new Error(data.error || 'Unknown error'));
+        return Promise.reject(new Error(data?.error || 'Unknown error'));
       },
       (error) => {
         if (error.response?.data?.message) {

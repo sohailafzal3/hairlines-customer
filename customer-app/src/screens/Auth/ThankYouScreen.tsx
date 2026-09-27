@@ -15,11 +15,15 @@ type Props = {
 };
 
 const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
-  const { setLoggedIn } = useAuthStore();
+  const { account, login } = useAuthStore();
 
   const handleGoHome = async () => {
-    setLoggedIn(true);
-    await Storage.setItem(STORAGE_KEYS.kIsUserLoggedIn, 'true');
+    if (account) {
+      await login(account);
+    } else {
+      useAuthStore.getState().setLoggedIn(true);
+      await Storage.setItem(STORAGE_KEYS.kIsUserLoggedIn, 'true');
+    }
   };
 
   return (

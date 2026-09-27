@@ -21,12 +21,14 @@ import { useAuthStore } from '../../store';
 import { Genders } from '../../constants';
 import * as ImagePicker from 'expo-image-picker';
 
+import Toast from 'react-native-toast-message';
+
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'SignUpFirst'>;
 };
 
 const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
-  const { account } = useAuthStore();
+  const { account, setAccount } = useAuthStore();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -56,7 +58,11 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleSubmit = async () => {
     if (password !== confirmPassword) {
-      console.error('Passwords do not match');
+      Toast.show({
+        type: 'error',
+        text1: 'Password Mismatch',
+        text2: 'Passwords do not match',
+      });
       return;
     }
 
@@ -84,10 +90,18 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
         residanceLatitude: 0,
         residanceLongitude: 0,
       };
-      await AuthApi.basicInfo(params);
+      const createdAccount = await AuthApi.basicInfo(params);
+      if (createdAccount) {
+        setAccount(createdAccount);
+      }
       navigation.navigate('ThankYou');
     } catch (error: any) {
       console.error('Signup error:', error.message);
+      Toast.show({
+        type: 'error',
+        text1: 'Sign Up Failed',
+        text2: error?.message || 'Could not complete registration',
+      });
     } finally {
       setLoading(false);
     }

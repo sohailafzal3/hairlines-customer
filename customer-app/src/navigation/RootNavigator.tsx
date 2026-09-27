@@ -15,14 +15,16 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
-  const { isLoggedIn, setLoggedIn } = useAuthStore();
+  const { isLoggedIn, hasHydrated, setLoggedIn } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
         const loggedIn = await Storage.getItem(STORAGE_KEYS.kIsUserLoggedIn);
-        setLoggedIn(loggedIn === 'true');
+        if (loggedIn === 'true') {
+          setLoggedIn(true);
+        }
       } catch (error) {
         console.error('Auth check error:', error);
       } finally {
@@ -33,7 +35,7 @@ const RootNavigator = () => {
     checkAuthStatus();
   }, [setLoggedIn]);
 
-  if (isLoading) {
+  if (isLoading && !hasHydrated) {
     return null; // Or a splash screen
   }
 

@@ -58,27 +58,33 @@ const SetLocationScreen: React.FC<Props> = ({ navigation }) => {
       setLongitude(location.coords.longitude);
 
       // Reverse geocode
-      const geocode = await Location.reverseGeocodeAsync({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
+      try {
+        const geocode = await Location.reverseGeocodeAsync({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
 
-      if (geocode && geocode[0]) {
-        const place = geocode[0];
-        const formattedAddress = [
-          place.street,
-          place.streetNumber,
-          place.city,
-          place.region,
-          place.country,
-        ]
-          .filter(Boolean)
-          .join(', ');
+        if (geocode && geocode[0]) {
+          const place = geocode[0];
+          const formattedAddress = [
+            place.street,
+            place.streetNumber,
+            place.city,
+            place.region,
+            place.country,
+          ]
+            .filter(Boolean)
+            .join(', ');
 
-        setAddress(formattedAddress);
-        setCity(place.city || '');
-        setState(place.region || '');
-        setCountry(place.country || '');
+          setAddress(formattedAddress || `${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`);
+          setCity(place.city || '');
+          setState(place.region || '');
+          setCountry(place.country || '');
+        } else {
+          setAddress(`Current Location (${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)})`);
+        }
+      } catch (geocodeErr) {
+        setAddress(`Current Location (${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)})`);
       }
     } catch (error) {
       console.error('Location error:', error);
