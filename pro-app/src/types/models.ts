@@ -23,12 +23,14 @@ export interface Address {
 export interface Account {
   userAccountId?: string;
   id?: string;
+  _id?: string;
   firstName?: string;
   lastName?: string;
   name?: string;
   profileImage?: string;
   email?: string;
   phoneCode?: string;
+  phoneNumberPrefix?: string;
   phoneNumber?: string;
   avgRating?: number;
   accountType?: number;

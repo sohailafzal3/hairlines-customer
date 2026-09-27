@@ -29,8 +29,7 @@ export function LandingScreen({ navigation }: Props) {
     try {
       setLoading(true);
       const account = await api.signUpGuest();
-      await setAccount(account);
-      await setLoggedIn(true);
+      await setAccount(account, true);
     } catch (e: any) {
       showAlert("Error", e.message);
     } finally {
@@ -59,8 +58,7 @@ export function LandingScreen({ navigation }: Props) {
               userType: 2,
             });
 
-      await setAccount(account);
-      await setLoggedIn(true);
+      await setAccount(account, true);
     } catch (e: any) {
       showAlert("Social Sign-In", e.message);
     } finally {

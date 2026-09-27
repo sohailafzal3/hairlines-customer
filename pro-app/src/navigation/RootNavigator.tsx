@@ -56,22 +56,22 @@ export function RootNavigator() {
     return <LoadingOverlay visible />;
   }
 
-  let initialRoute: keyof RootStackParamList = "Auth";
-  if (user.isLoggedIn && !user.isSignUpCompleted) {
-    initialRoute = "Onboarding";
-  } else if (user.isLoggedIn) {
-    initialRoute = "Main";
-  }
-
   return (
     <NavigationContainer ref={navigationRef}>
-      <Stack.Navigator
-        screenOptions={{ headerShown: false }}
-        initialRouteName={initialRoute}
-      >
-        <Stack.Screen name="Auth" component={AuthNavigator} />
-        <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
-        <Stack.Screen name="Main" component={DrawerNavigator} />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {!user.isLoggedIn ? (
+          <Stack.Screen name="Auth" component={AuthNavigator} />
+        ) : !user.isSignUpCompleted ? (
+          <>
+            <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
+            <Stack.Screen name="Main" component={DrawerNavigator} />
+          </>
+        ) : (
+          <>
+            <Stack.Screen name="Main" component={DrawerNavigator} />
+            <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );

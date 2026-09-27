@@ -85,8 +85,7 @@ export function VerificationScreen({ route, navigation }: Props) {
         isSignUp
       );
       if (account) {
-        await setAccount(account);
-        await setLoggedIn(true);
+        await setAccount(account, true);
       }
     } catch (error: any) {
       setErrorMsg(error.message || "Invalid verification code. Please try again.");

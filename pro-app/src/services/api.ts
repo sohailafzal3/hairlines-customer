@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+import { Platform } from "react-native";
 import { BASE_URL, API_TIMEOUT, UploadImageType } from "../constants";
 import {
   loadCookies,
@@ -48,6 +49,7 @@ class ApiClient {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+      withCredentials: true,
     });
 
     this.client.interceptors.request.use(async (config) => {
@@ -56,10 +58,12 @@ class ApiClient {
         DEFAULT_LANGUAGE_CODE;
       const base = BASE_URL.endsWith("/") ? BASE_URL : `${BASE_URL}/`;
       config.baseURL = `${base}${lang}`;
-      const cookies = await loadCookies();
-      if (cookies.length > 0) {
-        config.headers = config.headers ?? {};
-        config.headers.Cookie = cookieHeader(cookies);
+      if (Platform.OS !== "web") {
+        const cookies = await loadCookies();
+        if (cookies.length > 0) {
+          config.headers = config.headers ?? {};
+          config.headers.Cookie = cookieHeader(cookies);
+        }
       }
       return config;
     });

@@ -81,8 +81,7 @@ export function SignInScreen({ route, navigation }: Props) {
       } else {
         const account = await api.signIn(phoneNumber, password, countryCode);
         if (account) {
-          await setAccount(account);
-          await setLoggedIn(true);
+          await setAccount(account, true);
         }
       }
     } catch (error: any) {
