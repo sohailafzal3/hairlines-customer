@@ -28,6 +28,9 @@ export function Header({
   style,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const displayTitle = title
+    ? title.charAt(0).toUpperCase() + title.slice(1)
+    : "";
 
   return (
     <View
@@ -49,9 +52,9 @@ export function Header({
         ) : null}
       </View>
       <Text style={styles.title} numberOfLines={1}>
-        {title}
+        {displayTitle}
       </Text>
-      <View style={styles.side}>{right}</View>
+      <View style={[styles.side, styles.sideRight]}>{right}</View>
     </View>
   );
 }
@@ -66,7 +69,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.BorderColor,
   },
-  side: { width: 40, alignItems: "flex-start", justifyContent: "center" },
+  side: { width: 44, alignItems: "flex-start", justifyContent: "center" },
+  sideRight: { width: "auto", minWidth: 44, alignItems: "flex-end" },
   title: {
     flex: 1,
     textAlign: "center",

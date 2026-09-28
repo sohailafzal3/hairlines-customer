@@ -42,7 +42,7 @@ export function WorkersListScreen({ navigation }: Props) {
             </View>
             <View style={styles.ratingPill}>
               <Ionicons name="star" size={11} color="#854D0E" style={{ marginRight: 3 }} />
-              <Text style={styles.ratingText}>{item.avgRating ? item.avgRating.toFixed(1) : "5.0"}</Text>
+              <Text style={styles.ratingText}>{item.avgRating ? item.avgRating.toFixed(1) : "0.0"}</Text>
             </View>
           </View>
         </View>

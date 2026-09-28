@@ -2,8 +2,8 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { OnboardingStackParamList } from "./types";
 import { PersonalInfoScreen } from "../screens/onboarding/PersonalInfoScreen";
-import { ServicesScreen } from "../screens/onboarding/ServicesScreen";
 import { ServicesForScreen } from "../screens/onboarding/ServicesForScreen";
+import { ServicesScreen } from "../screens/onboarding/ServicesScreen";
 import { CertificatesScreen } from "../screens/onboarding/CertificatesScreen";
 import { IdentityDocumentsScreen } from "../screens/onboarding/IdentityDocumentsScreen";
 import { BankingLanguagesScreen } from "../screens/onboarding/BankingLanguagesScreen";
@@ -19,19 +19,17 @@ export function OnboardingNavigator() {
 
   const getInitialRoute = (): keyof OnboardingStackParamList => {
     switch (user.signUpStepCompleted) {
+      case 0:
+        return "PersonalInfo";
       case 1:
-        return "Services";
-      case 2:
         return "ServicesFor";
+      case 2:
+        return "Services";
       case 3:
-        return "Certificates";
-      case 4:
-        return "IdentityDocuments";
-      case 5:
         return "BankingLanguages";
-      case 6:
+      case 4:
         return "Availability";
-      case 7:
+      case 5:
         return "ThankYou";
       default:
         return "PersonalInfo";
@@ -44,8 +42,8 @@ export function OnboardingNavigator() {
       initialRouteName={getInitialRoute()}
     >
       <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
-      <Stack.Screen name="Services" component={ServicesScreen} />
       <Stack.Screen name="ServicesFor" component={ServicesForScreen} />
+      <Stack.Screen name="Services" component={ServicesScreen} />
       <Stack.Screen name="Certificates" component={CertificatesScreen} />
       <Stack.Screen name="IdentityDocuments" component={IdentityDocumentsScreen} />
       <Stack.Screen name="BankingLanguages" component={BankingLanguagesScreen} />
@@ -55,3 +53,4 @@ export function OnboardingNavigator() {
     </Stack.Navigator>
   );
 }
+

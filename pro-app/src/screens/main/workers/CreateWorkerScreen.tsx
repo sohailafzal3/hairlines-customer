@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MainDrawerParamList } from "../../../navigation/types";
 import { Header } from "../../../components/Header";
 import { Button } from "../../../components/Button";
@@ -17,6 +18,7 @@ import { BorderRadius, Spacing } from "../../../theme/spacing";
 type Props = NativeStackScreenProps<MainDrawerParamList, "CreateWorker">;
 
 export function CreateWorkerScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -64,7 +66,10 @@ export function CreateWorkerScreen({ navigation }: Props) {
     <View style={styles.container}>
       <Header title="Invite Worker" onBackPress={() => navigation.goBack()} />
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: insets.bottom + 90 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <LoadingOverlay visible={loading} />
@@ -102,9 +107,17 @@ export function CreateWorkerScreen({ navigation }: Props) {
             })}
           </View>
         ))}
-
-        <Button title="Send Invite to Worker" onPress={submit} style={styles.submitBtn} />
       </ScrollView>
+
+      {/* Pinned Bottom Action Button */}
+      <View
+        style={[
+          styles.footerWrap,
+          { paddingBottom: Math.max(insets.bottom, 16) },
+        ]}
+      >
+        <Button title="Send Invite to Worker" onPress={submit} />
+      </View>
     </View>
   );
 }
@@ -113,7 +126,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.ScreenBG },
   content: {
     padding: Spacing.base,
-    paddingBottom: Spacing["3xl"],
   },
   card: {
     backgroundColor: "#FFFFFF",
@@ -166,8 +178,22 @@ const styles = StyleSheet.create({
     fontWeight: FontWeights.bold,
     color: Colors.ButtonPrimaryColor,
   },
-  submitBtn: {
-    marginTop: Spacing.base,
+  footerWrap: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    paddingHorizontal: Spacing.base,
+    paddingTop: 12,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 8,
   },
 });
+
 

@@ -105,6 +105,9 @@ export const AuthApi = {
 
   basicInfo: (params: any) => apiClient.post<Account>('user/basic-info', params),
 
+  getTermsConditions: () =>
+    apiClient.get<any>('privacy-term-conditions?userType=user'),
+
   checkVersion: (versionCode: string, deviceType: string, userType: string = 'user') =>
     apiClient.put('check-version', { versionCode, deviceType, userType }),
 };

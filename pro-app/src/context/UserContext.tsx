@@ -47,7 +47,7 @@ export const defaultUserState: UserState = {
   tools: [],
   serviceFor: -1,
   isApproved: false,
-  signUpStepCompleted: 0,
+  signUpStepCompleted: -1,
   isSignUpCompleted: false,
 };
 

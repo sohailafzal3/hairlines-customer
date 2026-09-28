@@ -32,11 +32,24 @@ export function JobDetailsScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [job, setJob] = useState<JobDetail | null>(null);
 
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+
   const load = async () => {
     try {
       setLoading(true);
       const detail = await api.getJobDetail(jobId);
       setJob(detail);
+      if (detail.spJobStatus === JobStatus.started) {
+        const currentTime = Date.now() / 1000;
+        const elapsed = Math.max(
+          0,
+          Math.floor(currentTime - (detail.jobStartTime || currentTime)) -
+            (detail.jobPauseStartTiming || 0)
+        );
+        setTimerSeconds(elapsed);
+        setIsTimerRunning(detail.isJobStart ?? true);
+      }
     } catch (e: any) {
       showAlert("Error", e.message);
     } finally {
@@ -47,6 +60,38 @@ export function JobDetailsScreen({ route, navigation }: Props) {
   useEffect(() => {
     load();
   }, [jobId]);
+
+  useEffect(() => {
+    let interval: any = null;
+    if (isTimerRunning && job?.spJobStatus === JobStatus.started) {
+      interval = setInterval(() => {
+        setTimerSeconds((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isTimerRunning, job?.spJobStatus]);
+
+  const togglePausePlay = async () => {
+    try {
+      setLoading(true);
+      await api.pauseStartJob(jobId);
+      setIsTimerRunning((prev) => !prev);
+    } catch (e: any) {
+      showAlert("Error", e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTimerDisplay = (sec: number) => {
+    const hours = Math.floor(sec / 3600);
+    const minutes = Math.floor((sec % 3600) / 60);
+    const seconds = Math.floor(sec % 60);
+    const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+    return `${pad(hours)} : ${pad(minutes)} : ${pad(seconds)}`;
+  };
 
   const updateStatus = async (status: number) => {
     try {
@@ -66,6 +111,14 @@ export function JobDetailsScreen({ route, navigation }: Props) {
       showAlert("Error", e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStartService = () => {
+    if (job?.isJobConsultant && !job?.isConsultantServiceSelected) {
+      navigation.navigate("ServicesSelection", { jobId });
+    } else {
+      updateStatus(JobStatus.started);
     }
   };
 
@@ -92,7 +145,7 @@ export function JobDetailsScreen({ route, navigation }: Props) {
         return (
           <Button
             title={t("home:startService")}
-            onPress={() => updateStatus(JobStatus.started)}
+            onPress={handleStartService}
             style={styles.mainActionBtn}
           />
         );
@@ -131,6 +184,40 @@ export function JobDetailsScreen({ route, navigation }: Props) {
     <View style={styles.container}>
       <Header title={t("job:details")} onBackPress={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Active Service Timer (Only visible when status is started) */}
+        {job.spJobStatus === JobStatus.started && (
+          <Card style={styles.timerCard}>
+            <View style={styles.timerHeader}>
+              <Ionicons name="stopwatch-outline" size={20} color={Colors.ButtonPrimaryColor} />
+              <Text style={styles.timerTitle}>SERVICE IN PROGRESS</Text>
+            </View>
+            <Text style={styles.timerValue}>{formatTimerDisplay(timerSeconds)}</Text>
+            <TouchableOpacity
+              style={[
+                styles.timerToggleBtn,
+                { backgroundColor: isTimerRunning ? "#FEE2E2" : "#DCFCE7" },
+              ]}
+              onPress={togglePausePlay}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name={isTimerRunning ? "pause" : "play"}
+                size={16}
+                color={isTimerRunning ? "#DC2626" : "#16A34A"}
+                style={{ marginRight: 6 }}
+              />
+              <Text
+                style={[
+                  styles.timerToggleText,
+                  { color: isTimerRunning ? "#DC2626" : "#16A34A" },
+                ]}
+              >
+                {isTimerRunning ? "Pause Service" : "Resume Service"}
+              </Text>
+            </TouchableOpacity>
+          </Card>
+        )}
+
         {/* Customer Profile Card */}
         <Card style={styles.userCard}>
           <View style={styles.row}>
@@ -180,6 +267,31 @@ export function JobDetailsScreen({ route, navigation }: Props) {
             </TouchableOpacity>
           </View>
         </Card>
+
+        {/* Appointment For Card (if booking for someone else or self) */}
+        {job.memberName ? (
+          <Card style={styles.detailsCard}>
+            <View style={styles.sectionRow}>
+              <Ionicons
+                name="people-outline"
+                size={20}
+                color={Colors.ButtonPrimaryColor}
+                style={{ marginRight: 8, marginTop: 2 }}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sectionLabel}>Appointment For</Text>
+                <Text style={styles.sectionValue}>
+                  {job.memberName} {job.memberRelation ? `(${job.memberRelation})` : ""}
+                </Text>
+                {job.memberAge ? (
+                  <Text style={[styles.sectionValue, { color: Colors.DescriptionTextDark, fontSize: FontSizes.xs, marginTop: 2 }]}>
+                    Age: {job.memberAge} {job.memberHealth ? `• Health: ${job.memberHealth}` : ""}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          </Card>
+        ) : null}
 
         {/* Location & Instructions Card */}
         <Card style={styles.detailsCard}>
@@ -265,6 +377,45 @@ export function JobDetailsScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.ScreenBG },
   content: { padding: Spacing.base, paddingBottom: Spacing["3xl"] },
+  timerCard: {
+    padding: Spacing.base,
+    marginBottom: Spacing.sm,
+    backgroundColor: "#F0FDF4",
+    borderColor: "#86EFAC",
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  timerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  timerTitle: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+    marginLeft: 6,
+    letterSpacing: 1,
+  },
+  timerValue: {
+    fontSize: 32,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+    fontVariant: ["tabular-nums"],
+    marginVertical: 4,
+  },
+  timerToggleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    marginTop: 8,
+  },
+  timerToggleText: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.bold,
+  },
   userCard: {
     padding: Spacing.base,
     marginBottom: Spacing.sm,

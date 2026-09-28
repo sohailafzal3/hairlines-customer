@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,13 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
-import { Spacing } from '../../theme/spacing';
+import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTButton, VTTextField } from '../../components/common';
 import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
@@ -39,6 +40,19 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [profileImage, setProfileImage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isTermsAccepted, setIsTermsAccepted] = useState(false);
+  const [termsDescription, setTermsDescription] = useState('');
+  const [termsModalVisible, setTermsModalVisible] = useState(false);
+
+  useEffect(() => {
+    AuthApi.getTermsConditions()
+      .then((res: any) => {
+        if (res?.termAndConditionDescription) {
+          setTermsDescription(res.termAndConditionDescription);
+        }
+      })
+      .catch((err) => console.log('Failed to fetch terms:', err));
+  }, []);
 
   const handleImagePick = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -62,6 +76,15 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
         type: 'error',
         text1: 'Password Mismatch',
         text2: 'Passwords do not match',
+      });
+      return;
+    }
+
+    if (!isTermsAccepted) {
+      Toast.show({
+        type: 'error',
+        text1: 'Terms Required',
+        text2: 'Please accept Terms & Conditions before continuing',
       });
       return;
     }
@@ -198,6 +221,33 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
             secureTextEntry
           />
 
+          {/* Agreement Checkbox */}
+          <View style={styles.agreementRow}>
+            <TouchableOpacity
+              onPress={() => setIsTermsAccepted(!isTermsAccepted)}
+              activeOpacity={0.8}
+              style={[
+                styles.checkbox,
+                isTermsAccepted && styles.checkboxActive,
+              ]}
+            >
+              {isTermsAccepted && (
+                <Text style={styles.checkmark}>✓</Text>
+              )}
+            </TouchableOpacity>
+            <View style={styles.agreementTextContainer}>
+              <Text style={styles.agreementText}>
+                I've read & agree with{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => setTermsModalVisible(true)}
+                >
+                  Terms & Conditions.
+                </Text>
+              </Text>
+            </View>
+          </View>
+
           <VTButton
             title="Complete Sign Up"
             onPress={handleSubmit}
@@ -207,6 +257,45 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
           />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Terms Modal */}
+      <Modal
+        visible={termsModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setTermsModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Terms & Conditions</Text>
+            <TouchableOpacity
+              onPress={() => setTermsModalVisible(false)}
+              style={styles.modalCloseBtn}
+            >
+              <Text style={styles.modalCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            style={styles.modalScroll}
+            contentContainerStyle={styles.modalScrollContent}
+          >
+            <Text style={styles.modalBodyText}>
+              {termsDescription
+                ? termsDescription.replace(/<[^>]+>/g, '').trim()
+                : 'Welcome to Hairlines. By signing up and booking services through Hairlines, you agree to treat our verified service professionals with respect, adhere to safety and hygiene protocols during appointments, maintain accurate booking and contact information, and comply with our transparent cancellation and refund policy.'}
+            </Text>
+          </ScrollView>
+          <View style={styles.modalFooter}>
+            <VTButton
+              title="I Agree & Accept"
+              onPress={() => {
+                setIsTermsAccepted(true);
+                setTermsModalVisible(false);
+              }}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -300,9 +389,94 @@ const styles = StyleSheet.create({
     color: Colors.ButtonPrimaryColor,
     fontFamily: Fonts.uberMoveMedium,
   },
+  agreementRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.sm,
+    marginTop: 2,
+  },
+  checkboxActive: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderColor: Colors.ButtonPrimaryColor,
+  },
+  checkmark: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  agreementTextContainer: {
+    flex: 1,
+  },
+  agreementText: {
+    fontSize: FontSizes.sm,
+    color: Colors.DescriptionTextDark,
+    lineHeight: 20,
+    fontFamily: Fonts.uberMoveRegular,
+  },
+  termsLink: {
+    color: Colors.ButtonPrimaryColor,
+    fontFamily: Fonts.uberMoveBold,
+    textDecorationLine: 'underline',
+  },
   button: {
     marginTop: Spacing.lg,
     marginBottom: Spacing['2xl'],
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.BGColor,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.lightGrayBorder,
+  },
+  modalTitle: {
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.TitleColor,
+  },
+  modalCloseBtn: {
+    padding: 6,
+  },
+  modalCloseText: {
+    fontSize: FontSizes.lg,
+    color: Colors.TitleColor,
+  },
+  modalScroll: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    padding: Spacing.xl,
+    paddingBottom: Spacing['3xl'],
+  },
+  modalBodyText: {
+    fontSize: FontSizes.sm,
+    lineHeight: 22,
+    color: Colors.DescriptionTextDark,
+    fontFamily: Fonts.uberMoveRegular,
+  },
+  modalFooter: {
+    padding: Spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: Colors.lightGrayBorder,
+    backgroundColor: Colors.BGColor,
   },
 });
 

@@ -113,7 +113,10 @@ export function VerificationScreen({ route, navigation }: Props) {
           {/* Top Bar Back Button */}
           <View style={styles.topBar}>
             <TouchableOpacity
-              onPress={() => navigation.goBack()}
+              onPress={() => {
+                if (navigation.canGoBack()) navigation.goBack();
+                else navigation.navigate("Landing" as any);
+              }}
               style={styles.backButton}
               activeOpacity={0.8}
             >

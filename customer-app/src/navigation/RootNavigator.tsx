@@ -7,6 +7,10 @@ import { useAuthStore } from '../store';
 import { Storage } from '../utils/storage';
 import { STORAGE_KEYS } from '../constants';
 
+import { registerForPushNotificationsAsync, addNotificationReceivedListener, addNotificationResponseReceivedListener } from '../services/notifications';
+
+import { SplashScreen } from '../screens/SplashScreen';
+
 export type RootStackParamList = {
   Auth: undefined;
   App: undefined;
@@ -15,8 +19,9 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
-  const { isLoggedIn, hasHydrated, setLoggedIn } = useAuthStore();
+  const { isLoggedIn, hasHydrated, setLoggedIn, setUser, user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
+  const [isSplashDone, setIsSplashDone] = useState(false);
 
   useEffect(() => {
     const checkAuthStatus = async () => {
@@ -35,8 +40,31 @@ const RootNavigator = () => {
     checkAuthStatus();
   }, [setLoggedIn]);
 
-  if (isLoading && !hasHydrated) {
-    return null; // Or a splash screen
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    registerForPushNotificationsAsync().then((token) => {
+      if (token && user) {
+        setUser({ ...user, deviceToken: token });
+      }
+    });
+
+    const sub1 = addNotificationReceivedListener((notification) => {
+      console.log('Customer notification received:', notification.request.content);
+    });
+
+    const sub2 = addNotificationResponseReceivedListener((response) => {
+      console.log('Customer notification opened:', response.notification.request.content);
+    });
+
+    return () => {
+      sub1.remove();
+      sub2.remove();
+    };
+  }, [isLoggedIn]);
+
+  if (!isSplashDone || isLoading || !hasHydrated) {
+    return <SplashScreen onFinish={() => setIsSplashDone(true)} minDuration={2200} />;
   }
 
   return (

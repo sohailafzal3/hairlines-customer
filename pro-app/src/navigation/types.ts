@@ -1,6 +1,7 @@
 import { NavigatorScreenParams } from "@react-navigation/native";
 
 export type AuthStackParamList = {
+  Splash: undefined;
   Landing: undefined;
   SignIn: { mode?: "signIn" | "signUp"; isSignUp?: boolean; selectedCountryCode?: string; selectedFlag?: string } | undefined;
   SignUp: { selectedCountryCode?: string; selectedFlag?: string } | undefined;
@@ -16,13 +17,13 @@ export type AuthStackParamList = {
 };
 
 export type OnboardingStackParamList = {
-  PersonalInfo: { addressData?: any } | undefined;
-  Services: undefined;
-  ServicesFor: undefined;
-  Certificates: undefined;
-  IdentityDocuments: undefined;
-  BankingLanguages: undefined;
-  Availability: undefined;
+  PersonalInfo: { addressData?: any; isFromSettings?: boolean } | undefined;
+  Services: { isFromSettings?: boolean } | undefined;
+  ServicesFor: { isFromSettings?: boolean } | undefined;
+  Certificates: { isFromSettings?: boolean } | undefined;
+  IdentityDocuments: { isFromSettings?: boolean } | undefined;
+  BankingLanguages: { isFromSettings?: boolean } | undefined;
+  Availability: { isFromSettings?: boolean } | undefined;
   ThankYou: undefined;
   SetLocation: undefined;
 };
@@ -35,7 +36,7 @@ export type MainDrawerParamList = {
   Earnings: undefined;
   Settings: undefined;
   ShareReferral: undefined;
-  Terms: undefined;
+  Terms: { url?: string; title?: string } | undefined;
   Support: undefined;
   Workers: undefined;
   CreateWorker: undefined;

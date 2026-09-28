@@ -52,11 +52,13 @@ const ShareReferralScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.navigate('Wallet')}>
+          <Text style={styles.menuIcon}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Invite Friends</Text>
         <TouchableOpacity onPress={() => (navigation as any).openDrawer()}>
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Invite Friends</Text>
-        <View style={{ width: 40 }} />
       </View>
 
       <View style={styles.content}>

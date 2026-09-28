@@ -38,7 +38,7 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { label: "Home Dashboard", iconName: "home-outline", route: "HomeTab" },
+  { label: "Home", iconName: "home-outline", route: "HomeTab" },
   { label: "Notifications", iconName: "notifications-outline", route: "Notifications" },
   { label: "My Profile", iconName: "person-outline", route: "Profile" },
   { label: "Wallet & Balance", iconName: "wallet-outline", route: "Wallet" },
@@ -96,7 +96,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
 
   const getUserRating = () => {
     if (user.avgRating && user.avgRating > 0) return user.avgRating.toFixed(1);
-    return "5.0";
+    return "0.0";
   };
 
   return (
@@ -152,50 +152,61 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
 
         {/* Navigation Menu Options */}
         <View style={styles.menuSection}>
-          {menuItems.map((item, index) => {
-            const isFocused = state?.routes[state.index]?.name === item.route;
+          {menuItems
+            .filter((item) => {
+              if (item.route === "Workers") {
+                // Manage Workers is ONLY visible for Company providers (accountType === 2 or has companyName and not a company worker)
+                const isCompany =
+                  user.accountType === 2 ||
+                  (Boolean(user.companyName) && !user.isCompanyWorker);
+                return isCompany;
+              }
+              return true;
+            })
+            .map((item, index) => {
+              const isFocused = state?.routes[state.index]?.name === item.route;
 
-            return (
-              <TouchableOpacity
-                key={index}
-                style={[styles.menuItem, isFocused && styles.menuItemActive]}
-                onPress={() => navigation.navigate(item.route, item.params)}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.iconContainer,
-                    isFocused && styles.iconContainerActive,
-                  ]}
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[styles.menuItem, isFocused && styles.menuItemActive]}
+                  onPress={() => navigation.navigate(item.route, item.params)}
+                  activeOpacity={0.7}
                 >
-                  <Ionicons
-                    name={item.iconName}
-                    size={20}
-                    color={isFocused ? Colors.ButtonPrimaryColor : "#64748B"}
-                  />
-                </View>
-
-                <Text
-                  style={[styles.menuLabel, isFocused && styles.menuLabelActive]}
-                >
-                  {item.label}
-                </Text>
-
-                {item.badge && (
-                  <View style={styles.badgeContainer}>
-                    <Text style={styles.badgeText}>{item.badge}</Text>
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      isFocused && styles.iconContainerActive,
+                    ]}
+                  >
+                    <Ionicons
+                      name={item.iconName}
+                      size={20}
+                      color={isFocused ? Colors.ButtonPrimaryColor : "#64748B"}
+                    />
                   </View>
-                )}
 
-                <Ionicons
-                  name="chevron-forward"
-                  size={16}
-                  color={isFocused ? Colors.ButtonPrimaryColor : "#CBD5E1"}
-                  style={styles.arrowIcon}
-                />
-              </TouchableOpacity>
-            );
-          })}
+                  <Text
+                    style={[styles.menuLabel, isFocused && styles.menuLabelActive]}
+                  >
+                    {item.label}
+                  </Text>
+
+                  {item.badge && (
+                    <View style={styles.badgeContainer}>
+                      <Text style={styles.badgeText}>{item.badge}</Text>
+                    </View>
+                  )}
+
+                  <Ionicons
+                    name="chevron-forward"
+                    size={16}
+                    color={isFocused ? Colors.ButtonPrimaryColor : "#CBD5E1"}
+                    style={styles.arrowIcon}
+                  />
+                </TouchableOpacity>
+              );
+            })}
         </View>
       </DrawerContentScrollView>
 

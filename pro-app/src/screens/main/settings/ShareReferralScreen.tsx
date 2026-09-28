@@ -1,5 +1,13 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Share,
+  Platform,
+} from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { MainDrawerParamList } from "../../../navigation/types";
@@ -8,7 +16,6 @@ import { Button } from "../../../components/Button";
 import { useUser } from "../../../context/UserContext";
 import * as Clipboard from "expo-clipboard";
 import { showAlert } from "../../../utils/helpers";
-import * as Sharing from "expo-sharing";
 import { Colors } from "../../../theme/colors";
 import { FontSizes, FontWeights } from "../../../theme/fonts";
 import { BorderRadius, Spacing } from "../../../theme/spacing";
@@ -21,19 +28,53 @@ export function ShareReferralScreen({ navigation }: Props) {
 
   const copy = async () => {
     await Clipboard.setStringAsync(code);
-    showAlert("Copied", "Referral code copied to clipboard!");
+    showAlert("Copied", `Referral code "${code}" copied to clipboard!`);
   };
 
   const share = async () => {
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(`Join Hairlines Pro using my partner code ${code} and get exclusive signup bonuses!`);
+    const message = `Join Hairlines Pro using my partner code ${code} and get exclusive signup bonuses! https://hairlines.app`;
+    try {
+      if (Platform.OS === "web") {
+        if (typeof navigator !== "undefined" && (navigator as any).share) {
+          await (navigator as any).share({
+            title: "Hairlines Pro Referral",
+            text: message,
+          });
+        } else {
+          await Clipboard.setStringAsync(code);
+          showAlert(
+            "Referral Code",
+            `Referral code "${code}" copied to clipboard!`
+          );
+        }
+      } else {
+        await Share.share({
+          message,
+          title: "Hairlines Pro Referral",
+        });
+      }
+    } catch (error: any) {
+      if (
+        error.message &&
+        !error.message.includes("dismissed") &&
+        !error.message.includes("canceled")
+      ) {
+        showAlert("Notice", error.message);
+      }
     }
+  };
+
+  const handleBack = () => {
+    navigation.navigate("Wallet");
   };
 
   return (
     <View style={styles.container}>
-      <Header title="Invite & Earn" onBackPress={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <Header title="Invite & Earn" onBackPress={handleBack} />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Banner Section */}
         <View style={styles.iconCircle}>
           <Ionicons name="gift" size={36} color={Colors.ButtonPrimaryColor} />

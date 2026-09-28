@@ -30,6 +30,7 @@ import {
   TwilioCallData,
   Security,
   UnHandledJob,
+  TermsCondition,
 } from "../types/models";
 
 const authCookieEndpoints = [
@@ -115,14 +116,16 @@ class ApiClient {
   }
 
   // MARK: Auth
-  signIn(phoneNumber: string, password: string, countryCode: string) {
+  async signIn(phoneNumber: string, password: string, countryCode: string) {
+    const deviceToken = (await storage.get<string>(StorageKeys.deviceToken)) || "88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9";
+    const deviceType = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
     return this.request<Account>("POST", "sign-in", {
       phoneNumber,
       password,
       countryCode,
       userType: 2,
-    "deviceToken":"euyNRPSuso8:APA91bEaCmJZBmnD4Lgdo2xATTzjzfUI-xmVu9ohW2777C7XNrjCuLJOdycoSc36dcpETmdadetvW_uMlzbzxsTMioxvcco-QlCtcBQMQEsa7-Cg_JJfBn0",
-    "deviceType":"android"
+      deviceToken,
+      deviceType,
     });
   }
 
@@ -134,12 +137,14 @@ class ApiClient {
     });
   }
 
-  verifyCode(
+  async verifyCode(
     phoneNumber: string,
     countryCode: string,
     code: string,
     isSignUp: boolean
   ) {
+    const deviceToken = (await storage.get<string>(StorageKeys.deviceToken)) || "88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9";
+    const deviceType = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
     const url = isSignUp
       ? "sign-up/verify-verification-code"
       : "sign-in/verify-verification-code";
@@ -148,6 +153,8 @@ class ApiClient {
       countryCode,
       code,
       userType: 2,
+      deviceToken,
+      deviceType,
     });
   }
 
@@ -162,16 +169,36 @@ class ApiClient {
     });
   }
 
-  signUpGuest() {
-    return this.request<Account>("POST", "sign-up/guest", { userType: 2 });
+  async signUpGuest() {
+    const deviceToken = (await storage.get<string>(StorageKeys.deviceToken)) || "88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9";
+    const deviceType = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
+    return this.request<Account>("POST", "sign-up/guest", {
+      userType: 2,
+      deviceToken,
+      deviceType,
+    });
   }
 
-  appleSignup(payload: any) {
-    return this.request<Account>("POST", "auth/apple", payload);
+  async appleSignup(payload: any) {
+    const deviceToken = (await storage.get<string>(StorageKeys.deviceToken)) || "88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9";
+    const deviceType = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
+    return this.request<Account>("POST", "auth/apple", {
+      ...payload,
+      deviceToken,
+      deviceType,
+      userType: 2,
+    });
   }
 
-  facebookSignup(payload: any) {
-    return this.request<Account>("POST", "auth/facebook", payload);
+  async facebookSignup(payload: any) {
+    const deviceToken = (await storage.get<string>(StorageKeys.deviceToken)) || "88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9";
+    const deviceType = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
+    return this.request<Account>("POST", "auth/facebook", {
+      ...payload,
+      deviceToken,
+      deviceType,
+      userType: 2,
+    });
   }
 
   addPhoneNumberUsingFB(payload: any) {
@@ -197,6 +224,13 @@ class ApiClient {
 
   getSPProfile() {
     return this.request<MyProfile>("GET", "sp/fetch-profile");
+  }
+
+  getSPRatings(offset = 0, limit = 10) {
+    return this.request<{ ratings: any[] }>(
+      "GET",
+      `sp/over-all-rating?offset=${offset}&limit=${limit}`
+    );
   }
 
   // MARK: Services
@@ -404,6 +438,11 @@ class ApiClient {
 
   getUnratedJob() {
     return this.request<any>("GET", "last-unrated-job?userType=sp");
+  }
+
+  // MARK: Terms & Conditions
+  getTermsConditions() {
+    return this.request<TermsCondition>("GET", "privacy-term-conditions?userType=sp");
   }
 
   // MARK: Cancellation

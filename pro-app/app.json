@@ -79,7 +79,8 @@
           "color": "#2E7D32"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker"
     ]
   }
 }

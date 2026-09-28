@@ -110,6 +110,9 @@ export interface UserState {
   isApproved: boolean;
   signUpStepCompleted: number;
   isSignUpCompleted: boolean;
+  gender?: string;
+  dob?: string | number;
+  about?: string;
 }
 
 export interface Job {
@@ -147,6 +150,15 @@ export interface ServiceList {
 
 export interface SubService {
   subServiceName?: string;
+}
+
+export interface TermsCondition {
+  termAndConditionId?: string;
+  termAndConditionDescription?: string;
+  termAndConditionVersion?: string;
+  privacyPolicyDescription?: string;
+  privacyPolicyId?: string;
+  privacyPolicyVersion?: string;
 }
 
 export interface PastJob {
@@ -379,8 +391,9 @@ export interface WeekDayEarning {
 
 export interface Week {
   title?: string;
-  weekNumber?: string;
-  weekYear?: string;
+  weekTitle?: string;
+  weekNumber?: string | number;
+  weekYear?: string | number;
 }
 
 export interface WeekTransaction {
@@ -429,16 +442,24 @@ export interface MyProfile {
   companyName?: string;
   gender?: string;
   dateOfBirth?: number;
+  dob?: number | string;
   userLat?: number;
   userLong?: number;
+  latitude?: number;
+  longitude?: number;
   userPrimaryAddress?: string;
+  primaryAddress?: string;
   userCity?: string;
+  city?: string;
   userState?: string;
+  state?: string;
   userCountry?: string;
+  country?: string;
   postalCode?: string;
   provideServiceInPremisis?: boolean;
   provideServiceInUserPremisis?: boolean;
   bio?: string;
+  about?: string;
   referenceImages?: string[];
   isVerifiedByAdmin?: boolean;
   referralCode?: string;

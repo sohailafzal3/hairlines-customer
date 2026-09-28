@@ -7,12 +7,18 @@ import { SignUpScreen } from "../screens/auth/SignUpScreen";
 import { VerificationScreen } from "../screens/auth/VerificationScreen";
 import { ForgotPasswordScreen } from "../screens/auth/ForgotPasswordScreen";
 import { SelectCountryScreen } from "../screens/auth/SelectCountryScreen";
+import { SplashScreen } from "../screens/SplashScreen";
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 export function AuthNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Landing">
+      <Stack.Screen name="Splash">
+        {({ navigation }) => (
+          <SplashScreen onFinish={() => navigation.replace("Landing")} />
+        )}
+      </Stack.Screen>
       <Stack.Screen name="Landing" component={LandingScreen} />
       <Stack.Screen name="SignIn" component={SignInScreen} />
       <Stack.Screen name="SignUp" component={SignUpScreen} />

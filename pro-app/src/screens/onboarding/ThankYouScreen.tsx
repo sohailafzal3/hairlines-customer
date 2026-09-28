@@ -6,6 +6,9 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { OnboardingStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
 import { useUser } from "../../context/UserContext";
+import { Colors } from "../../theme/colors";
+import { FontSizes, FontWeights } from "../../theme/fonts";
+import { BorderRadius, Spacing } from "../../theme/spacing";
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, "ThankYou">;
 
@@ -20,13 +23,20 @@ export function ThankYouScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.iconCircle}>
-        <Ionicons name="checkmark-circle" size={56} color="#10B981" />
+        <Ionicons name="checkmark-circle" size={64} color="#10B981" />
       </View>
-      <Text style={styles.title}>{t("onboarding:thankYou")}</Text>
+      <Text style={styles.title}>Congratulations!</Text>
       <Text style={styles.subtitle}>
-        Your professional profile has been submitted and is under review. You can start exploring the dashboard now!
+        Your professional account setup is complete!
       </Text>
-      <Button title={t("common:done")} onPress={finish} style={{ width: "100%" }} />
+      <Text style={styles.description}>
+        Your profile details, services, pricing, and availability have been saved. You can now start managing appointments and explore your partner dashboard.
+      </Text>
+      <Button
+        title="Got It"
+        onPress={finish}
+        style={styles.button}
+      />
     </View>
   );
 }
@@ -35,26 +45,50 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
-    padding: 24,
+    padding: Spacing.xl,
     alignItems: "center",
     justifyContent: "center",
   },
   iconCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
     backgroundColor: "#ECFDF5",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  title: { fontSize: 28, fontWeight: "700", color: "#222D63", marginBottom: 12 },
-  subtitle: {
-    fontSize: 15,
-    color: "#64748B",
+  title: {
+    fontSize: FontSizes["3xl"],
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+    marginBottom: Spacing.xs,
     textAlign: "center",
-    marginBottom: 32,
+  },
+  subtitle: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.semibold,
+    color: Colors.ButtonPrimaryColor,
+    textAlign: "center",
+    marginBottom: Spacing.md,
+  },
+  description: {
+    fontSize: FontSizes.sm,
+    color: Colors.DescriptionTextDark,
+    textAlign: "center",
+    marginBottom: Spacing["2xl"],
     lineHeight: 22,
+    paddingHorizontal: Spacing.md,
+  },
+  button: {
+    width: "100%",
+    minHeight: 54,
   },
 });
+
 

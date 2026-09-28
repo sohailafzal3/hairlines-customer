@@ -65,13 +65,17 @@ const WalletScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* Info Section */}
         <View style={styles.infoSection}>
-          <View style={styles.infoItem}>
+          <TouchableOpacity
+            style={styles.infoItem}
+            onPress={() => navigation.navigate('ShareReferral')}
+            activeOpacity={0.8}
+          >
             <Text style={styles.infoEmoji}>💰</Text>
             <Text style={styles.infoTitle}>Earn Credits</Text>
             <Text style={styles.infoDesc}>
               Invite friends and earn referral credits towards your next booking
             </Text>
-          </View>
+          </TouchableOpacity>
 
           <View style={styles.infoItem}>
             <Text style={styles.infoEmoji}>🎁</Text>

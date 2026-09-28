@@ -10,10 +10,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
+  Modal,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { OnboardingStackParamList } from "../../navigation/types";
@@ -27,10 +31,13 @@ import { Colors } from "../../theme/colors";
 import { FontSizes, FontWeights } from "../../theme/fonts";
 import { Spacing, BorderRadius } from "../../theme/spacing";
 
+import { useUser } from "../../context/UserContext";
+
 type Props = NativeStackScreenProps<OnboardingStackParamList, "PersonalInfo">;
 
 export function PersonalInfoScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
+  const { clearUser } = useUser();
   const [loading, setLoading] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -39,14 +46,42 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [gender, setGender] = useState<Gender>(Gender.male);
   const [dob, setDob] = useState("");
+  const [dobDate, setDobDate] = useState<Date>(new Date(1998, 0, 1));
+  const [showDobPicker, setShowDobPicker] = useState(false);
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [postalCode, setPostalCode] = useState("");
+
+  const handleBack = async () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      try {
+        await api.logOut();
+      } catch (e) {}
+      await api.clearSession();
+      await clearUser();
+    }
+  };
   const [latitude, setLatitude] = useState<number | undefined>();
   const [longitude, setLongitude] = useState<number | undefined>();
   const [referralCode, setReferralCode] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
+  const [isTermsAccepted, setIsTermsAccepted] = useState(false);
+  const [termsDescription, setTermsDescription] = useState<string>("");
+  const [termsModalVisible, setTermsModalVisible] = useState(false);
+
+  useEffect(() => {
+    api
+      .getTermsConditions()
+      .then((res) => {
+        if (res?.termAndConditionDescription) {
+          setTermsDescription(res.termAndConditionDescription);
+        }
+      })
+      .catch((e) => console.log("Failed to fetch terms:", e.message));
+  }, []);
 
   useEffect(() => {
     const data = route.params?.addressData;
@@ -75,6 +110,14 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
   const submit = async () => {
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !password || password !== confirmPassword) {
       showAlert(t("validation:required"));
+      return;
+    }
+
+    if (!isTermsAccepted) {
+      showAlert(
+        "Terms & Conditions Required",
+        "Please read and agree to the Terms & Conditions before continuing."
+      );
       return;
     }
 
@@ -131,7 +174,7 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
         profileImage,
         userType: 2,
       });
-      navigation.navigate("Services");
+      navigation.navigate("ServicesFor");
     } catch (e: any) {
       showAlert("Error", e.message);
     } finally {
@@ -156,7 +199,7 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
           {/* Top Bar - Back Button */}
           <View style={styles.topBar}>
             <TouchableOpacity
-              onPress={() => navigation.goBack()}
+              onPress={handleBack}
               style={styles.backButton}
               activeOpacity={0.8}
             >
@@ -258,12 +301,64 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
               })}
             </View>
 
-            <Input
-              label="Date of Birth"
-              placeholder="YYYY-MM-DD"
-              value={dob}
-              onChangeText={setDob}
-            />
+            {/* Date of Birth Picker Field */}
+            <Text style={styles.inputLabel}>Date of Birth</Text>
+            <TouchableOpacity
+              style={styles.datePickerTrigger}
+              onPress={() => setShowDobPicker(true)}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.datePickerText,
+                  !dob && { color: Colors.PlaceholderInactive },
+                ]}
+              >
+                {dob || "Select Date of Birth (YYYY-MM-DD)"}
+              </Text>
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color={Colors.ButtonPrimaryColor}
+              />
+            </TouchableOpacity>
+
+            {showDobPicker && (
+              <View style={styles.datePickerBox}>
+                <DateTimePicker
+                  value={dobDate}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "inline" : "default"}
+                  maximumDate={new Date()}
+                  onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+                    if (Platform.OS !== "ios") {
+                      setShowDobPicker(false);
+                    }
+                    if (selectedDate) {
+                      setDobDate(selectedDate);
+                      const yyyy = selectedDate.getFullYear();
+                      const mm = String(selectedDate.getMonth() + 1).padStart(2, "0");
+                      const dd = String(selectedDate.getDate()).padStart(2, "0");
+                      setDob(`${yyyy}-${mm}-${dd}`);
+                    }
+                  }}
+                />
+                {Platform.OS === "ios" && (
+                  <TouchableOpacity
+                    style={styles.dateConfirmBtn}
+                    onPress={() => {
+                      const yyyy = dobDate.getFullYear();
+                      const mm = String(dobDate.getMonth() + 1).padStart(2, "0");
+                      const dd = String(dobDate.getDate()).padStart(2, "0");
+                      setDob(`${yyyy}-${mm}-${dd}`);
+                      setShowDobPicker(false);
+                    }}
+                  >
+                    <Text style={styles.dateConfirmBtnText}>Done</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
 
             <Input
               label="Password"
@@ -331,6 +426,33 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
               />
             </View>
 
+            {/* Agreement Checkbox & Text */}
+            <View style={styles.agreementRow}>
+              <TouchableOpacity
+                onPress={() => setIsTermsAccepted(!isTermsAccepted)}
+                activeOpacity={0.8}
+                style={[
+                  styles.checkbox,
+                  isTermsAccepted && styles.checkboxActive,
+                ]}
+              >
+                {isTermsAccepted && (
+                  <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                )}
+              </TouchableOpacity>
+              <View style={styles.agreementTextWrapper}>
+                <Text style={styles.agreementText}>
+                  I've read & agree with{" "}
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() => setTermsModalVisible(true)}
+                  >
+                    Terms & Conditions.
+                  </Text>
+                </Text>
+              </View>
+            </View>
+
             <Button
               title="Continue"
               onPress={submit}
@@ -340,6 +462,47 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Terms & Conditions Modal */}
+      <Modal
+        visible={termsModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setTermsModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Terms & Conditions</Text>
+            <TouchableOpacity
+              onPress={() => setTermsModalVisible(false)}
+              style={styles.modalCloseBtn}
+            >
+              <Ionicons name="close" size={24} color={Colors.TitleColor} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            style={styles.modalScroll}
+            contentContainerStyle={styles.modalScrollContent}
+            showsVerticalScrollIndicator={true}
+          >
+            <Text style={styles.modalBodyText}>
+              {termsDescription
+                ? termsDescription.replace(/<[^>]+>/g, "").trim()
+                : "Welcome to Hairlines Pro. By registering and offering services through our platform, you agree to provide professional, safe, and quality salon/barbering services in compliance with all local regulations, maintain valid licensing and certifications, adhere to transparent appointment pricing and cancellation guidelines, and respect client confidentiality and booking agreements. All payouts are processed according to our stated fee structure."}
+            </Text>
+          </ScrollView>
+          <View style={styles.modalFooter}>
+            <Button
+              title="I Understand & Accept"
+              onPress={() => {
+                setIsTermsAccepted(true);
+                setTermsModalVisible(false);
+              }}
+              style={styles.modalAcceptBtn}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -444,6 +607,51 @@ const styles = StyleSheet.create({
   flexHalf: {
     flex: 1,
   },
+  inputLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.medium,
+    color: "#64748B",
+    marginBottom: 6,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  datePickerTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: 14,
+    height: 50,
+    marginBottom: Spacing.base,
+  },
+  datePickerText: {
+    fontSize: FontSizes.sm,
+    color: Colors.TitleColor,
+  },
+  datePickerBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
+    marginBottom: Spacing.base,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+  },
+  dateConfirmBtn: {
+    alignSelf: "flex-end",
+    backgroundColor: Colors.ButtonPrimaryColor,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  dateConfirmBtnText: {
+    color: "#FFFFFF",
+    fontWeight: FontWeights.bold,
+    fontSize: FontSizes.xs,
+  },
   genderLabel: {
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.medium,
@@ -479,11 +687,44 @@ const styles = StyleSheet.create({
     color: Colors.ButtonPrimaryColor,
     fontWeight: FontWeights.bold,
   },
+  agreementRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: Spacing.md,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: "#CBD5E1",
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: Spacing.sm,
+  },
+  checkboxActive: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderColor: Colors.ButtonPrimaryColor,
+  },
+  agreementTextWrapper: {
+    flex: 1,
+  },
+  agreementText: {
+    fontSize: FontSizes.sm,
+    color: "#334155",
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: Colors.ButtonPrimaryColor,
+    fontWeight: FontWeights.bold,
+    textDecorationLine: "underline",
+  },
   submitButton: {
     backgroundColor: Colors.ButtonPrimaryColor,
     borderRadius: BorderRadius.lg,
     minHeight: 54,
-    marginTop: Spacing.base,
+    marginTop: Spacing.xs,
     shadowColor: Colors.ButtonPrimaryColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -494,5 +735,49 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.base,
     fontWeight: FontWeights.bold,
     color: "#FFFFFF",
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  modalTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+  },
+  modalCloseBtn: {
+    padding: 6,
+  },
+  modalScroll: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    padding: Spacing.xl,
+    paddingBottom: Spacing["3xl"],
+  },
+  modalBodyText: {
+    fontSize: FontSizes.sm,
+    lineHeight: 22,
+    color: "#334155",
+  },
+  modalFooter: {
+    padding: Spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+  },
+  modalAcceptBtn: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 50,
   },
 });
