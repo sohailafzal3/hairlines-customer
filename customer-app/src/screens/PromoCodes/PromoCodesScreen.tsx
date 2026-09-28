@@ -145,7 +145,7 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
 
       <FlatList
         data={promoCodes || []}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         refreshControl={

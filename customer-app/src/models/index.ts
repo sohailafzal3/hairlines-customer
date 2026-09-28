@@ -160,15 +160,18 @@ export interface SP {
   spJobCompletedCount: number;
   serviceHourRate?: number;
   numberOfEmployees?: number;
-  jobsDone: number;
-  spPrimaryAddress: string;
-  spCity: string;
-  spState: string;
-  spCountry: string;
-  provideServiceInPremisis: boolean;
-  provideServiceInUserPremisis: boolean;
-  permanentAddressLat: number;
-  permanentAddressLong: number;
+  jobsDone?: number;
+  totalJobDone?: number;
+  totalReviews?: number;
+  bio?: string;
+  spPrimaryAddress?: string;
+  spCity?: string;
+  spState?: string;
+  spCountry?: string;
+  provideServiceInPremisis?: boolean;
+  provideServiceInUserPremisis?: boolean;
+  permanentAddressLat?: number;
+  permanentAddressLong?: number;
 }
 
 export interface SPProfile {
@@ -240,78 +243,112 @@ export interface SubServiceInfo {
 }
 
 export interface Job {
-  id: string;
-  userId: string;
-  spJobStatus: number;
-  jobStartTime: string;
-  currency: string;
-  primaryAddress: string;
-  serviceName: string;
+  id?: string;
+  _id?: string;
+  userId?: string;
+  spJobStatus?: number;
+  status?: number;
+  jobStartTime?: string;
+  createdDate?: string;
+  createdAt?: string;
+  currency?: string;
+  primaryAddress?: string;
+  address?: string;
+  serviceName?: string;
+  subServiceName?: string;
   serviceImage?: string;
-  spProfileId: string;
-  avgRating: number;
-  name: string;
-  serviceHourlyRate: number;
+  spProfileId?: string;
+  spName?: string;
+  companyName?: string;
+  worker?: {
+    id?: string;
+    name?: string;
+    profileImage?: string;
+    avgRating?: number;
+  };
+  avgRating?: number;
+  name?: string;
+  serviceHourlyRate?: number;
+  serviceCharges?: number;
   JobIdIdentifier?: string;
-  provideServiceInPremises: boolean;
-  provideServiceInUserPremises: boolean;
-  totalAmount: number;
-  subServiceTypeRate: number;
+  provideServiceInPremises?: boolean;
+  provideServiceInUserPremises?: boolean;
+  atSpLocation?: boolean;
+  atUserLocation?: boolean;
+  totalAmount?: number;
+  subServiceTypeRate?: number;
   costBreakDown?: CostBreakDown;
 }
 
 export interface JobDetail {
-  subServiceId: string;
-  jobId: string;
-  serviceName: string;
+  subServiceId?: string;
+  subServiceName?: string;
+  jobId?: string;
+  _id?: string;
+  id?: string;
+  serviceName?: string;
   serviceImage?: string;
-  serviceId: string;
-  subserviceTypeId: string;
-  serviceDescription: string;
+  serviceId?: string;
+  subserviceTypeId?: string;
+  serviceDescription?: string;
   specialInstruction?: string;
   workDescription?: string;
   expectedJobStartTime?: string;
-  spProfileId: string;
-  name: string;
-  phoneNumber: string;
+  spProfileId?: string;
+  spName?: string;
+  spPhoneNumber?: string;
+  companyName?: string;
+  worker?: {
+    id?: string;
+    name?: string;
+    profileImage?: string;
+    avgRating?: number;
+    phoneNumber?: string;
+  };
+  name?: string;
+  phoneNumber?: string;
   profileImage?: string;
-  avgRating: number;
-  currency: string;
-  spJobStatus: number;
-  primaryAddress: string;
+  avgRating?: number;
+  currency?: string;
+  spJobStatus?: number;
+  status?: number;
+  primaryAddress?: string;
+  address?: string;
   streetAddressLine1?: string;
   streetAddressLine2?: string;
-  city: string;
-  state: string;
-  country: string;
-  destinationLat: number;
-  destinationLong: number;
+  city?: string;
+  state?: string;
+  country?: string;
+  destinationLat?: number;
+  destinationLong?: number;
   workerLat?: number;
   workerLong?: number;
-  isUserRatingScreenShown: boolean;
-  isUserRated: boolean;
+  isUserRatingScreenShown?: boolean;
+  isUserRated?: boolean;
   costBreakDown?: CostBreakDown;
-  totalAmount: number;
-  messageCount: number;
-  statusArray: StatusModel[];
-  routeLocation: RouteLocation[];
-  isJobStart: boolean;
+  totalAmount?: number;
+  messageCount?: number;
+  statusArray?: StatusModel[];
+  routeLocation?: RouteLocation[];
+  isJobStart?: boolean;
   jobStartTime?: string;
   jobScheduleTime?: string;
   jobPauseStartTiming?: string;
   jobElapsedTime?: number;
-  gratuities: number[];
-  provideServiceInPremises: boolean;
-  provideServiceInUserPremises: boolean;
+  gratuities?: number[];
+  provideServiceInPremises?: boolean;
+  provideServiceInUserPremises?: boolean;
+  atSpLocation?: boolean;
+  atUserLocation?: boolean;
   stylePreferenceImage?: string;
   referenceImages?: string[];
   spTwilioUserId?: string;
-  serviceHourlyRate: number;
-  subServiceTypeRate: number;
-  bookingType?: string;
+  serviceHourlyRate?: number;
+  subServiceTypeRate?: number;
+  bookingType?: string | number;
   memberId?: string;
-  isJobConsultant: boolean;
-  isJobOfferedFor: boolean;
+  isJobConsultant?: boolean;
+  isJobOfferedFor?: boolean;
 }
 
 export interface StatusModel {
@@ -326,18 +363,20 @@ export interface RouteLocation {
 }
 
 export interface CostBreakDown {
-  totalAmount: number;
-  totalJobAmount: number;
-  serviceCharges: number;
-  totalLineItemAmount: number;
-  discountAmount: number;
-  referralDiscount: number;
-  serviceName: string;
-  currency: string;
-  totalHoursSpent: number;
-  totalMinutesSpent: number;
-  serviceHourlyRate: number;
-  lineItems: Item[];
+  totalAmount?: number;
+  totalJobAmount?: number;
+  serviceCharges?: number;
+  deliveryCharges?: number;
+  tax?: number;
+  totalLineItemAmount?: number;
+  discountAmount?: number;
+  referralDiscount?: number;
+  serviceName?: string;
+  currency?: string;
+  totalHoursSpent?: number;
+  totalMinutesSpent?: number;
+  serviceHourlyRate?: number;
+  lineItems?: Item[];
   cenclationCharges?: number;
   gratuity?: number;
   walletAmount?: number;
@@ -405,29 +444,35 @@ export interface CreditCards {
   brand: string;
   expMonth: number;
   expYear: number;
-  lastFour: string;
-  id: string;
-  isDefaultCard: boolean;
+  lastFour?: string;
+  last4?: string;
+  id?: string;
+  isDefaultCard?: boolean;
+  isDefault?: boolean;
 }
 
 export interface PromoCode {
-  id: string;
+  id: string | number;
   code: string;
-  startDate: string;
-  expiryDate: string;
-  percentage: number;
-  maxDiscount: number;
-  promoType: string;
-  name: string;
-  totalCount: number;
-  promoText: string;
+  title?: string;
+  startDate?: string;
+  expiryDate?: string;
+  percentage?: number;
+  discountPercentage?: number;
+  discountType?: number;
+  amount?: number;
+  maxDiscount?: number;
+  promoType?: string;
+  name?: string;
+  totalCount?: number;
+  promoText?: string;
   promoImage?: string;
-  isAdded: boolean;
-  canUse: boolean;
-  applicantType: string;
-  isPromoApplied: boolean;
-  isExpired: boolean;
-  promoCodeName: string;
+  isAdded?: boolean;
+  canUse?: boolean;
+  applicantType?: string;
+  isPromoApplied?: boolean;
+  isExpired?: boolean;
+  promoCodeName?: string;
 }
 
 export interface Member {

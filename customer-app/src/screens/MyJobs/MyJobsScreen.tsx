@@ -8,15 +8,16 @@ import {
   FlatList,
   Image,
   RefreshControl,
+  StatusBar,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTLoading } from '../../components/common';
 import { JobsApi } from '../../api';
-import { useApi } from '../../hooks';
 import { Job } from '../../models';
 import { JobStatus } from '../../constants';
 
@@ -26,61 +27,56 @@ type Props = {
 
 type TabType = 'scheduled' | 'history';
 
-const getStatusLabel = (status: number): string => {
+const getStatusBadge = (status?: number) => {
   switch (status) {
-    case JobStatus.Open: return 'Open';
-    case JobStatus.Accepted: return 'Accepted';
-    case JobStatus.Started: return 'Started';
-    case JobStatus.Arrived: return 'Arrived';
-    case JobStatus.StartJob: return 'In Progress';
-    case JobStatus.Completed: return 'Completed';
-    case JobStatus.Finished: return 'Finished';
-    case JobStatus.Rejected: return 'Rejected';
-    case JobStatus.Cancelled: return 'Cancelled';
-    default: return 'Unknown';
-  }
-};
-
-const getStatusColor = (status: number): string => {
-  switch (status) {
-    case JobStatus.Open: return Colors.ButtonPrimaryRight;
-    case JobStatus.Accepted: return '#4CAF50';
+    case JobStatus.Open:
+      return { label: 'Finding Stylist', bg: '#EFF6FF', text: '#2563EB', icon: 'hourglass-outline' };
+    case JobStatus.Accepted:
+      return { label: 'Accepted', bg: '#ECFDF5', text: '#059669', icon: 'checkmark-circle-outline' };
     case JobStatus.Started:
+      return { label: 'On The Way', bg: '#FEF3C7', text: '#D97706', icon: 'car-outline' };
     case JobStatus.Arrived:
-    case JobStatus.StartJob: return '#FF9800';
+      return { label: 'Arrived', bg: '#FEF3C7', text: '#D97706', icon: 'location-outline' };
+    case JobStatus.StartJob:
+      return { label: 'In Progress', bg: '#EEF2FF', text: '#4F46E5', icon: 'cut-outline' };
     case JobStatus.Completed:
-    case JobStatus.Finished: return '#4CAF50';
+    case JobStatus.Finished:
+      return { label: 'Completed', bg: '#ECFDF5', text: '#059669', icon: 'checkmark-done-circle-outline' };
     case JobStatus.Rejected:
-    case JobStatus.Cancelled: return Colors.errorViewColor;
-    default: return Colors.DescriptionTextLight;
+      return { label: 'Declined', bg: '#FEF2F2', text: '#DC2626', icon: 'close-circle-outline' };
+    case JobStatus.Cancelled:
+      return { label: 'Cancelled', bg: '#F1F5F9', text: '#64748B', icon: 'ban-outline' };
+    default:
+      return { label: 'Scheduled', bg: '#F1F5F9', text: '#475569', icon: 'calendar-outline' };
   }
 };
 
 const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState<TabType>('scheduled');
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  const {
-    data: scheduledJobs,
-    loading: scheduledLoading,
-    execute: fetchScheduled,
-  } = useApi<Job[]>(JobsApi.fetchJobListing);
-
-  const {
-    data: historyJobs,
-    loading: historyLoading,
-    execute: fetchHistory,
-  } = useApi<Job[]>(JobsApi.fetchJobListing);
 
   useEffect(() => {
     loadData();
   }, [activeTab]);
 
   const loadData = async () => {
-    if (activeTab === 'scheduled') {
-      await fetchScheduled('upcoming', 0);
-    } else {
-      await fetchHistory('past', 0);
+    try {
+      setLoading(true);
+      const listType = activeTab === 'scheduled' ? 1 : 2;
+      const res: any = await JobsApi.fetchJobListing(listType, 0);
+      const list = res?.jobs || res?.data || (Array.isArray(res) ? res : []);
+      if (Array.isArray(list)) {
+        setJobs(list);
+      } else {
+        setJobs([]);
+      }
+    } catch (e) {
+      console.log('Error loading jobs:', e);
+      setJobs([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -90,68 +86,105 @@ const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const jobs = activeTab === 'scheduled' ? scheduledJobs : historyJobs;
-  const loading = activeTab === 'scheduled' ? scheduledLoading : historyLoading;
+  const handleCardPress = (jobId: string) => {
+    navigation.getParent()?.navigate('HomeStack', {
+      screen: 'JobDetails',
+      params: { jobId },
+    } as any);
+  };
 
-  const renderItem = ({ item }: { item: Job }) => (
-    <TouchableOpacity
-      style={styles.jobCard}
-      onPress={() =>
-        navigation.getParent()?.navigate('HomeStack', {
-          screen: 'JobDetails',
-          params: { jobId: item.id },
+  const renderItem = ({ item }: { item: Job }) => {
+    const badge = getStatusBadge(item.status);
+    const dateStr = item.jobStartTime
+      ? new Date(item.jobStartTime).toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
         })
-      }
-      activeOpacity={0.8}
-    >
-      <View style={styles.jobHeader}>
-        {item.serviceImage ? (
-          <Image source={{ uri: item.serviceImage }} style={styles.serviceImage} />
-        ) : (
-          <View style={styles.serviceImagePlaceholder}>
-            <Text>📦</Text>
-          </View>
-        )}
-        <View style={styles.jobInfo}>
-          <Text style={styles.serviceName}>{item.serviceName}</Text>
-          <Text style={styles.spName}>{item.name}</Text>
-          <Text style={styles.address} numberOfLines={1}>{item.primaryAddress}</Text>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(item.spJobStatus)}15` }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.spJobStatus) }]}>
-            {getStatusLabel(item.spJobStatus)}
-          </Text>
-        </View>
-      </View>
+      : item.createdDate || 'Scheduled';
 
-      <View style={styles.jobFooter}>
-        <Text style={styles.dateText}>{item.jobStartTime}</Text>
-        <Text style={styles.amountText}>
-          {item.currency}{item.totalAmount}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+    return (
+      <TouchableOpacity
+        style={styles.jobCard}
+        onPress={() => handleCardPress(item._id || item.id || '')}
+        activeOpacity={0.85}
+      >
+        {/* Top Header Row */}
+        <View style={styles.cardHeader}>
+          <View style={styles.serviceRow}>
+            <View style={styles.serviceIconBadge}>
+              <MaterialCommunityIcons name="content-cut" size={18} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.serviceName}>{item.serviceName || item.subServiceName || 'Hair Styling'}</Text>
+              <Text style={styles.dateTimeText}>{dateStr}</Text>
+            </View>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+            <Ionicons name={badge.icon as any} size={12} color={badge.text} style={{ marginRight: 4 }} />
+            <Text style={[styles.statusBadgeText, { color: badge.text }]}>{badge.label}</Text>
+          </View>
+        </View>
+
+        <View style={styles.cardDivider} />
+
+        {/* Worker & Location Info */}
+        <View style={styles.cardBody}>
+          <View style={styles.workerRow}>
+            <Ionicons name="person-outline" size={16} color={Colors.ButtonPrimaryColor} />
+            <Text style={styles.workerName}>
+              {item.spName || item.worker?.name || item.companyName || 'Assigned Hairstylist'}
+            </Text>
+          </View>
+
+          <View style={[styles.workerRow, { marginTop: 6 }]}>
+            <Ionicons name="location-outline" size={16} color="#64748B" />
+            <Text style={styles.addressText} numberOfLines={1}>
+              {item.atSpLocation ? 'Stylist Studio / Salon' : item.primaryAddress || item.address || 'Address on file'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Card Footer with Price & Chevron */}
+        <View style={styles.cardFooter}>
+          <Text style={styles.priceText}>
+            ${item.totalAmount ? Number(item.totalAmount).toFixed(2) : item.serviceCharges ? Number(item.serviceCharges).toFixed(2) : '35.00'}
+          </Text>
+          <View style={styles.viewDetailsBtn}>
+            <Text style={styles.viewDetailsText}>View Details</Text>
+            <Ionicons name="chevron-forward" size={14} color={Colors.ButtonPrimaryColor} />
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => (navigation as any).openDrawer()}>
-          <Text style={styles.menuIcon}>☰</Text>
+        <TouchableOpacity
+          onPress={() => (navigation.getParent() as any)?.openDrawer?.()}
+          style={styles.headerBtn}
+        >
+          <Ionicons name="menu" size={26} color={Colors.TitleColor} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Services</Text>
+        <Text style={styles.title}>My Appointments</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
+      {/* Segmented Tabs */}
+      <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'scheduled' && styles.tabActive]}
           onPress={() => setActiveTab('scheduled')}
         >
           <Text style={[styles.tabText, activeTab === 'scheduled' && styles.tabTextActive]}>
-            Scheduled
+            Upcoming & Active
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -159,32 +192,43 @@ const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
           onPress={() => setActiveTab('history')}
         >
           <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>
-            History
+            Past Appointments
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Job List */}
+      {/* List */}
       <FlatList
-        data={jobs || []}
-        keyExtractor={(item) => item.id}
+        data={jobs}
+        keyExtractor={(item, index) => item._id || item.id || `job_${index}`}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.ButtonPrimaryColor]} />
         }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>📋</Text>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="calendar-outline" size={40} color="#94A3B8" />
+              </View>
               <Text style={styles.emptyTitle}>
-                No {activeTab} jobs
+                {activeTab === 'scheduled' ? 'No Upcoming Appointments' : 'No Past Appointments'}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {activeTab === 'scheduled'
-                  ? 'Book a service to see your scheduled jobs here'
-                  : 'Your completed jobs will appear here'}
+                  ? 'Book a top-rated barber or stylist whenever you need a fresh cut or grooming service.'
+                  : 'Your completed or cancelled appointments will appear here.'}
               </Text>
+              {activeTab === 'scheduled' && (
+                <TouchableOpacity
+                  style={styles.bookNowBtn}
+                  onPress={() => navigation.getParent()?.navigate('HomeStack', { screen: 'Categories' } as any)}
+                >
+                  <Text style={styles.bookNowBtnText}>Book a Stylist</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : null
         }
@@ -198,152 +242,198 @@ const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.sm,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    borderBottomColor: '#E2E8F0',
   },
-  menuIcon: {
-    fontSize: FontSizes.xl,
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerTitle: {
+  title: {
     fontSize: FontSizes.lg,
-    fontFamily: Fonts.uberMoveBold,
+    fontWeight: '800',
     color: Colors.TitleColor,
   },
-  tabContainer: {
+  tabBar: {
     flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.base,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    borderBottomColor: '#E2E8F0',
+    gap: 10,
   },
   tab: {
     flex: 1,
-    paddingVertical: Spacing.md,
+    paddingVertical: 10,
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
   },
   tabActive: {
-    borderBottomColor: Colors.ButtonPrimaryColor,
+    backgroundColor: Colors.ButtonPrimaryColor,
   },
   tabText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.DescriptionTextLight,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748B',
   },
   tabTextActive: {
-    color: Colors.ButtonPrimaryColor,
+    color: '#FFFFFF',
   },
   listContent: {
-    padding: Spacing.lg,
+    padding: Spacing.base,
+    paddingBottom: 40,
   },
   jobCard: {
-    backgroundColor: Colors.BGColor,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.base,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: Colors.CardColor,
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  jobHeader: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    justifyContent: 'space-between',
   },
-  serviceImage: {
-    width: 50,
-    height: 50,
-    borderRadius: BorderRadius.base,
-  },
-  serviceImagePlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: BorderRadius.base,
-    backgroundColor: Colors.TextFieldColor,
-    justifyContent: 'center',
+  serviceRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  jobInfo: {
     flex: 1,
-    marginLeft: Spacing.md,
+    marginRight: 8,
+  },
+  serviceIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.ButtonPrimaryColor,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   serviceName: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
+    fontSize: 15,
+    fontWeight: '700',
     color: Colors.TitleColor,
-    marginBottom: 2,
   },
-  spName: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-    marginBottom: 2,
-  },
-  address: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+  dateTimeText: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
   },
   statusBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
-  },
-  statusText: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.uberMoveMedium,
-  },
-  jobFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 12,
+  },
+  cardBody: {
+    marginBottom: 10,
+  },
+  workerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  workerName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.TitleColor,
+    marginLeft: 6,
+  },
+  addressText: {
+    fontSize: 12,
+    color: '#64748B',
+    marginLeft: 6,
+    flex: 1,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: Colors.CardColor,
-    paddingTop: Spacing.md,
+    borderTopColor: '#F8FAFC',
   },
-  dateText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
+  priceText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#059669',
   },
-  amountText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveBold,
+  viewDetailsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewDetailsText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: Colors.ButtonPrimaryColor,
+    marginRight: 2,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: Spacing['4xl'],
+    paddingVertical: 60,
+    paddingHorizontal: 24,
   },
-  emptyEmoji: {
-    fontSize: FontSizes['3xl'],
-    marginBottom: Spacing.lg,
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: FontSizes.lg,
-    fontFamily: Fonts.uberMoveMedium,
+    fontSize: 18,
+    fontWeight: '800',
     color: Colors.TitleColor,
-    marginBottom: Spacing.sm,
+    marginBottom: 6,
   },
   emptySubtitle: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    fontSize: 13,
+    color: '#64748B',
     textAlign: 'center',
-    paddingHorizontal: Spacing.xl,
+    lineHeight: 18,
+  },
+  bookNowBtn: {
+    marginTop: 20,
+    backgroundColor: Colors.ButtonPrimaryColor,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  bookNowBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
 

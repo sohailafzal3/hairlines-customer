@@ -8,25 +8,29 @@ import {
   ScrollView,
   Image,
   Alert,
+  Modal,
+  ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTButton, VTTextField, VTLoading } from '../../components/common';
-import { ProfileApi } from '../../api';
-import { useApi } from '../../hooks';
+import { ProfileApi, AuthApi, UploadApi } from '../../api';
 import { useAuthStore } from '../../store';
 import { MyProfile } from '../../models';
 import * as ImagePicker from 'expo-image-picker';
+import Toast from 'react-native-toast-message';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'MyProfile'>;
 };
 
 const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
-  const { user, setAccount, logout } = useAuthStore();
+  const { user, setUser, logout } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [profileImage, setProfileImage] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -34,37 +38,50 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [gender, setGender] = useState('Male');
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  const {
-    data: profile,
-    loading,
-    execute: fetchProfile,
-  } = useApi<MyProfile>(ProfileApi.fetchProfile);
-
-  const { execute: updateProfile, loading: updating } = useApi(ProfileApi.editProfile);
+  // Change Password Modal
+  const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     loadProfile();
   }, []);
 
-  useEffect(() => {
-    if (profile) {
-      setProfileImage(profile.profileImage || '');
-      setFirstName(profile.firstName || '');
-      setLastName(profile.lastName || '');
-      setEmail(profile.email || '');
-      setPhone(`${profile.phonePreFix} ${profile.phoneNumber}`);
-      setAddress(profile.residanceAddress?.primaryAddress || '');
-    }
-  }, [profile]);
-
   const loadProfile = async () => {
-    await fetchProfile();
+    try {
+      setLoading(true);
+      const res: any = await ProfileApi.fetchProfile();
+      const p: MyProfile = res?.profile || res?.data || res;
+      if (p) {
+        setProfileImage(p.profileImage || '');
+        setFirstName(p.firstName || '');
+        setLastName(p.lastName || '');
+        setEmail(p.email || '');
+        setPhone(`${p.phonePreFix || '+1'} ${p.phoneNumber || ''}`);
+        const addrStr = typeof p.residanceAddress === 'string' ? p.residanceAddress : p.residanceAddress?.primaryAddress || '';
+        setAddress(addrStr);
+        setGender(p.gender || 'Male');
+      }
+    } catch (e: any) {
+      console.log('Error loading profile:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleImagePick = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') return;
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Please allow camera roll access to update your photo.');
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -72,48 +89,96 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setProfileImage(result.assets[0].uri);
+      const asset = result.assets[0];
+      setProfileImage(asset.uri);
+
+      try {
+        setUploadingPhoto(true);
+        const formData = new FormData();
+        const filename = asset.uri.split('/').pop() || 'profile.jpg';
+        formData.append('image', {
+          uri: asset.uri,
+          name: filename,
+          type: 'image/jpeg',
+        } as any);
+
+        const uploadRes: any = await UploadApi.uploadProfileImage(formData);
+        const uploadedUrl = uploadRes?.imageUrl || uploadRes?.data?.imageUrl || asset.uri;
+        setProfileImage(uploadedUrl);
+      } catch (err) {
+        console.warn('Photo upload failed:', err);
+      } finally {
+        setUploadingPhoto(false);
+      }
     }
   };
 
   const handleSave = async () => {
+    if (!firstName.trim()) {
+      Alert.alert('Required', 'First name cannot be empty');
+      return;
+    }
+
     try {
-      await updateProfile({
-        firstName,
-        lastName,
+      setUpdating(true);
+      await ProfileApi.editProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         profileImageUrl: profileImage,
-        email,
-        isPhysicallyDisabled: profile?.isPhysicallyDisabled || 'none',
-        gender: profile?.gender || '',
-        dateOfBirth: profile?.dateOfBirth || '',
-        residanceName: profile?.residanceName || '',
-        instituteName: profile?.instituteName || '',
+        email: email.trim(),
+        gender,
         residanceAddress: address,
-        residanceStreetAddress: '',
-        residanceLatitude: 0,
-        residanceLongitude: 0,
       });
       setIsEditing(false);
+      Toast.show({ type: 'success', text1: 'Profile Updated!' });
+      await loadProfile();
     } catch (error: any) {
-      console.error('Update error:', error.message);
+      Alert.alert('Error', error.message || 'Failed to update profile');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword) {
+      Alert.alert('Required', 'Please fill in all password fields');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Mismatch', 'New passwords do not match');
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+      await ProfileApi.changePassword(currentPassword, newPassword);
+      setIsPasswordModalVisible(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      Toast.show({ type: 'success', text1: 'Password Updated Successfully' });
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to update password');
+    } finally {
+      setChangingPassword(false);
     }
   };
 
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone.',
+      'Are you sure you want to permanently delete your Hairlines account? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Delete Permanently',
           style: 'destructive',
           onPress: async () => {
             try {
               await ProfileApi.deleteAccount();
               await logout();
-            } catch (error) {
-              console.error('Delete account error:', error);
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Failed to delete account');
             }
           },
         },
@@ -121,107 +186,224 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
+  const handleLogout = () => {
+    Alert.alert('Log Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await AuthApi.logout();
+          } catch (e) {}
+          await logout();
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => (navigation as any).openDrawer()}>
-          <Text style={styles.menuIcon}>☰</Text>
+        <TouchableOpacity
+          onPress={() => (navigation.getParent() as any)?.openDrawer?.()}
+          style={styles.headerBtn}
+        >
+          <Ionicons name="menu" size={26} color={Colors.TitleColor} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Profile</Text>
-        <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
-          <Text style={styles.editText}>{isEditing ? 'Cancel' : 'Edit'}</Text>
+        <Text style={styles.title}>My Profile</Text>
+        <TouchableOpacity
+          style={styles.editHeaderBtn}
+          onPress={() => (isEditing ? handleSave() : setIsEditing(true))}
+        >
+          <Text style={styles.editHeaderText}>{isEditing ? 'Save' : 'Edit'}</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Profile Image */}
-        <View style={styles.imageSection}>
-          <TouchableOpacity onPress={isEditing ? handleImagePick : undefined} disabled={!isEditing}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Profile Avatar Card */}
+        <View style={styles.avatarCard}>
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={isEditing ? handleImagePick : undefined}
+            disabled={!isEditing}
+          >
             {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.profileImage} />
+              <Image source={{ uri: profileImage }} style={styles.avatarImage} />
             ) : (
-              <View style={styles.imagePlaceholder}>
-                <Text style={styles.imagePlaceholderText}>
-                  {firstName?.charAt(0) || 'U'}
-                  {lastName?.charAt(0) || ''}
-                </Text>
+              <View style={styles.avatarPlaceholder}>
+                <Ionicons name="person" size={44} color="#FFFFFF" />
               </View>
             )}
             {isEditing && (
-              <View style={styles.editIconContainer}>
-                <Text style={styles.editIcon}>📷</Text>
+              <View style={styles.cameraBadge}>
+                {uploadingPhoto ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="camera" size={14} color="#FFFFFF" />
+                )}
               </View>
             )}
           </TouchableOpacity>
-          <Text style={styles.nameText}>
-            {profile?.name || `${firstName} ${lastName}`}
-          </Text>
-          {profile?.avgRating ? (
-            <View style={styles.ratingContainer}>
-              <Text style={styles.ratingText}>⭐ {profile.avgRating.toFixed(1)}</Text>
-            </View>
-          ) : null}
+
+          <Text style={styles.profileName}>{firstName} {lastName}</Text>
+          <Text style={styles.profileEmail}>{email || phone}</Text>
         </View>
 
-        {/* Form Fields */}
-        <View style={styles.formSection}>
+        {/* Profile Form Card */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionHeading}>Personal Information</Text>
+
           <VTTextField
             label="First Name"
+            placeholder="First name"
             value={firstName}
             onChangeText={setFirstName}
             editable={isEditing}
-            autoCapitalize="words"
           />
+
+          <View style={{ height: 12 }} />
+
           <VTTextField
             label="Last Name"
+            placeholder="Last name"
             value={lastName}
             onChangeText={setLastName}
             editable={isEditing}
-            autoCapitalize="words"
           />
+
+          <View style={{ height: 12 }} />
+
           <VTTextField
-            label="Email"
+            label="Email Address"
+            placeholder="Email address"
             value={email}
             onChangeText={setEmail}
             editable={isEditing}
             keyboardType="email-address"
-            autoCapitalize="none"
           />
+
+          <View style={{ height: 12 }} />
+
           <VTTextField
-            label="Phone"
+            label="Phone Number"
+            placeholder="Phone number"
             value={phone}
             onChangeText={setPhone}
             editable={false}
-            keyboardType="phone-pad"
           />
+
+          <View style={{ height: 12 }} />
+
           <VTTextField
-            label="Address"
+            label="Primary Address"
+            placeholder="Address for home visits"
             value={address}
             onChangeText={setAddress}
             editable={isEditing}
-            multiline
-            numberOfLines={2}
           />
+        </View>
+
+        {/* Security & Account Options */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionHeading}>Account & Security</Text>
+
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={() => setIsPasswordModalVisible(true)}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="key-outline" size={20} color={Colors.ButtonPrimaryColor} />
+              <Text style={styles.menuRowText}>Change Password</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity style={styles.menuRow} onPress={handleLogout}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="log-out-outline" size={20} color="#F59E0B" />
+              <Text style={[styles.menuRowText, { color: '#B45309' }]}>Log Out</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity style={styles.menuRow} onPress={handleDeleteAccount}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              <Text style={[styles.menuRowText, { color: '#DC2626' }]}>Delete Account</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </TouchableOpacity>
         </View>
 
         {isEditing && (
-          <VTButton
-            title="Save Changes"
-            onPress={handleSave}
-            loading={updating}
-            style={styles.saveButton}
-          />
+          <View style={{ marginTop: 10 }}>
+            <VTButton title="Save Changes" onPress={handleSave} loading={updating} />
+          </View>
         )}
-
-        {/* Danger Zone */}
-        <View style={styles.dangerSection}>
-          <TouchableOpacity onPress={handleDeleteAccount} style={styles.deleteButton}>
-            <Text style={styles.deleteText}>Delete Account</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
 
       <VTLoading visible={loading} />
+
+      {/* Modal: Change Password */}
+      <Modal
+        visible={isPasswordModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setIsPasswordModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Change Password</Text>
+              <TouchableOpacity onPress={() => setIsPasswordModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <VTTextField
+                label="Current Password"
+                placeholder="Enter current password"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry
+              />
+              <View style={{ height: 12 }} />
+              <VTTextField
+                label="New Password"
+                placeholder="Enter new password"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+              />
+              <View style={{ height: 12 }} />
+              <VTTextField
+                label="Confirm New Password"
+                placeholder="Re-enter new password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+              />
+
+              <View style={{ marginTop: 20 }}>
+                <VTButton
+                  title="Update Password"
+                  onPress={handleChangePassword}
+                  loading={changingPassword}
+                />
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -229,106 +411,149 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.sm,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    borderBottomColor: '#E2E8F0',
   },
-  menuIcon: {
-    fontSize: FontSizes.xl,
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerTitle: {
+  editHeaderBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  editHeaderText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.ButtonPrimaryColor,
+  },
+  title: {
     fontSize: FontSizes.lg,
-    fontFamily: Fonts.uberMoveBold,
+    fontWeight: '800',
     color: Colors.TitleColor,
   },
-  editText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryRight,
-  },
   scrollContent: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing['4xl'],
+    padding: Spacing.base,
+    paddingBottom: 40,
   },
-  imageSection: {
+  avatarCard: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 20,
+    marginBottom: Spacing.base,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  avatarContainer: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    position: 'relative',
+    marginBottom: 10,
   },
-  imagePlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  avatarImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+  },
+  avatarPlaceholder: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     backgroundColor: Colors.ButtonPrimaryColor,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  imagePlaceholderText: {
-    fontSize: FontSizes.xl,
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.BGColor,
-  },
-  editIconContainer: {
+  cameraBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: Colors.ButtonPrimaryColor,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 2,
-    borderColor: Colors.BGColor,
+    borderColor: '#FFFFFF',
   },
-  editIcon: {
-    fontSize: FontSizes.sm,
-  },
-  nameText: {
-    fontSize: FontSizes.xl,
-    fontFamily: Fonts.uberMoveBold,
+  profileName: {
+    fontSize: 18,
+    fontWeight: '800',
     color: Colors.TitleColor,
-    marginTop: Spacing.md,
   },
-  ratingContainer: {
-    marginTop: Spacing.xs,
+  profileEmail: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 2,
   },
-  ratingText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.RadioActive,
+  sectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: Spacing.base,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  formSection: {
-    marginBottom: Spacing.lg,
+  sectionHeading: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.TitleColor,
+    marginBottom: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  saveButton: {
-    marginBottom: Spacing.xl,
-  },
-  dangerSection: {
-    marginTop: Spacing.lg,
-    paddingTop: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.CardColor,
-  },
-  deleteButton: {
+  menuRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
   },
-  deleteText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.errorViewColor,
+  menuRowText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.TitleColor,
+    marginLeft: 12,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.TitleColor,
   },
 });
 
