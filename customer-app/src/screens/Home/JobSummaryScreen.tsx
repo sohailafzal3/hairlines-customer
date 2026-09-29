@@ -3,13 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   Alert,
   ActivityIndicator,
   Modal,
   Image,
+  StatusBar,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +18,7 @@ import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
+import { Header } from '../../components';
 import { VTButton, VTTextField } from '../../components/common';
 import { JobsApi, PaymentsApi, ProfileApi } from '../../api';
 import { useJobStore, useAuthStore } from '../../store';
@@ -137,31 +138,43 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
             try {
               setPosting(true);
               const spId = createJob.worker?.id || createJob.selectedSp?.id || '';
+              const sp = createJob.selectedSp || createJob.worker;
+
+              // When atSpLocation=true, iOS uses the SP's own address & lat/lng (ApiClient.swift:451-455)
+              const useSpLocation = !!createJob.atSpLocation;
+              const jobLat = useSpLocation ? (sp?.permanentAddressLat ?? createJob.latitude ?? 37.7749) : (createJob.latitude ?? 37.7749);
+              const jobLng = useSpLocation ? (sp?.permanentAddressLong ?? createJob.longitude ?? -122.4194) : (createJob.longitude ?? -122.4194);
+              const jobPrimaryAddress = useSpLocation ? (sp?.spPrimaryAddress || createJob.primaryAddress || '') : (createJob.primaryAddress || '');
+              const jobCity = useSpLocation ? (sp?.spCity || createJob.city || '') : (createJob.city || '');
+              const jobState = useSpLocation ? (sp?.spState || createJob.state || '') : (createJob.state || '');
+              const jobCountry = useSpLocation ? (sp?.spCountry || createJob.country || '') : (createJob.country || '');
 
               const params = {
                 subServiceId: createJob.subServiceId,
                 subServiceTypeId: createJob.subServiceTypeId || '',
                 subServiceTypeRate: createJob.subServiceTypeRate || 0,
                 jobStartTime: createJob.jobStartTime || new Date().toISOString(),
-                latitude: createJob.latitude || 37.7749,
-                longitude: createJob.longitude || -122.4194,
+                latitude: jobLat,
+                longitude: jobLng,
                 spProfileId: spId,
                 specialInstruction: createJob.specialInstruction || '',
-                primaryAddress: createJob.primaryAddress || 'Current Location',
+                primaryAddress: jobPrimaryAddress,
                 streetAddressLine1: createJob.streetAddressLine1 || '',
-                streetAddressLine2: createJob.streetAddressLine2 || '',
-                city: createJob.city || 'San Francisco',
-                state: createJob.state || 'CA',
-                country: createJob.country || 'USA',
-                workDescription: createJob.descriptionText || 'Hair grooming service',
+                streetAddressLine2: useSpLocation ? '' : (createJob.streetAddressLine2 || ''),
+                city: jobCity,
+                state: jobState,
+                country: jobCountry,
+                workDescription: createJob.descriptionText || '',
                 promoCode: selectedPromoCode?.code || '',
+                jobId: createJob.jobId || '',
                 provideServiceInPremises: !!createJob.atSpLocation,
                 provideServiceInUserPremises: !!createJob.atUserLocation,
                 stylePreferenceImage: createJob.stylePreferenceImage || '',
-                memberId: createJob.memberId || '',
-                barberGender: createJob.barberGender || 'any',
-                bookingType: createJob.memberId ? 2 : 1,
-                userType: 1,
+                isJobOfferedFor: createJob.isJobOfferedFor ?? 0,
+                serviceFor: createJob.serviceFor ?? 0,
+                barberGender: createJob.barberGender ?? -1,
+                bookingType: createJob.bookingType || 0,
+                ...(createJob.memberId ? { memberId: createJob.memberId } : {}),
               };
 
               const res: any = await JobsApi.postJob(params);
@@ -200,19 +213,9 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
     : 'Immediate / Next Available';
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.TitleColor} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Appointment Summary</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <Header title="Appointment Summary" onBackPress={() => navigation.goBack()} />
 
       <ScrollView
         contentContainerStyle={[
@@ -477,7 +480,7 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 

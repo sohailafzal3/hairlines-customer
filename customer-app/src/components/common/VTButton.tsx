@@ -1,7 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { Colors } from '../../theme/colors';
-import { Fonts, FontSizes } from '../../theme/fonts';
+import { Fonts, FontSizes, FontWeights } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
 
 interface VTButtonProps {
@@ -9,9 +9,9 @@ interface VTButtonProps {
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
-  variant?: 'primary' | 'secondary' | 'outline';
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
+  style?: ViewStyle | ViewStyle[];
+  textStyle?: TextStyle | TextStyle[];
 }
 
 const VTButton: React.FC<VTButtonProps> = ({
@@ -26,10 +26,12 @@ const VTButton: React.FC<VTButtonProps> = ({
   const isDisabled = disabled || loading;
 
   const getBackgroundColor = () => {
-    if (isDisabled) return Colors.disabledGray;
+    if (isDisabled) return '#E2E8F0';
     switch (variant) {
-      case 'secondary': return Colors.ButtonPrimaryRight;
-      case 'outline': return 'transparent';
+      case 'secondary': return '#F1F5F9';
+      case 'outline':
+      case 'ghost': return 'transparent';
+      case 'danger': return Colors.errorViewColor;
       default: return Colors.ButtonPrimaryColor;
     }
   };
@@ -37,8 +39,10 @@ const VTButton: React.FC<VTButtonProps> = ({
   const getTextColor = () => {
     if (isDisabled) return Colors.disabledText;
     switch (variant) {
-      case 'outline': return Colors.ButtonPrimaryColor;
-      default: return Colors.BGColor;
+      case 'outline':
+      case 'ghost': return Colors.ButtonPrimaryColor;
+      case 'secondary': return Colors.TitleColor;
+      default: return Colors.ButtonTextColor;
     }
   };
 
@@ -51,9 +55,12 @@ const VTButton: React.FC<VTButtonProps> = ({
         styles.button,
         {
           backgroundColor: getBackgroundColor(),
-          borderWidth: variant === 'outline' ? 1 : 0,
-          borderColor: Colors.ButtonPrimaryColor,
+          borderWidth: variant === 'outline' || variant === 'ghost' ? 1.5 : (variant === 'secondary' ? 1 : 0),
+          borderColor: variant === 'secondary' ? Colors.BorderColor : Colors.ButtonPrimaryColor,
         },
+        variant === 'primary' && !isDisabled && styles.primaryShadow,
+        variant === 'danger' && !isDisabled && styles.dangerShadow,
+        isDisabled && styles.disabled,
         style,
       ]}
     >
@@ -70,17 +77,35 @@ const VTButton: React.FC<VTButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: Spacing.md,
+    paddingVertical: 14,
     paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.sm,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 50,
+  },
+  primaryShadow: {
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  dangerShadow: {
+    shadowColor: Colors.errorViewColor,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  disabled: {
+    opacity: 0.5,
   },
   text: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.semibold,
   },
 });
 
 export default VTButton;
+

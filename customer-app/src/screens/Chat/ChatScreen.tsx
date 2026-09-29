@@ -3,23 +3,26 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   FlatList,
   TextInput,
   KeyboardAvoidingView,
   Platform,
   Image,
+  StatusBar,
+  Linking,
+  ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
-import { Fonts, FontSizes } from '../../theme/fonts';
+import { FontSizes, FontWeights } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { VTLoading } from '../../components/common';
 import { ChatApi } from '../../api';
-import { useApi, useSocket } from '../../hooks';
+import { useSocket } from '../../hooks';
 import { Message, Messages } from '../../models';
 import { useAuthStore } from '../../store';
 import { SenderType } from '../../constants';
@@ -30,20 +33,16 @@ type Props = {
 };
 
 const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
   const { jobId, spName } = route.params;
   const { user } = useAuthStore();
   const { emit, on } = useSocket();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
+  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
-
-  const {
-    data: threadData,
-    loading,
-    execute: fetchThread,
-  } = useApi<Messages>(ChatApi.fetchThread);
 
   useEffect(() => {
     loadMessages();
@@ -59,12 +58,12 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           senderType: data.senderUserType === 'user' ? SenderType.user : SenderType.sp,
           receiverType: data.receiverUserType === 'user' ? SenderType.user : SenderType.sp,
           jobId: data.jobId,
-          senderName: data.senderName || 'Service Provider',
+          senderName: data.senderName || spName || 'Stylist',
           senderImageUrl: data.senderImageUrl,
           isRead: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          createdAtString: new Date().toLocaleString(),
+          createdAtString: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           userId: data.senderUserId,
         };
         setMessages((prev) => [newMessage, ...prev]);
@@ -74,12 +73,20 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
     return () => {
       unsubscribe?.();
     };
-  }, [jobId, on]);
+  }, [jobId, on, spName]);
 
   const loadMessages = async () => {
-    const result = await fetchThread(jobId, 0);
-    if (result?.messages) {
-      setMessages(result.messages.reverse());
+    try {
+      setLoading(true);
+      const res: any = await ChatApi.fetchThread(jobId, 0);
+      const list: Message[] = res?.messages || res?.data || (Array.isArray(res) ? res : []);
+      if (Array.isArray(list)) {
+        setMessages(list.reverse());
+      }
+    } catch (e) {
+      console.log('Error loading messages:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -90,7 +97,6 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
     setInputText('');
     setSending(true);
 
-    // Optimistic update
     const tempMessage: Message = {
       id: `temp-${Date.now()}`,
       body: text,
@@ -98,47 +104,52 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
       senderType: SenderType.user,
       receiverType: SenderType.sp,
       jobId,
-      senderName: user?.name || 'You',
+      senderName: user ? `${user.firstName} ${user.lastName}` : 'Customer',
       senderImageUrl: user?.profileImage,
-      isRead: true,
+      isRead: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      createdAtString: new Date().toLocaleString(),
+      createdAtString: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       userId: user?.id || '',
     };
+
     setMessages((prev) => [tempMessage, ...prev]);
 
-    // Emit via socket
-    emit('messageSendingKey', {
-      body: text,
-      jobId,
-      senderUserType: 'user',
-      receiverUserType: 'sp',
-      senderUserId: user?.id,
-    });
+    try {
+      await ChatApi.sendMessage({
+        jobId,
+        body: text,
+        receiverType: SenderType.sp,
+      });
 
-    setSending(false);
+      emit('sendMessage', {
+        jobId,
+        body: text,
+        senderUserId: user?.id,
+        senderUserType: 'user',
+        receiverUserType: 'sp',
+      });
+    } catch (error) {
+      console.error('Send message error:', error);
+    } finally {
+      setSending(false);
+    }
   }, [inputText, jobId, user, emit]);
 
-  const renderMessage = ({ item }: { item: Message }) => {
-    const isOutgoing = item.senderType === SenderType.user;
+  const renderMessageItem = ({ item }: { item: Message }) => {
+    const isMe = item.senderType === SenderType.user;
+    const timeStr = item.createdAt
+      ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : item.createdAtString || '';
 
     return (
-      <View style={[styles.messageContainer, isOutgoing ? styles.outgoing : styles.incoming]}>
-        {!isOutgoing && item.senderImageUrl ? (
-          <Image source={{ uri: item.senderImageUrl }} style={styles.avatar} />
-        ) : !isOutgoing ? (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>{item.senderName?.charAt(0) || 'S'}</Text>
-          </View>
-        ) : null}
-
-        <View style={[styles.bubble, isOutgoing ? styles.bubbleOutgoing : styles.bubbleIncoming]}>
-          <Text style={[styles.messageText, isOutgoing ? styles.textOutgoing : styles.textIncoming]}>
+      <View style={[styles.bubbleWrapper, isMe ? styles.bubbleWrapperRight : styles.bubbleWrapperLeft]}>
+        <View style={[styles.bubble, isMe ? styles.bubbleRight : styles.bubbleLeft]}>
+          <Text style={[styles.bubbleText, isMe ? styles.bubbleTextRight : styles.bubbleTextLeft]}>
             {item.body}
           </Text>
-          <Text style={[styles.timeText, isOutgoing ? styles.timeOutgoing : styles.timeIncoming]}>
-            {item.createdAtString}
+          <Text style={[styles.bubbleTime, isMe ? styles.bubbleTimeRight : styles.bubbleTimeLeft]}>
+            {timeStr}
           </Text>
         </View>
       </View>
@@ -146,196 +157,259 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>←</Text>
+      <View style={[styles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={24} color={Colors.TitleColor} />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{spName || 'Chat'}</Text>
-          <Text style={styles.headerSubtitle}>Job #{jobId.slice(-6)}</Text>
+
+        <View style={styles.headerProfileRow}>
+          <View style={styles.avatarPlaceholder}>
+            <Ionicons name="person" size={18} color="#FFFFFF" />
+          </View>
+          <View style={{ marginLeft: 10 }}>
+            <Text style={styles.headerName}>{spName || 'Stylist'}</Text>
+            <View style={styles.statusRow}>
+              <View style={styles.onlineDot} />
+              <Text style={styles.statusText}>Live Booking Chat</Text>
+            </View>
+          </View>
         </View>
+
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        contentContainerStyle={styles.messagesContent}
-        inverted
-      />
-
-      {/* Input */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
       >
-        <View style={styles.inputContainer}>
+        {loading ? (
+          <View style={styles.loadingWrapper}>
+            <ActivityIndicator size="large" color={Colors.ButtonPrimaryColor} />
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            renderItem={renderMessageItem}
+            inverted
+            contentContainerStyle={styles.messagesList}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Ionicons name="chatbubbles-outline" size={48} color="#CBD5E1" />
+                <Text style={styles.emptyTitle}>Start a Conversation</Text>
+                <Text style={styles.emptySub}>
+                  Coordinate details, confirm appointment time, or share reference photos with your stylist.
+                </Text>
+              </View>
+            }
+          />
+        )}
+
+        {/* Bottom Input Row */}
+        <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
           <TextInput
             style={styles.input}
             placeholder="Type a message..."
-            placeholderTextColor={Colors.PlaceholderInactive}
+            placeholderTextColor="#94A3B8"
             value={inputText}
             onChangeText={setInputText}
             multiline
             maxLength={500}
           />
           <TouchableOpacity
-            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+            style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
             onPress={handleSend}
             disabled={!inputText.trim() || sending}
+            activeOpacity={0.8}
           >
-            <Text style={styles.sendIcon}>➤</Text>
+            {sending ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons name="send" size={18} color="#FFFFFF" />
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-
-      <VTLoading visible={loading && messages.length === 0} />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    borderBottomColor: '#E2E8F0',
   },
-  back: {
-    fontSize: FontSizes['2xl'],
-    color: Colors.TitleColor,
-  },
-  headerCenter: {
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-  },
-  headerSubtitle: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
-  },
-  messagesContent: {
-    padding: Spacing.lg,
-  },
-  messageContainer: {
+  headerProfileRow: {
     flexDirection: 'row',
-    marginBottom: Spacing.md,
-    maxWidth: '85%',
-  },
-  incoming: {
-    alignSelf: 'flex-start',
-  },
-  outgoing: {
-    alignSelf: 'flex-end',
-    flexDirection: 'row-reverse',
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: Spacing.sm,
+    alignItems: 'center',
+    flex: 1,
+    marginLeft: 8,
   },
   avatarPlaceholder: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: Colors.ButtonPrimaryColor,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: Spacing.sm,
+    justifyContent: 'center',
   },
-  avatarText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.BGColor,
-  },
-  bubble: {
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    maxWidth: '100%',
-  },
-  bubbleIncoming: {
-    backgroundColor: Colors.TextFieldColor,
-    borderBottomLeftRadius: 4,
-  },
-  bubbleOutgoing: {
-    backgroundColor: Colors.ButtonPrimaryColor,
-    borderBottomRightRadius: 4,
-  },
-  messageText: {
-    fontSize: FontSizes.base,
-    fontFamily: Fonts.uberMoveRegular,
-    lineHeight: 22,
-  },
-  textIncoming: {
+  headerName: {
+    fontSize: 15,
+    fontWeight: FontWeights.bold,
     color: Colors.TitleColor,
   },
-  textOutgoing: {
-    color: Colors.BGColor,
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
   },
-  timeText: {
-    fontSize: FontSizes.xs,
-    marginTop: Spacing.xs,
+  onlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+    marginRight: 4,
   },
-  timeIncoming: {
-    color: Colors.DescriptionTextLight,
+  statusText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: FontWeights.medium,
   },
-  timeOutgoing: {
-    color: `${Colors.BGColor}AA`,
+  loadingWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messagesList: {
+    padding: Spacing.base,
+    paddingBottom: 20,
+  },
+  bubbleWrapper: {
+    marginVertical: 4,
+    maxWidth: '80%',
+  },
+  bubbleWrapperRight: {
+    alignSelf: 'flex-end',
+  },
+  bubbleWrapperLeft: {
+    alignSelf: 'flex-start',
+  },
+  bubble: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+  },
+  bubbleRight: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderBottomRightRadius: 2,
+  },
+  bubbleLeft: {
+    backgroundColor: '#FFFFFF',
+    borderBottomLeftRadius: 2,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  bubbleText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  bubbleTextRight: {
+    color: '#FFFFFF',
+  },
+  bubbleTextLeft: {
+    color: Colors.TitleColor,
+  },
+  bubbleTime: {
+    fontSize: 10,
+    marginTop: 4,
+  },
+  bubbleTimeRight: {
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'right',
+  },
+  bubbleTimeLeft: {
+    color: '#94A3B8',
+    textAlign: 'left',
   },
   inputContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    padding: Spacing.base,
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: Colors.CardColor,
-    backgroundColor: Colors.BGColor,
+    borderTopColor: '#E2E8F0',
+    gap: 10,
   },
   input: {
     flex: 1,
-    backgroundColor: Colors.TextFieldColor,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    fontSize: FontSizes.base,
-    fontFamily: Fonts.uberMoveRegular,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 14,
     color: Colors.TitleColor,
     maxHeight: 100,
-    marginRight: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  sendButton: {
+  sendBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
     backgroundColor: Colors.ButtonPrimaryColor,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  sendButtonDisabled: {
-    backgroundColor: Colors.disabledGray,
+  sendBtnDisabled: {
+    backgroundColor: '#CBD5E1',
   },
-  sendIcon: {
-    fontSize: FontSizes.md,
-    color: Colors.BGColor,
-    marginLeft: 2,
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 100,
+    paddingHorizontal: 30,
+    transform: [{ scaleY: -1 }],
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.TitleColor,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  emptySub: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });
 

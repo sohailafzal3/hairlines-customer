@@ -3,26 +3,27 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   FlatList,
   Image,
   RefreshControl,
-  StatusBar,
   Modal,
   TextInput,
-  ActivityIndicator,
   Alert,
+  StatusBar,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { DrawerActions } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
-import { Fonts, FontSizes } from '../../theme/fonts';
+import { FontSizes, FontWeights } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTButton, VTLoading } from '../../components/common';
-import { JobsApi, ProfileApi } from '../../api';
-import { useAuthStore, useUserStore, useJobStore } from '../../store';
+import { JobsApi } from '../../api';
+import { useAuthStore, useJobStore, useUserStore } from '../../store';
+import Toast from 'react-native-toast-message';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Categories'>;
@@ -31,48 +32,59 @@ type Props = {
 interface ServiceCategory {
   _id?: string;
   id?: string;
-  serviceName?: string;
+  serviceTypeName?: string;
   name?: string;
-  serviceDescription?: string;
+  serviceTypeDescription?: string;
   description?: string;
-  serviceImage?: string;
+  serviceTypeImage?: string;
   image?: string;
-  subServices?: any[];
+  iconName?: string;
 }
 
 const DEFAULT_CATEGORIES: ServiceCategory[] = [
   {
-    id: 'cat_barber',
-    name: "Men's Haircut & Grooming",
-    description: 'Fades, scissor cuts, beard styling, hot towel shave & facial grooming',
+    id: 'cat_mens_haircut',
+    serviceTypeName: "Men's Haircut & Grooming",
+    serviceTypeDescription: 'Fades, tapers, beard sculpts, razor shaves & styling.',
+    iconName: 'cut',
   },
   {
-    id: 'cat_salon',
-    name: "Women's Styling & Hair Care",
-    description: 'Blowouts, precision haircuts, coloring, keratin treatment & styling',
+    id: 'cat_womens_salon',
+    serviceTypeName: "Women's Salon & Haircare",
+    serviceTypeDescription: 'Blowouts, coloring, precision cuts, balayage & treatments.',
+    iconName: 'sparkles',
   },
   {
-    id: 'cat_braids',
-    name: 'Braids & Natural Hair',
-    description: 'Box braids, dreadlocks, cornrows, twists, weaves & scalp therapy',
+    id: 'cat_braiding_locs',
+    serviceTypeName: 'Braids, Locs & Twists',
+    serviceTypeDescription: 'Box braids, knotless, cornrows, loc maintenance & styling.',
+    iconName: 'flower',
   },
   {
-    id: 'cat_cleaning',
-    name: 'Premise & Home Cleaning',
-    description: 'Standard home, deep clean, move-out & office sanitization',
+    id: 'cat_kids_styling',
+    serviceTypeName: 'Kids & Teens Haircut',
+    serviceTypeDescription: 'Gentle, patient haircutting and styling for children.',
+    iconName: 'happy',
+  },
+  {
+    id: 'cat_facial_spa',
+    serviceTypeName: 'Facial, Steam & Grooming',
+    serviceTypeDescription: 'Black mask, hot towel exfoliation, scalp massage & facial care.',
+    iconName: 'water',
   },
 ];
 
 const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
-  const { notificationBadge, setNotificationBadge } = useUserStore();
   const { setCreateJobField } = useJobStore();
+  const { notificationBadge } = useUserStore();
 
   const [categories, setCategories] = useState<ServiceCategory[]>(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Unrated Job Rating Modal State
+  // Unrated Job State
   const [unratedJob, setUnratedJob] = useState<any>(null);
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
   const [ratingStars, setRatingStars] = useState(5);
@@ -88,38 +100,15 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const lat = user?.lastLocation?.latitude || 37.7749;
-      const lng = user?.lastLocation?.longitude || -122.4194;
-
-      let list: any[] = [];
-      try {
-        const res = await JobsApi.fetchServices(lat, lng);
-        const fetched = (res as any)?.services || (res as any)?.data || (Array.isArray(res) ? res : []);
-        if (Array.isArray(fetched) && fetched.length > 0) list = fetched;
-      } catch (err) {}
-
-      if (list.length === 0) {
-        try {
-          const resTypes = await JobsApi.fetchServiceTypes();
-          const fetchedTypes = (resTypes as any)?.serviceTypes || (resTypes as any)?.data || (Array.isArray(resTypes) ? resTypes : []);
-          if (Array.isArray(fetchedTypes) && fetchedTypes.length > 0) list = fetchedTypes;
-        } catch (err) {}
-      }
-
-      if (list.length > 0) {
+      const res: any = await JobsApi.fetchServiceTypes();
+      const list = res?.serviceTypes || res?.data || (Array.isArray(res) ? res : []);
+      if (Array.isArray(list) && list.length > 0) {
         setCategories(list);
       } else {
         setCategories(DEFAULT_CATEGORIES);
       }
-
-      try {
-        const countRes: any = await ProfileApi.notificationCount();
-        if (countRes?.notificationCount !== undefined) {
-          setNotificationBadge(countRes.notificationCount);
-        }
-      } catch (cntErr) {}
     } catch (e) {
-      console.log('Categories load error:', e);
+      console.log('Categories fetch error:', e);
       setCategories(DEFAULT_CATEGORIES);
     } finally {
       setLoading(false);
@@ -128,75 +117,74 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
 
   const checkUnratedJob = async () => {
     try {
-      const res: any = await JobsApi.lastUnratedJob();
-      const jobData = res?.job || res?.data || res;
-      if (jobData && (jobData._id || jobData.jobId)) {
-        setUnratedJob(jobData);
+      const res: any = await JobsApi.fetchUnratedJobs();
+      const job = res?.job || res?.data || (Array.isArray(res) ? res[0] : null);
+      if (job && !job.isUserRated && (job.status === 4 || job.spJobStatus === 4 || job.status === 5)) {
+        setUnratedJob(job);
         setIsRatingModalVisible(true);
       }
-    } catch (e) {}
-  };
-
-  const handleRateSubmit = async () => {
-    if (!unratedJob) return;
-    try {
-      setSubmittingRating(true);
-      const jId = unratedJob._id || unratedJob.jobId || '';
-      const spId = unratedJob.spProfileId || unratedJob.worker?.id || unratedJob.spId || '';
-      await JobsApi.rateSP({
-        jobId: jId,
-        spProfileId: spId,
-        rating: ratingStars,
-        review: reviewText.trim(),
-        gratuity: tipAmount,
-      });
-      setIsRatingModalVisible(false);
-      setUnratedJob(null);
-      Alert.alert('Thank you!', 'Your review and rating have been submitted.');
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to submit rating');
-    } finally {
-      setSubmittingRating(false);
+    } catch (e) {
+      // ignore
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
-    await checkUnratedJob();
     setRefreshing(false);
   };
 
   const handleSelectCategory = (item: ServiceCategory) => {
-    const sId = item._id || item.id || '';
-    const sName = item.serviceName || item.name || 'Services';
-    setCreateJobField('serviceId', sId);
-    setCreateJobField('serviceName', sName);
-
+    const serviceTypeId = item._id || item.id || '';
+    const serviceTypeName = item.serviceTypeName || item.name || '';
+    setCreateJobField('serviceTypeId', serviceTypeId);
+    setCreateJobField('serviceTypeName', serviceTypeName);
     navigation.navigate('Services', {
-      serviceTypeId: sId,
-      serviceTypeName: sName,
+      serviceTypeId,
+      serviceTypeName,
     });
   };
 
+  const handleRateSubmit = async () => {
+    if (!unratedJob) return;
+    try {
+      setSubmittingRating(true);
+      const jobId = unratedJob._id || unratedJob.id || unratedJob.jobId;
+      const spId = unratedJob.spProfileId || unratedJob.worker?.id || unratedJob.workerId;
+      await JobsApi.rateSP({
+        jobId,
+        spProfileId: spId,
+        rating: ratingStars,
+        review: reviewText.trim(),
+        gratuity: tipAmount,
+      });
+      setIsRatingModalVisible(false);
+      Toast.show({
+        type: 'success',
+        text1: 'Review Submitted!',
+        text2: 'Thank you for your feedback.',
+      });
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to submit review');
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
   const renderItem = ({ item }: { item: ServiceCategory }) => {
-    const title = item.serviceName || item.name || 'Hair & Grooming';
-    const description = item.serviceDescription || item.description || 'Professional on-demand services';
-    const imageUri = item.serviceImage || item.image;
+    const title = item.serviceTypeName || item.name || 'Grooming Service';
+    const description = item.serviceTypeDescription || item.description || 'Premium grooming & styling';
+    const iconName = item.iconName || 'cut';
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={styles.categoryCard}
         onPress={() => handleSelectCategory(item)}
         activeOpacity={0.85}
       >
         <View style={styles.cardLeft}>
           <View style={styles.iconCircle}>
-            {imageUri ? (
-              <Image source={{ uri: imageUri }} style={styles.catImage} />
-            ) : (
-              <MaterialCommunityIcons name="content-cut" size={24} color="#FFFFFF" />
-            )}
+            <Ionicons name={iconName as any} size={24} color={Colors.ButtonPrimaryColor} />
           </View>
           <View style={styles.cardContent}>
             <Text style={styles.cardTitle}>{title}</Text>
@@ -211,13 +199,21 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Top Bar */}
-      <View style={styles.header}>
+      {/* Top Bar with Status Bar Top Inset */}
+      <View style={[styles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
         <TouchableOpacity
-          onPress={() => (navigation.getParent() as any)?.openDrawer?.()}
+          onPress={() => {
+            if ((navigation as any).openDrawer) {
+              (navigation as any).openDrawer();
+            } else if ((navigation.getParent() as any)?.openDrawer) {
+              (navigation.getParent() as any).openDrawer();
+            } else {
+              navigation.dispatch(DrawerActions.openDrawer());
+            }
+          }}
           style={styles.headerBtn}
           activeOpacity={0.7}
         >
@@ -266,7 +262,7 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
         data={categories}
         keyExtractor={(item, index) => item._id || item.id || `cat_${index}`}
         renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 16) + 30 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.ButtonPrimaryColor]} />
@@ -345,7 +341,7 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -359,7 +355,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.sm,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
@@ -398,9 +393,9 @@ const styles = StyleSheet.create({
     top: 6,
     right: 6,
     backgroundColor: '#EF4444',
+    borderRadius: 8,
     minWidth: 16,
     height: 16,
-    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
@@ -411,27 +406,26 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   heroSection: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
+    paddingHorizontal: Spacing.base,
+    paddingTop: Spacing.base,
     paddingBottom: Spacing.sm,
   },
   heroTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     color: Colors.TitleColor,
     letterSpacing: -0.5,
   },
   heroSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#64748B',
     marginTop: 4,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   listContent: {
     padding: Spacing.base,
-    paddingBottom: 40,
   },
-  card: {
+  categoryCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -445,7 +439,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
-    elevation: 1,
+    elevation: 2,
   },
   cardLeft: {
     flexDirection: 'row',
@@ -454,89 +448,87 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   iconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.ButtonPrimaryColor,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  catImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
   },
   cardContent: {
     marginLeft: 14,
     flex: 1,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: Colors.TitleColor,
-    marginBottom: 2,
   },
   cardDescription: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748B',
-    lineHeight: 18,
+    marginTop: 3,
+    lineHeight: 16,
   },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
   },
   ratingCard: {
+    width: '100%',
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 20,
     padding: 24,
   },
   ratingHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
   },
   ratingTitle: {
-    fontSize: 20,
+    fontSize: FontSizes.lg,
     fontWeight: '800',
     color: Colors.TitleColor,
   },
   ratingSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#64748B',
-    marginBottom: 16,
+    marginVertical: 12,
+    lineHeight: 18,
   },
   starRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginVertical: 12,
   },
   tipLabel: {
     fontSize: 13,
     fontWeight: '700',
     color: Colors.TitleColor,
+    marginTop: 10,
     marginBottom: 8,
   },
   tipRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    marginBottom: 14,
   },
   tipBtn: {
     flex: 1,
+    marginHorizontal: 4,
     paddingVertical: 10,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1.5,
+    borderRadius: 8,
+    borderWidth: 1,
     borderColor: '#E2E8F0',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
   },
   tipBtnActive: {
     borderColor: Colors.ButtonPrimaryColor,
-    backgroundColor: `${Colors.ButtonPrimaryColor}12`,
+    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
   },
   tipBtnText: {
     fontSize: 13,
@@ -548,14 +540,14 @@ const styles = StyleSheet.create({
   },
   reviewInput: {
     backgroundColor: '#F8FAFC',
-    borderRadius: BorderRadius.sm,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     padding: 12,
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.TitleColor,
+    minHeight: 80,
     textAlignVertical: 'top',
-    height: 80,
   },
 });
 

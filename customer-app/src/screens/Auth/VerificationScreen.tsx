@@ -5,10 +5,11 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
@@ -29,6 +30,7 @@ type Props = {
 };
 
 const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
   const { countryCode, phoneNumber, isSignUp, isForgotPassword, code: incomingCode } = route.params;
   const { setAccount, login } = useAuthStore();
 
@@ -177,7 +179,8 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   const isComplete = code.every((c) => c.length === 1);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 10, paddingBottom: Math.max(insets.bottom, 16) + 10 }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.BGColor} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -225,7 +228,7 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 

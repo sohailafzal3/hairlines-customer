@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   Image,
@@ -12,6 +11,7 @@ import {
   TextInput,
   ActivityIndicator,
   Linking,
+  StatusBar,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -21,6 +21,7 @@ import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
+import { Header } from '../../components';
 import { VTButton, VTLoading } from '../../components/common';
 import { JobsApi } from '../../api';
 import { JobDetail } from '../../models';
@@ -167,19 +168,9 @@ const JobDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   const canCancel = !isCancelled && !isCompleted && currentStatus <= JobStatus.Arrived;
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.TitleColor} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Appointment Details</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <Header title="Appointment Details" onBackPress={() => navigation.goBack()} />
 
       {loading ? (
         <VTLoading visible />
@@ -500,7 +491,7 @@ const JobDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 

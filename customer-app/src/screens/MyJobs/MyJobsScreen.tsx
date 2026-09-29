@@ -3,14 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   FlatList,
   Image,
   RefreshControl,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { DrawerActions } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
@@ -52,6 +53,7 @@ const getStatusBadge = (status?: number) => {
 };
 
 const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabType>('scheduled');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
@@ -162,13 +164,21 @@ const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
         <TouchableOpacity
-          onPress={() => (navigation.getParent() as any)?.openDrawer?.()}
+          onPress={() => {
+            if ((navigation as any).openDrawer) {
+              (navigation as any).openDrawer();
+            } else if ((navigation.getParent() as any)?.openDrawer) {
+              (navigation.getParent() as any).openDrawer();
+            } else {
+              navigation.dispatch(DrawerActions.openDrawer());
+            }
+          }}
           style={styles.headerBtn}
         >
           <Ionicons name="menu" size={26} color={Colors.TitleColor} />
@@ -202,7 +212,10 @@ const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
         data={jobs}
         keyExtractor={(item, index) => item._id || item.id || `job_${index}`}
         renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: Math.max(insets.bottom, 16) + 30 }
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.ButtonPrimaryColor]} />
@@ -235,7 +248,7 @@ const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
       />
 
       <VTLoading visible={loading && !refreshing} />
-    </SafeAreaView>
+    </View>
   );
 };
 

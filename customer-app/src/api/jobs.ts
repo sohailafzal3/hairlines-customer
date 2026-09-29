@@ -5,8 +5,15 @@ import { kOffSet } from '../constants';
 export const JobsApi = {
   fetchServiceTypes: () => apiClient.get('user/fetch-service-types'),
 
-  fetchServices: (latitude: number, longitude: number) =>
-    apiClient.get<Service[]>('services', { params: { latitude, longitude } }),
+  fetchServices: (serviceTypeIdOrLat?: any, longitude?: number) => {
+    if (typeof serviceTypeIdOrLat === 'number' && typeof longitude === 'number') {
+      return apiClient.get<Service[]>('services', { params: { latitude: serviceTypeIdOrLat, longitude } });
+    }
+    if (typeof serviceTypeIdOrLat === 'string' && serviceTypeIdOrLat) {
+      return apiClient.get<Service[]>(`services?serviceTypeId=${serviceTypeIdOrLat}`);
+    }
+    return apiClient.get<Service[]>('services');
+  },
 
   fetchSubServices: (serviceId: string) =>
     apiClient.get<SubService[]>(`sub/services/${serviceId}`),
@@ -66,6 +73,7 @@ export const JobsApi = {
   }) => apiClient.put('user/job/rate-sp', params),
 
   lastUnratedJob: () => apiClient.get<any>('last-unrated-job?userType=user'),
+  fetchUnratedJobs: () => apiClient.get<any>('last-unrated-job?userType=user'),
 
   checkAllowedLocations: (lat: number, long: number) =>
     apiClient.post('user/check/allowed/locations', { lat, long }),

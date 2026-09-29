@@ -3,22 +3,26 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   FlatList,
   RefreshControl,
   TextInput,
+  StatusBar,
+  ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { DrawerActions } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
-import { Fonts, FontSizes } from '../../theme/fonts';
+import { FontSizes, FontWeights } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { VTButton, VTLoading } from '../../components/common';
+import { Header } from '../../components';
 import { ProfileApi } from '../../api';
-import { useApi } from '../../hooks';
 import { PromoCode } from '../../models';
 import { useJobStore } from '../../store';
+import { VTLoading } from '../../components/common';
 import Toast from 'react-native-toast-message';
 
 type Props = {
@@ -26,24 +30,31 @@ type Props = {
 };
 
 const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { setPromoCode } = useJobStore();
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [manualCode, setManualCode] = useState('');
-
-  const {
-    data: promoCodes,
-    loading,
-    execute: fetchPromoCodes,
-  } = useApi<PromoCode[]>(ProfileApi.fetchPromoCodes);
-
-  const { loading: applying, execute: applyPromo } = useApi(ProfileApi.applyPromoCode);
+  const [applying, setApplying] = useState(false);
 
   useEffect(() => {
     loadPromoCodes();
   }, []);
 
   const loadPromoCodes = async () => {
-    await fetchPromoCodes(0);
+    try {
+      setLoading(true);
+      const res: any = await ProfileApi.fetchPromoCodes(0);
+      const list = res?.promoCodes || res?.data || (Array.isArray(res) ? res : []);
+      if (Array.isArray(list)) {
+        setPromoCodes(list);
+      }
+    } catch (e) {
+      console.log('Promo code error:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onRefresh = async () => {
@@ -52,281 +63,339 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const handleApplyCode = async (code?: string) => {
-    const promoCode = code || manualCode;
-    if (!promoCode.trim()) return;
+  const handleApplyCode = async (codeToApply?: string) => {
+    const code = (codeToApply || manualCode).trim();
+    if (!code) return;
 
     try {
-      const result = await applyPromo(promoCode.trim());
+      setApplying(true);
+      const res: any = await ProfileApi.applyPromoCode(code);
       Toast.show({
         type: 'success',
-        text1: 'Promo Applied',
-        text2: 'Your promo code has been applied successfully',
+        text1: 'Promo Code Applied!',
+        text2: `Code "${code}" discount is ready for your next booking.`,
       });
-      setManualCode('');
-      // Find the applied promo in the list or create a temp one
-      const applied = promoCodes?.find((p) => p.code === promoCode.trim());
-      if (applied) {
-        setPromoCode(applied);
+
+      const matchedPromo = promoCodes.find((p) => p.code?.toUpperCase() === code.toUpperCase());
+      if (matchedPromo) {
+        setPromoCode(matchedPromo);
+      } else {
+        setPromoCode({
+          id: res?.id || 1,
+          code: code,
+          title: res?.title || code,
+          discountType: res?.discountType || 1,
+          discountPercentage: res?.discountPercentage || 10,
+          amount: res?.amount || 10,
+        });
       }
+      setManualCode('');
     } catch (error: any) {
       Toast.show({
         type: 'error',
-        text1: 'Invalid Code',
-        text2: error.message || 'This promo code is not valid',
+        text1: 'Invalid Promo Code',
+        text2: error.message || 'This promo code is either expired or invalid.',
       });
+    } finally {
+      setApplying(false);
     }
   };
 
-  const renderItem = ({ item }: { item: PromoCode }) => (
-    <View style={[styles.promoCard, item.isExpired && styles.promoCardExpired]}>
-      <View style={styles.promoLeft}>
-        <Text style={styles.promoName}>{item.name}</Text>
-        <Text style={styles.promoCode}>Code: {item.code}</Text>
-        <Text style={styles.promoDesc} numberOfLines={2}>
-          {item.promoText}
-        </Text>
-        <Text style={styles.promoExpiry}>
-          Expires: {item.expiryDate}
-        </Text>
-      </View>
-      <View style={styles.promoRight}>
-        <View style={styles.discountBadge}>
-          <Text style={styles.discountText}>
-            {item.promoType === 'percentage' ? `${item.percentage}%` : `$${item.maxDiscount}`}
-          </Text>
-          <Text style={styles.discountLabel}>OFF</Text>
-        </View>
-        {!item.isExpired && item.canUse && (
-          <TouchableOpacity
-            style={styles.applyButton}
-            onPress={() => handleApplyCode(item.code)}
-          >
-            <Text style={styles.applyText}>Apply</Text>
-          </TouchableOpacity>
-        )}
-        {item.isExpired && (
-          <View style={styles.expiredBadge}>
-            <Text style={styles.expiredText}>Expired</Text>
+  const renderItem = ({ item }: { item: PromoCode }) => {
+    const isExpired = item.isExpired;
+    const discountText =
+      item.promoType === 'percentage' || item.discountType === 1
+        ? `${item.percentage || item.discountPercentage || 10}% OFF`
+        : `$${item.amount || item.maxDiscount || 10} OFF`;
+
+    return (
+      <View style={[styles.promoCard, isExpired && styles.promoCardExpired]}>
+        <View style={styles.promoLeft}>
+          <View style={styles.discountBadge}>
+            <Ionicons name="pricetag" size={13} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
+            <Text style={styles.discountBadgeText}>{discountText}</Text>
           </View>
-        )}
+          <Text style={styles.promoName}>{item.name || item.title || item.code}</Text>
+          <Text style={styles.promoCodeText}>Code: {item.code}</Text>
+          {item.promoText ? (
+            <Text style={styles.promoDesc} numberOfLines={2}>
+              {item.promoText}
+            </Text>
+          ) : null}
+          {item.expiryDate && (
+            <Text style={styles.promoExpiry}>Valid until: {item.expiryDate}</Text>
+          )}
+        </View>
+
+        <View style={styles.promoRight}>
+          {!isExpired ? (
+            <TouchableOpacity
+              style={styles.applyBtn}
+              onPress={() => handleApplyCode(item.code)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.applyBtnText}>Apply</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.expiredBadge}>
+              <Text style={styles.expiredBadgeText}>Expired</Text>
+            </View>
+          )}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => (navigation as any).openDrawer()}>
-          <Text style={styles.menuIcon}>☰</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Promo Codes</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Manual Entry */}
+      {/* Header */}
+      <Header
+        title="Promo Codes"
+        left={
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => {
+              if ((navigation as any).openDrawer) {
+                (navigation as any).openDrawer();
+              } else if ((navigation.getParent() as any)?.openDrawer) {
+                (navigation.getParent() as any).openDrawer();
+              } else {
+                navigation.dispatch(DrawerActions.openDrawer());
+              }
+            }}
+          >
+            <Ionicons name="menu" size={26} color={Colors.TitleColor} />
+          </TouchableOpacity>
+        }
+      />
+
+      {/* Manual Input Container */}
       <View style={styles.manualContainer}>
-        <TextInput
-          style={styles.manualInput}
-          placeholder="Enter promo code"
-          placeholderTextColor={Colors.PlaceholderInactive}
-          value={manualCode}
-          onChangeText={setManualCode}
-          autoCapitalize="characters"
-        />
+        <View style={styles.inputWrapper}>
+          <Ionicons name="pricetag-outline" size={18} color="#64748B" style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.manualInput}
+            placeholder="Enter promo code (e.g. SAVE20)"
+            placeholderTextColor="#94A3B8"
+            value={manualCode}
+            onChangeText={setManualCode}
+            autoCapitalize="characters"
+          />
+        </View>
         <TouchableOpacity
-          style={[styles.manualApply, !manualCode.trim() && styles.manualApplyDisabled]}
+          style={[styles.manualApplyBtn, !manualCode.trim() && styles.manualApplyBtnDisabled]}
           onPress={() => handleApplyCode()}
           disabled={!manualCode.trim() || applying}
         >
-          <Text style={styles.manualApplyText}>Apply</Text>
+          {applying ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.manualApplyBtnText}>Apply</Text>
+          )}
         </TouchableOpacity>
       </View>
 
       <FlatList
-        data={promoCodes || []}
-        keyExtractor={(item) => String(item.id)}
+        data={promoCodes}
+        keyExtractor={(item, index) => String(item.id || item.code || index)}
         renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: Math.max(insets.bottom, 16) + 30 }
+        ]}
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.ButtonPrimaryColor]} />
         }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>🏷️</Text>
-              <Text style={styles.emptyTitle}>No promo codes available</Text>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="pricetags-outline" size={40} color="#94A3B8" />
+              </View>
+              <Text style={styles.emptyTitle}>No Promo Codes Available</Text>
               <Text style={styles.emptySubtitle}>
-                Check back later for special offers
+                You can enter a promotional code above if you have received a coupon voucher.
               </Text>
             </View>
           ) : null
         }
       />
 
-      <VTLoading visible={loading || applying} />
-    </SafeAreaView>
+      <VTLoading visible={loading && !refreshing} />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
-  header: {
-    flexDirection: 'row',
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
-  },
-  menuIcon: {
-    fontSize: FontSizes.xl,
-  },
-  headerTitle: {
-    fontSize: FontSizes.lg,
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
+    justifyContent: 'center',
   },
   manualContainer: {
     flexDirection: 'row',
-    padding: Spacing.lg,
+    padding: Spacing.base,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    borderBottomColor: '#E2E8F0',
+    gap: 10,
+  },
+  inputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   manualInput: {
     flex: 1,
-    backgroundColor: Colors.TextFieldColor,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    fontSize: FontSizes.base,
-    fontFamily: Fonts.uberMoveRegular,
+    fontSize: 13,
     color: Colors.TitleColor,
-    marginRight: Spacing.sm,
+    fontWeight: FontWeights.semibold,
+    paddingVertical: 10,
   },
-  manualApply: {
+  manualApplyBtn: {
     backgroundColor: Colors.ButtonPrimaryColor,
     borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: 20,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  manualApplyDisabled: {
-    backgroundColor: Colors.disabledGray,
+  manualApplyBtnDisabled: {
+    backgroundColor: '#CBD5E1',
   },
-  manualApplyText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.BGColor,
+  manualApplyBtnText: {
+    fontSize: 13,
+    fontWeight: FontWeights.bold,
+    color: '#FFFFFF',
   },
   listContent: {
-    padding: Spacing.lg,
+    padding: Spacing.base,
+    paddingBottom: 40,
   },
   promoCard: {
     flexDirection: 'row',
-    backgroundColor: Colors.BGColor,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.base,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.md,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.CardColor,
+    borderColor: '#E2E8F0',
     borderLeftWidth: 4,
     borderLeftColor: Colors.ButtonPrimaryColor,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 2,
   },
   promoCardExpired: {
-    borderLeftColor: Colors.disabledGray,
-    opacity: 0.7,
+    borderLeftColor: '#94A3B8',
+    opacity: 0.65,
   },
   promoLeft: {
     flex: 1,
   },
-  promoName: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.xs,
+  discountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 6,
   },
-  promoCode: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryRight,
-    marginBottom: Spacing.xs,
+  discountBadgeText: {
+    fontSize: 11,
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  promoName: {
+    fontSize: 15,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+  },
+  promoCodeText: {
+    fontSize: 12,
+    fontWeight: FontWeights.semibold,
+    color: '#64748B',
+    marginTop: 2,
   },
   promoDesc: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-    marginBottom: Spacing.xs,
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 4,
+    lineHeight: 16,
   },
   promoExpiry: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 6,
   },
   promoRight: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: Spacing.md,
+    marginLeft: 12,
   },
-  discountBadge: {
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
+  applyBtn: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
-  discountText: {
-    fontSize: FontSizes.xl,
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.ButtonPrimaryColor,
-  },
-  discountLabel: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.DescriptionTextLight,
-  },
-  applyButton: {
-    backgroundColor: `${Colors.ButtonPrimaryColor}15`,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
-  },
-  applyText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryColor,
+  applyBtnText: {
+    fontSize: 13,
+    fontWeight: FontWeights.bold,
+    color: '#FFFFFF',
   },
   expiredBadge: {
-    backgroundColor: Colors.disabledGray,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
-  expiredText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.disabledText,
+  expiredBadgeText: {
+    fontSize: 12,
+    fontWeight: FontWeights.semibold,
+    color: '#94A3B8',
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: Spacing['4xl'],
+    paddingVertical: 60,
+    paddingHorizontal: 24,
   },
-  emptyEmoji: {
-    fontSize: FontSizes['3xl'],
-    marginBottom: Spacing.lg,
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: FontSizes.lg,
-    fontFamily: Fonts.uberMoveMedium,
+    fontSize: 18,
+    fontWeight: '800',
     color: Colors.TitleColor,
-    marginBottom: Spacing.sm,
+    marginBottom: 6,
   },
   emptySubtitle: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    fontSize: 13,
+    color: '#64748B',
     textAlign: 'center',
-    paddingHorizontal: Spacing.xl,
+    lineHeight: 18,
   },
 });
 

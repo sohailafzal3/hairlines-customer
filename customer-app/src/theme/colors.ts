@@ -3,40 +3,47 @@ export const Colors = {
   ButtonPrimaryColor: '#222D63',
   ButtonPrimaryLeft: '#222D63',
   ButtonPrimaryRight: '#2B76C8',
-  ButtonTextColor: '#000000',
+  ButtonTextColor: '#FFFFFF',
 
-  // Controls
+  // Controls & Accents
   RadioActive: '#E5B652',
-  RadioInactive: '#999999',
+  RadioInactive: '#94A3B8',
+  gold: '#E5B652',
+  accent: '#2B76C8',
 
   // Fields
   PlaceholderActive: '#404552',
-  PlaceholderInactive: '#9F9E9F',
-  TextFieldColor: '#F1F1F1',
+  PlaceholderInactive: '#94A3B8',
+  TextFieldColor: '#F8FAFC',
+  BorderColor: '#E2E8F0',
 
   // Backgrounds
   BGColor: '#FFFFFF',
   PopupBG: '#FFFFFF',
-  CardColor: '#DDDDDD',
+  CardColor: '#FFFFFF',
+  ScreenBG: '#F8FAFC',
 
   // Text
-  TitleColor: '#404553',
-  SectionColor: '#737584',
-  DescriptionTextDark: '#808080',
-  DescriptionTextLight: '#999999',
-  NavigationTitle: '#565A73',
+  TitleColor: '#1E293B',
+  SectionColor: '#475569',
+  DescriptionTextDark: '#64748B',
+  DescriptionTextLight: '#94A3B8',
+  NavigationTitle: '#1E293B',
 
   // Semantic
-  appThemeBlackColor: '#2D3939',
-  errorViewColor: '#D52927',
-  disabledGray: '#D6D6D6',
-  disabledText: '#9F9E9F',
-  orange: '#EE5E29',
-  cyan: '#00A9BB',
-  lightGrayBorder: '#BDBDBD',
-  veryLightGray: '#E0E0DF',
-  placeholderGray: '#B8B8B8',
+  appThemeBlackColor: '#0F172A',
+  errorViewColor: '#EF4444',
+  successColor: '#10B981',
+  disabledGray: '#E2E8F0',
+  disabledText: '#94A3B8',
+  orange: '#F97316',
+  cyan: '#06B6D4',
+  lightGrayBorder: '#E2E8F0',
+  veryLightGray: '#F1F5F9',
+  placeholderGray: '#94A3B8',
 
-  // Slider
-  SliderGradient: 'rgba(108, 98, 255, 0.6)',
+  // Slider / Decorative
+  SliderGradient: 'rgba(34, 45, 99, 0.6)',
 } as const;
+
+export type ColorsType = typeof Colors;

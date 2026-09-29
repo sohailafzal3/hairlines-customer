@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   Image,
@@ -13,7 +12,9 @@ import {
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { DrawerActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
@@ -43,6 +44,7 @@ interface AddressPrediction {
 }
 
 const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { user, setUser, logout } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [profileImage, setProfileImage] = useState('');
@@ -455,7 +457,15 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
         profileImageUrl: profileImage,
         email: email.trim(),
         gender,
+        // iOS updateUserProfile requires these additional fields (ApiClient.swift:287-299)
+        isPhysicallyDisabled: 0,
+        dateOfBirth: 0,
+        residanceName: '',
+        instituteName: '',
         residanceAddress: address,
+        residanceStreetAddress: '',
+        residanceLatitude: latitude || 0,
+        residanceLongitude: longitude || 0,
       });
       setIsEditing(false);
       Toast.show({ type: 'success', text1: 'Profile Updated!' });
@@ -531,13 +541,21 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
         <TouchableOpacity
-          onPress={() => (navigation.getParent() as any)?.openDrawer?.()}
+          onPress={() => {
+            if ((navigation as any).openDrawer) {
+              (navigation as any).openDrawer();
+            } else if ((navigation.getParent() as any)?.openDrawer) {
+              (navigation.getParent() as any).openDrawer();
+            } else {
+              navigation.dispatch(DrawerActions.openDrawer());
+            }
+          }}
           style={styles.headerBtn}
         >
           <Ionicons name="menu" size={26} color={Colors.TitleColor} />
@@ -551,7 +569,13 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 16) + 30 }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Profile Avatar Card */}
         <View style={styles.avatarCard}>
           <TouchableOpacity
@@ -711,7 +735,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
         transparent={false}
         onRequestClose={() => setAddressModalVisible(false)}
       >
-        <SafeAreaView style={styles.addressModalContainer}>
+        <View style={[styles.addressModalContainer, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }]}>
           <View style={styles.addressModalHeader}>
             <TouchableOpacity
               onPress={() => setAddressModalVisible(false)}
@@ -818,7 +842,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
               <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
             </TouchableOpacity>
           </View>
-        </SafeAreaView>
+        </View>
       </Modal>
 
       {/* Modal: Change Password */}
@@ -873,7 +897,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 

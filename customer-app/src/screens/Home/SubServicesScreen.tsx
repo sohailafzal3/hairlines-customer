@@ -3,21 +3,22 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   FlatList,
-  Image,
   Dimensions,
+  Image,
+  StatusBar,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
-import { Fonts, FontSizes } from '../../theme/fonts';
+import { FontSizes, FontWeights } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { VTLoading, VTButton } from '../../components/common';
+import { Header, EmptyState, LoadingOverlay } from '../../components';
 import { JobsApi } from '../../api';
-import { useApi } from '../../hooks';
 import { SubService, SubServiceInfo } from '../../models';
 import { useJobStore } from '../../store';
 
@@ -28,37 +29,116 @@ type Props = {
   route: RouteProp<HomeStackParamList, 'SubServices'>;
 };
 
+const FALLBACK_SUBSERVICES: SubService[] = [
+  {
+    id: 'sub_classic',
+    subServiceName: 'Classic Cut',
+    subServiceDescription: 'Standard precision cut with warm towel neck shave',
+    subServiceImage: '',
+    serviceInfo: [
+      {
+        id: 'info_std',
+        name: 'Standard Treatment (30 mins)',
+        description: 'Includes consultation, hair wash, cut, and light styling.',
+        hasDuration: true,
+        duration: 30,
+        durationUnit: 'min',
+      },
+      {
+        id: 'info_deluxe',
+        name: 'Deluxe Treatment (45 mins)',
+        description: 'Includes hot towel steam, scalp massage, precision cut, and premium pomade styling.',
+        hasDuration: true,
+        duration: 45,
+        durationUnit: 'min',
+      },
+    ],
+  },
+  {
+    id: 'sub_fade',
+    subServiceName: 'Skin Fade & Taper',
+    subServiceDescription: 'High/low/mid fade blended to perfection',
+    subServiceImage: '',
+    serviceInfo: [
+      {
+        id: 'info_fade',
+        name: 'Full Skin Fade (45 mins)',
+        description: 'Zero foil razor blend with crisp perimeter shape-up.',
+        hasDuration: true,
+        duration: 45,
+        durationUnit: 'min',
+      },
+    ],
+  },
+  {
+    id: 'sub_beard',
+    subServiceName: 'Beard Sculpt & Treatment',
+    subServiceDescription: 'Hot steam towel, razor edging and beard oils',
+    subServiceImage: '',
+    serviceInfo: [
+      {
+        id: 'info_beard',
+        name: 'Beard Sculpt Session (30 mins)',
+        description: 'Conditioning steam treatment and razor edge line-up.',
+        hasDuration: true,
+        duration: 30,
+        durationUnit: 'min',
+      },
+    ],
+  },
+];
+
 const SubServicesScreen: React.FC<Props> = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
   const { serviceId, serviceName } = route.params;
   const { setCreateJobField } = useJobStore();
-  const [selectedSubService, setSelectedSubService] = useState<SubService | null>(null);
 
-  const {
-    data: subServices,
-    loading,
-    error,
-    execute: fetchSubServices,
-  } = useApi<SubService[]>(JobsApi.fetchSubServices);
+  const [subServices, setSubServices] = useState<SubService[]>([]);
+  const [selectedSubService, setSelectedSubService] = useState<SubService | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchSubServices(serviceId);
+    loadSubServices();
   }, [serviceId]);
 
-  const handleSubServicePress = (item: SubService) => {
-    setSelectedSubService(item);
-    setCreateJobField('serviceId', serviceId);
-    setCreateJobField('serviceName', serviceName);
-    setCreateJobField('subServiceId', item.id);
-    setCreateJobField('subServiceName', item.subServiceName);
+  const loadSubServices = async () => {
+    try {
+      setLoading(true);
+      const res: any = await JobsApi.fetchSubServices(serviceId);
+      const list = res?.subServices || res?.data || (Array.isArray(res) ? res : []);
+      if (Array.isArray(list) && list.length > 0) {
+        setSubServices(list);
+        setSelectedSubService(list[0]);
+      } else {
+        setSubServices(FALLBACK_SUBSERVICES);
+        setSelectedSubService(FALLBACK_SUBSERVICES[0]);
+      }
+    } catch (e) {
+      console.log('Error fetching sub services:', e);
+      setSubServices(FALLBACK_SUBSERVICES);
+      setSelectedSubService(FALLBACK_SUBSERVICES[0]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleServiceInfoPress = (info: SubServiceInfo) => {
+  const handleSelectSubService = (item: SubService) => {
+    setSelectedSubService(item);
+  };
+
+  const handleSelectPackage = (info: SubServiceInfo) => {
+    if (!selectedSubService) return;
+
+    setCreateJobField('subServiceId', selectedSubService.id);
+    setCreateJobField('subServiceName', selectedSubService.subServiceName);
     setCreateJobField('subServiceTypeId', info.id);
-    setCreateJobField('subServiceTypeRate', info.duration);
-    setCreateJobField('jobDuration', info.duration);
+    setCreateJobField('serviceTypeName', info.name);
+    setCreateJobField('serviceTypeDescription', info.description);
+    setCreateJobField('jobDuration', info.duration || 30);
+
     navigation.navigate('UserJobDetail', {
-      subServiceId: selectedSubService?.id || '',
-      subServiceName: selectedSubService?.subServiceName || '',
+      subServiceId: selectedSubService.id,
+      subServiceName: selectedSubService.subServiceName,
       serviceInfo: info,
     });
   };
@@ -67,213 +147,287 @@ const SubServicesScreen: React.FC<Props> = ({ navigation, route }) => {
     const isSelected = selectedSubService?.id === item.id;
     return (
       <TouchableOpacity
-        style={[styles.carouselCard, isSelected && styles.carouselCardActive]}
-        onPress={() => handleSubServicePress(item)}
-        activeOpacity={0.8}
+        style={[styles.carouselCard, isSelected && styles.carouselCardSelected]}
+        onPress={() => handleSelectSubService(item)}
+        activeOpacity={0.85}
       >
-        {item.subServiceImage ? (
-          <Image source={{ uri: item.subServiceImage }} style={styles.carouselImage} />
-        ) : (
-          <View style={styles.carouselImagePlaceholder}>
-            <Text style={styles.carouselPlaceholderText}>🎨</Text>
-          </View>
-        )}
-        <Text style={[styles.carouselTitle, isSelected && styles.carouselTitleActive]} numberOfLines={1}>
+        <View style={[styles.cardIconWrapper, isSelected && styles.cardIconWrapperSelected]}>
+          <Ionicons
+            name="cut"
+            size={24}
+            color={isSelected ? '#FFFFFF' : Colors.ButtonPrimaryColor}
+          />
+        </View>
+
+        <Text
+          style={[styles.carouselTitle, isSelected && styles.carouselTitleSelected]}
+          numberOfLines={1}
+        >
           {item.subServiceName}
         </Text>
+
+        <Text
+          style={[styles.carouselDesc, isSelected && styles.carouselDescSelected]}
+          numberOfLines={2}
+        >
+          {item.subServiceDescription || item.serviceDescription || 'Precision styling and finish'}
+        </Text>
+
+        {isSelected && (
+          <View style={styles.selectedBadge}>
+            <Ionicons name="checkmark-circle" size={14} color={Colors.ButtonPrimaryColor} />
+            <Text style={styles.selectedBadgeText}>Selected</Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
 
   const renderServiceInfoItem = ({ item }: { item: SubServiceInfo }) => (
     <TouchableOpacity
-      style={styles.infoCard}
-      onPress={() => handleServiceInfoPress(item)}
-      activeOpacity={0.8}
+      style={styles.packageCard}
+      onPress={() => handleSelectPackage(item)}
+      activeOpacity={0.85}
     >
-      <View style={styles.infoContent}>
-        <Text style={styles.infoName}>{item.name}</Text>
-        <Text style={styles.infoDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-        {item.hasDuration && (
-          <Text style={styles.infoDuration}>
-            Duration: {item.duration} {item.durationUnit}
-          </Text>
-        )}
+      <View style={styles.packageHeader}>
+        <View style={styles.packageTitleRow}>
+          <Text style={styles.packageName}>{item.name}</Text>
+        </View>
+        {item.duration ? (
+          <View style={styles.durationPill}>
+            <Ionicons name="time-outline" size={13} color="#059669" style={{ marginRight: 4 }} />
+            <Text style={styles.durationPillText}>
+              {item.duration} {item.durationUnit || 'mins'}
+            </Text>
+          </View>
+        ) : null}
       </View>
-      <Text style={styles.infoArrow}>→</Text>
+
+      <Text style={styles.packageDescription}>{item.description}</Text>
+
+      <View style={styles.packageFooter}>
+        <View style={styles.priceRow}>
+          <Text style={styles.startingAtText}>Package includes custom consultation</Text>
+        </View>
+        <View style={styles.arrowCircle}>
+          <Ionicons name="arrow-forward" size={16} color={Colors.ButtonPrimaryColor} />
+        </View>
+      </View>
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>{serviceName}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <Header title={serviceName} onBackPress={() => navigation.goBack()} />
 
-      {/* Carousel */}
-      <Text style={styles.sectionTitle}>Select a Sub-Service</Text>
       <FlatList
-        data={subServices || []}
-        keyExtractor={(item) => item.id}
-        renderItem={renderCarouselItem}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.carouselContent}
+        data={selectedSubService?.serviceInfo || []}
+        keyExtractor={(item, index) => item.id || `plan_${index}`}
+        renderItem={renderServiceInfoItem}
+        contentContainerStyle={[styles.infoListContent, { paddingBottom: Math.max(insets.bottom, 16) + 30 }]}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <>
+            {/* Carousel Section */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>1. Select Style / Sub-Service</Text>
+            </View>
+            <FlatList
+              data={subServices}
+              keyExtractor={(item, index) => item.id || `sub_${index}`}
+              renderItem={renderCarouselItem}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carouselContent}
+            />
+
+            {/* Plans Section Header */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>2. Choose Treatment Plan</Text>
+              <Text style={styles.sectionSubtitle}>Select package duration and specific service details</Text>
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          !loading ? (
+            <EmptyState
+              icon="calendar-outline"
+              title="No packages found"
+              description="Please select a different sub-service above."
+            />
+          ) : null
+        }
       />
 
-      {/* Service Info */}
-      {selectedSubService && (
-        <>
-          <Text style={styles.sectionTitle}>Choose a Plan</Text>
-          <FlatList
-            data={selectedSubService.serviceInfo}
-            keyExtractor={(item) => item.id}
-            renderItem={renderServiceInfoItem}
-            contentContainerStyle={styles.infoListContent}
-          />
-        </>
-      )}
-
-      {!selectedSubService && subServices && subServices.length > 0 && (
-        <View style={styles.hintContainer}>
-          <Text style={styles.hintText}>👆 Select a sub-service above to see available plans</Text>
-        </View>
-      )}
-
-      <VTLoading visible={loading} />
-    </SafeAreaView>
+      <LoadingOverlay visible={loading} />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: Colors.ScreenBG,
   },
-  header: {
+  sectionHeaderRow: {
+    paddingHorizontal: Spacing.base,
+    paddingTop: Spacing.base,
+    paddingBottom: Spacing.xs,
+  },
+  sectionTitle: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+    marginBottom: Spacing.sm,
+  },
+  carouselContent: {
+    paddingHorizontal: Spacing.base,
+    paddingBottom: Spacing.base,
+    paddingTop: Spacing.xs,
+  },
+  carouselCard: {
+    width: width * 0.58,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.base,
+    marginRight: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  carouselCardSelected: {
+    borderColor: Colors.ButtonPrimaryColor,
+    backgroundColor: '#F8FAFC',
+  },
+  cardIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: `${Colors.ButtonPrimaryColor}12`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  cardIconWrapperSelected: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+  },
+  carouselTitle: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+    marginBottom: 4,
+  },
+  carouselTitleSelected: {
+    color: Colors.ButtonPrimaryColor,
+  },
+  carouselDesc: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  carouselDescSelected: {
+    color: '#475569',
+  },
+  selectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${Colors.ButtonPrimaryColor}14`,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  selectedBadgeText: {
+    fontSize: 11,
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+    marginLeft: 4,
+  },
+  infoListContent: {
+    paddingHorizontal: Spacing.base,
+  },
+  packageCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.base,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  packageHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    marginBottom: 6,
   },
-  back: {
-    fontSize: FontSizes['2xl'],
+  packageTitleRow: {
+    flex: 1,
+    marginRight: 8,
+  },
+  packageName: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.bold,
     color: Colors.TitleColor,
   },
-  title: {
-    fontSize: FontSizes.lg,
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
-  },
-  sectionTitle: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.sm,
-  },
-  carouselContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.base,
-  },
-  carouselCard: {
-    width: width * 0.35,
-    backgroundColor: Colors.BGColor,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    marginRight: Spacing.md,
-    borderWidth: 2,
-    borderColor: Colors.CardColor,
-    alignItems: 'center',
-  },
-  carouselCardActive: {
-    borderColor: Colors.ButtonPrimaryColor,
-    backgroundColor: `${Colors.ButtonPrimaryColor}08`,
-  },
-  carouselImage: {
-    width: 70,
-    height: 70,
-    borderRadius: BorderRadius.base,
-    marginBottom: Spacing.sm,
-  },
-  carouselImagePlaceholder: {
-    width: 70,
-    height: 70,
-    borderRadius: BorderRadius.base,
-    backgroundColor: Colors.TextFieldColor,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  carouselPlaceholderText: {
-    fontSize: FontSizes.xl,
-  },
-  carouselTitle: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-    textAlign: 'center',
-  },
-  carouselTitleActive: {
-    color: Colors.ButtonPrimaryColor,
-  },
-  infoListContent: {
-    paddingHorizontal: Spacing.lg,
-  },
-  infoCard: {
+  durationPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.BGColor,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.base,
-    borderWidth: 1,
-    borderColor: Colors.CardColor,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
   },
-  infoContent: {
-    flex: 1,
+  durationPillText: {
+    fontSize: 11,
+    fontWeight: FontWeights.bold,
+    color: '#059669',
   },
-  infoName: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.xs,
+  packageDescription: {
+    fontSize: 13,
+    color: '#64748B',
+    lineHeight: 18,
+    marginBottom: 12,
   },
-  infoDescription: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-  },
-  infoDuration: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryRight,
-    marginTop: Spacing.xs,
-  },
-  infoArrow: {
-    fontSize: FontSizes.lg,
-    color: Colors.DescriptionTextLight,
-  },
-  hintContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  packageFooter: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.xl,
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 10,
   },
-  hintText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
-    textAlign: 'center',
+  priceRow: {
+    flex: 1,
+  },
+  startingAtText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: FontWeights.medium,
+  },
+  arrowCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

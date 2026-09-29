@@ -1,24 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Colors } from '../../theme/colors';
-import { Fonts, FontSizes } from '../../theme/fonts';
-import { Spacing } from '../../theme/spacing';
-import { VTButton } from '../../components/common';
+import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Spacing, BorderRadius } from '../../theme/spacing';
+import { Button, LoadingOverlay } from '../../components';
 import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
-import { Storage } from '../../utils/storage';
-import { STORAGE_KEYS } from '../../constants';
-
 import Toast from 'react-native-toast-message';
 
 type Props = {
@@ -26,11 +23,14 @@ type Props = {
 };
 
 const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { loginGuest } = useAuthStore();
+  const [loading, setLoading] = useState(false);
 
   const handleGuestLogin = async () => {
     try {
-      const deviceToken = 'simulator-device-token'; // Replace with actual push token
+      setLoading(true);
+      const deviceToken = 'simulator-device-token';
       const account = await AuthApi.signUpGuest({
         countryCode: '+1',
         phoneNumber: '',
@@ -52,147 +52,258 @@ const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
         text1: 'Guest Login Failed',
         text2: error?.message || 'Unable to continue as guest',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleSocialAuth = (provider: string) => {
+    Toast.show({
+      type: 'info',
+      text1: `${provider} Sign-In`,
+      text2: `Connecting to ${provider}...`,
+    });
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.BGColor} />
+    <View style={[styles.container, { paddingTop: insets.top + 10, paddingBottom: Math.max(insets.bottom, 16) + 10 }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.ScreenBG} />
+      <LoadingOverlay visible={loading} />
+
+      {/* Ambient background decoration */}
+      <View style={styles.ambientCircleTopRight} />
+      <View style={styles.ambientCircleBottomLeft} />
+
       <View style={styles.content}>
-        {/* Logo */}
-        <View style={styles.logoContainer}>
-          <View style={styles.logoPlaceholder}>
-            <Text style={styles.logoText}>HL</Text>
+        {/* Top Header / Branding Section */}
+        <View style={styles.header}>
+          <View style={styles.logoBadgeContainer}>
+            <View style={styles.logoBadge}>
+              <MaterialCommunityIcons name="content-cut" size={42} color="#FFFFFF" />
+              <View style={styles.sparkleBadge}>
+                <Ionicons name="sparkles" size={12} color={Colors.gold} />
+              </View>
+            </View>
           </View>
-          <Text style={styles.tagline}>Book services at your fingertips</Text>
+
+          <Text style={styles.appName}>HAIRLINES</Text>
+
+          <View style={styles.featurePill}>
+            <Ionicons
+              name="sparkles"
+              size={11}
+              color={Colors.ButtonPrimaryColor}
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.featurePillText}>ON-DEMAND BEAUTY & WELLNESS</Text>
+          </View>
+
+          <Text style={styles.tagline}>
+            Book top-rated barbers, stylists, and wellness professionals directly to your doorstep.
+          </Text>
         </View>
 
-        {/* Buttons */}
-        <View style={styles.buttonContainer}>
-          <VTButton
-            title="Sign Up"
-            onPress={() => navigation.navigate('SignIn', { isSignUp: true })}
-            style={styles.button}
-          />
-          <VTButton
-            title="Sign In"
-            variant="outline"
+        {/* Spacer */}
+        <View style={styles.spacer} />
+
+        {/* Buttons Section */}
+        <View style={styles.bottomSection}>
+          <Button
+            title="SIGN IN"
             onPress={() => navigation.navigate('SignIn', { isSignUp: false })}
-            style={styles.button}
+            style={styles.signInButton}
           />
 
-          <View style={styles.dividerContainer}>
-            <View style={styles.divider} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.divider} />
+          <View style={{ height: 10 }} />
+
+          <Button
+            title="CREATE AN ACCOUNT"
+            variant="secondary"
+            onPress={() => navigation.navigate('SignIn', { isSignUp: true })}
+          />
+
+          {/* Social Sign In */}
+          <View style={styles.socialRow}>
+            <TouchableOpacity
+              style={styles.socialIconBtn}
+              onPress={() => handleSocialAuth('Google')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="logo-google" size={18} color="#EA4335" />
+              <Text style={styles.socialBtnText}>Google</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.socialIconBtn}
+              onPress={() => handleSocialAuth('Apple')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="logo-apple" size={18} color="#0F172A" />
+              <Text style={styles.socialBtnText}>Apple</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.socialIconBtn}
+              onPress={() => handleSocialAuth('Facebook')}
+              activeOpacity={0.8}
+            >
+              <FontAwesome name="facebook" size={18} color="#1877F2" />
+              <Text style={styles.socialBtnText}>Facebook</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Social Login */}
-          <View style={styles.socialContainer}>
-            <TouchableOpacity style={styles.socialButton}>
-              <Text style={styles.socialIcon}>f</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton}>
-              <Text style={styles.socialIcon}>G</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton}>
-              <Text style={styles.socialIcon}>🍎</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity onPress={handleGuestLogin} style={styles.guestButton}>
-            <Text style={styles.guestText}>Continue as Guest</Text>
+          <TouchableOpacity onPress={handleGuestLogin} style={styles.guestLink} activeOpacity={0.7}>
+            <Text style={styles.guestLinkText}>Explore as Guest</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: Colors.ScreenBG,
+  },
+  ambientCircleTopRight: {
+    position: 'absolute',
+    top: -90,
+    right: -90,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(34, 45, 99, 0.08)',
+  },
+  ambientCircleBottomLeft: {
+    position: 'absolute',
+    bottom: -100,
+    left: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(43, 118, 200, 0.07)',
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing['2xl'],
+    paddingBottom: Spacing.xl,
   },
-  logoContainer: {
+  header: {
     alignItems: 'center',
-    marginBottom: Spacing['4xl'],
+    marginTop: Spacing.xl,
   },
-  logoPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+  logoBadgeContainer: {
+    marginBottom: Spacing.base,
+  },
+  logoBadge: {
+    width: 88,
+    height: 88,
+    borderRadius: 26,
     backgroundColor: Colors.ButtonPrimaryColor,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    elevation: 8,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    position: 'relative',
   },
-  logoText: {
+  sparkleBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#1E293B',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.gold,
+  },
+  appName: {
     fontSize: FontSizes['3xl'],
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.BGColor,
+    fontWeight: FontWeights.heavy,
+    color: Colors.ButtonPrimaryColor,
+    letterSpacing: 2,
+    marginBottom: Spacing.xs,
   },
-  tagline: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-  },
-  buttonContainer: {
-    width: '100%',
-  },
-  button: {
+  featurePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF4FF',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     marginBottom: Spacing.base,
   },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: Spacing.lg,
+  featurePillText: {
+    fontSize: 10,
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+    letterSpacing: 0.8,
   },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.CardColor,
-  },
-  dividerText: {
-    marginHorizontal: Spacing.base,
+  tagline: {
     fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    color: Colors.DescriptionTextDark,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: Spacing.sm,
   },
-  socialContainer: {
+  spacer: {
+    flex: 1,
+  },
+  bottomSection: {
+    width: '100%',
+  },
+  signInButton: {
+    marginBottom: 2,
+  },
+  socialRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: Spacing.base,
+    marginBottom: Spacing.sm,
   },
-  socialButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.TextFieldColor,
-    justifyContent: 'center',
+  socialIconBtn: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: Spacing.sm,
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: Colors.CardColor,
+    borderColor: Colors.BorderColor,
+    paddingVertical: 11,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+    gap: 6,
   },
-  socialIcon: {
-    fontSize: FontSizes.lg,
+  socialBtnText: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.semibold,
+    color: Colors.TitleColor,
   },
-  guestButton: {
+  guestLink: {
     alignItems: 'center',
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginTop: 4,
   },
-  guestText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryRight,
-    textDecorationLine: 'underline',
+  guestLinkText: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.medium,
+    color: Colors.DescriptionTextDark,
   },
 });
 
 export default LoginSignUpScreen;
+

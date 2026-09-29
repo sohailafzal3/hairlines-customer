@@ -12,7 +12,7 @@ export const ProfileApi = {
   addMember: (params: {
     firstName: string;
     lastName: string;
-    health: string;
+    health: number;
     age: number;
     relation: string;
   }) => apiClient.post('user/add-new-member', params),
@@ -21,7 +21,7 @@ export const ProfileApi = {
     memberId: string;
     firstName: string;
     lastName: string;
-    health: string;
+    health: number;
     age: number;
     relation: string;
   }) => apiClient.post('user/update-member', params),

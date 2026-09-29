@@ -1,0 +1,87 @@
+import React, { ReactNode } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ViewStyle,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Colors } from "../theme/colors";
+import { FontSizes, FontWeights } from "../theme/fonts";
+import { Spacing } from "../theme/spacing";
+
+interface Props {
+  title?: string;
+  left?: ReactNode;
+  onMenuPress?: () => void;
+  onBackPress?: () => void;
+  right?: ReactNode;
+  style?: ViewStyle;
+}
+
+export function Header({
+  title,
+  left,
+  onMenuPress,
+  onBackPress,
+  right,
+  style,
+}: Props) {
+  const insets = useSafeAreaInsets();
+  const displayTitle = title
+    ? title.charAt(0).toUpperCase() + title.slice(1)
+    : "";
+
+  return (
+    <View
+      style={[
+        styles.header,
+        { paddingTop: insets.top, height: 56 + insets.top },
+        style,
+      ]}
+    >
+      <View style={styles.side}>
+        {left ? (
+          left
+        ) : onMenuPress ? (
+          <TouchableOpacity onPress={onMenuPress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="menu" size={26} color={Colors.NavigationTitle} />
+          </TouchableOpacity>
+        ) : onBackPress ? (
+          <TouchableOpacity onPress={onBackPress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="arrow-back" size={24} color={Colors.NavigationTitle} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      <Text style={styles.title} numberOfLines={1}>
+        {displayTitle}
+      </Text>
+      <View style={[styles.side, styles.sideRight]}>{right}</View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.base,
+    backgroundColor: Colors.BGColor,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.BorderColor,
+  },
+  side: { width: 44, alignItems: "flex-start", justifyContent: "center" },
+  sideRight: { width: "auto", minWidth: 44, alignItems: "flex-end" },
+  title: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+    color: Colors.NavigationTitle,
+  },
+});
+
+export default Header;

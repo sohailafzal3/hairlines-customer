@@ -1,10 +1,21 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { DrawerActions } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
-import { Fonts, FontSizes } from '../../theme/fonts';
-import { Spacing } from '../../theme/spacing';
+import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Spacing, BorderRadius } from '../../theme/spacing';
+import { Header } from '../../components';
 import { kTermsLink, kPrivicyPolicyLink } from '../../constants';
 import { WebView } from 'react-native-webview';
 
@@ -13,111 +24,181 @@ type Props = {
 };
 
 const TermsScreen: React.FC<Props> = ({ navigation }) => {
-  const [showWebView, setShowWebView] = React.useState(false);
-  const [url, setUrl] = React.useState(kTermsLink);
+  const insets = useSafeAreaInsets();
+  const [showWebView, setShowWebView] = useState(false);
+  const [webTitle, setWebTitle] = useState('Terms & Conditions');
+  const [url, setUrl] = useState(kTermsLink);
+
+  const openDocument = (docTitle: string, link: string) => {
+    setWebTitle(docTitle);
+    setUrl(link);
+    setShowWebView(true);
+  };
 
   if (showWebView) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => setShowWebView(false)}>
-            <Text style={styles.back}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Terms & Conditions</Text>
-          <View style={{ width: 40 }} />
-        </View>
-        <WebView source={{ uri: url }} style={{ flex: 1 }} />
-      </SafeAreaView>
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <Header title={webTitle} onBackPress={() => setShowWebView(false)} />
+        <WebView source={{ uri: url }} style={{ flex: 1 }} startInLoadingState />
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => (navigation as any).openDrawer()}>
-          <Text style={styles.menuIcon}>☰</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Legal</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      <View style={styles.content}>
+      {/* Header */}
+      <Header
+        title="Legal & Policies"
+        left={
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => {
+              if ((navigation as any).openDrawer) {
+                (navigation as any).openDrawer();
+              } else if ((navigation.getParent() as any)?.openDrawer) {
+                (navigation.getParent() as any).openDrawer();
+              } else {
+                navigation.dispatch(DrawerActions.openDrawer());
+              }
+            }}
+          >
+            <Ionicons name="menu" size={26} color={Colors.TitleColor} />
+          </TouchableOpacity>
+        }
+      />
+
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 16) + 30 }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.heroCard}>
+          <Ionicons name="document-text" size={32} color={Colors.ButtonPrimaryColor} />
+          <Text style={styles.heroTitle}>Hairlines Legal Terms</Text>
+          <Text style={styles.heroSub}>
+            Please review our service policies, terms of use, and privacy protection protocols.
+          </Text>
+        </View>
+
         <TouchableOpacity
-          style={styles.linkItem}
-          onPress={() => {
-            setUrl(kTermsLink);
-            setShowWebView(true);
-          }}
+          style={styles.legalItem}
+          onPress={() => openDocument('Terms & Conditions', kTermsLink)}
+          activeOpacity={0.8}
         >
-          <Text style={styles.linkText}>Terms & Conditions</Text>
-          <Text style={styles.linkArrow}>→</Text>
+          <View style={styles.iconCircle}>
+            <Ionicons name="newspaper-outline" size={20} color={Colors.ButtonPrimaryColor} />
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.legalItemTitle}>Terms of Service</Text>
+            <Text style={styles.legalItemSub}>Rules and agreements governing platform usage</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.linkItem}
-          onPress={() => {
-            setUrl(kPrivicyPolicyLink);
-            setShowWebView(true);
-          }}
+          style={styles.legalItem}
+          onPress={() => openDocument('Privacy Policy', kPrivicyPolicyLink)}
+          activeOpacity={0.8}
         >
-          <Text style={styles.linkText}>Privacy Policy</Text>
-          <Text style={styles.linkArrow}>→</Text>
+          <View style={styles.iconCircle}>
+            <Ionicons name="shield-checkmark-outline" size={20} color={Colors.ButtonPrimaryColor} />
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.legalItemTitle}>Privacy Policy</Text>
+            <Text style={styles.legalItemSub}>How we collect, protect, and handle your data</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
         </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+
+        <TouchableOpacity
+          style={styles.legalItem}
+          onPress={() => openDocument('Community Guidelines', kTermsLink)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.iconCircle}>
+            <Ionicons name="people-outline" size={20} color={Colors.ButtonPrimaryColor} />
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.legalItemTitle}>Community Standards</Text>
+            <Text style={styles.legalItemSub}>Respectful interaction standards for users and stylists</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
-  header: {
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    padding: Spacing.base,
+    paddingBottom: 40,
+  },
+  heroCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.md,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: Spacing.base,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  heroTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: '800',
+    color: Colors.TitleColor,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  heroSub: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  legalItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.md,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  menuIcon: {
-    fontSize: FontSizes.xl,
-  },
-  back: {
-    fontSize: FontSizes['2xl'],
-    color: Colors.TitleColor,
-  },
-  headerTitle: {
-    fontSize: FontSizes.lg,
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
-  },
-  title: {
-    fontSize: FontSizes.lg,
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
-  },
-  content: {
-    padding: Spacing.lg,
-  },
-  linkItem: {
-    flexDirection: 'row',
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
+    justifyContent: 'center',
   },
-  linkText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveRegular,
+  legalItemTitle: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.bold,
     color: Colors.TitleColor,
   },
-  linkArrow: {
-    fontSize: FontSizes.md,
-    color: Colors.DescriptionTextLight,
+  legalItemSub: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
   },
 });
 

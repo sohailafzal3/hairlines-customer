@@ -1,16 +1,17 @@
-import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
-import { Colors } from '../../theme/colors';
-import { Spacing, BorderRadius } from '../../theme/spacing';
+import React, { ReactNode } from "react";
+import { View, StyleSheet, StyleProp, ViewStyle } from "react-native";
+import { Colors } from "../theme/colors";
+import { BorderRadius, Spacing } from "../theme/spacing";
 
-interface VTCardProps {
-  children: React.ReactNode;
-  style?: ViewStyle;
-}
-
-const VTCard: React.FC<VTCardProps> = ({ children, style }) => {
+export function Card({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   return <View style={[styles.card, style]}>{children}</View>;
-};
+}
 
 const styles = StyleSheet.create({
   card: {
@@ -20,7 +21,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.BorderColor,
     padding: Spacing.base,
     marginVertical: Spacing.sm,
-    shadowColor: '#0F172A',
+    shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
@@ -28,4 +29,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default VTCard;
+export default Card;

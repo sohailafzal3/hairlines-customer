@@ -3,214 +3,370 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
+  ScrollView,
   Share,
+  StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { DrawerActions } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
-import { Fonts, FontSizes } from '../../theme/fonts';
+import { FontSizes, FontWeights } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { VTButton, VTLoading } from '../../components/common';
+import { Header, Button } from '../../components';
 import { ProfileApi } from '../../api';
-import { useApi } from '../../hooks';
 import { useAuthStore } from '../../store';
 import { kUserAppUrl } from '../../constants';
+import { VTLoading } from '../../components/common';
+import Toast from 'react-native-toast-message';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'ShareReferral'>;
 };
 
 const ShareReferralScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const [referralInfo, setReferralInfo] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
-  const { loading, execute: fetchReferral } = useApi(ProfileApi.getReferralInfo);
+  const referralCode = user?.referralCode || 'HAIRLINES';
 
   useEffect(() => {
     loadReferralInfo();
   }, []);
 
   const loadReferralInfo = async () => {
-    const result = await fetchReferral();
-    if (result) {
-      setReferralInfo(result);
+    try {
+      setLoading(true);
+      const res: any = await ProfileApi.getReferralInfo();
+      if (res) {
+        setReferralInfo(res);
+      }
+    } catch (e) {
+      console.log('Referral info error:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Join me on Hairlines! Use my referral code ${user?.referralCode || ''} and get a discount on your first service. Download the app: ${kUserAppUrl}`,
+        message: `Join me on Hairlines! Use my referral code ${referralCode} and get a discount on your first barber or beauty appointment. Download now: ${kUserAppUrl}`,
       });
     } catch (error) {
       console.error('Share error:', error);
     }
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('Wallet')}>
-          <Text style={styles.menuIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Invite Friends</Text>
-        <TouchableOpacity onPress={() => (navigation as any).openDrawer()}>
-          <Text style={styles.menuIcon}>☰</Text>
-        </TouchableOpacity>
-      </View>
+  const handleCopy = () => {
+    Toast.show({
+      type: 'success',
+      text1: 'Referral Code Copied!',
+      text2: `Code "${referralCode}" copied to clipboard`,
+    });
+  };
 
-      <View style={styles.content}>
-        {/* Illustration */}
-        <View style={styles.illustrationContainer}>
-          <Text style={styles.illustrationEmoji}>🎁</Text>
-          <Text style={styles.illustrationTitle}>Share & Earn</Text>
-          <Text style={styles.illustrationDesc}>
-            Invite your friends to Hairlines and earn credits when they complete their first booking
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
+      {/* Header */}
+      <Header
+        title="Invite Friends"
+        left={
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => {
+              if ((navigation as any).openDrawer) {
+                (navigation as any).openDrawer();
+              } else if ((navigation.getParent() as any)?.openDrawer) {
+                (navigation.getParent() as any).openDrawer();
+              } else {
+                navigation.dispatch(DrawerActions.openDrawer());
+              }
+            }}
+          >
+            <Ionicons name="menu" size={26} color={Colors.TitleColor} />
+          </TouchableOpacity>
+        }
+      />
+
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 80 + Math.max(insets.bottom, 16) }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Gift Illustration Hero Card */}
+        <View style={styles.heroCard}>
+          <View style={styles.giftIconCircle}>
+            <Ionicons name="gift" size={38} color="#E5B652" />
+          </View>
+          <Text style={styles.heroTitle}>Give $10, Get $10</Text>
+          <Text style={styles.heroSubtitle}>
+            Share Hairlines with friends and family. They'll receive $10 off their first booking, and you'll earn $10 in wallet credits when they complete their appointment!
           </Text>
         </View>
 
-        {/* Referral Code */}
-        <View style={styles.codeContainer}>
-          <Text style={styles.codeLabel}>Your Referral Code</Text>
-          <View style={styles.codeBox}>
-            <Text style={styles.codeText}>{user?.referralCode || '------'}</Text>
+        {/* Referral Code Container */}
+        <View style={styles.codeCard}>
+          <Text style={styles.codeLabel}>Your Personal Referral Code</Text>
+          <TouchableOpacity style={styles.codeBox} onPress={handleCopy} activeOpacity={0.75}>
+            <Text style={styles.codeText}>{referralCode}</Text>
+            <View style={styles.copyPill}>
+              <Ionicons name="copy-outline" size={14} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
+              <Text style={styles.copyPillText}>Copy</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Stats Summary Card */}
+        <View style={styles.statsCard}>
+          <View style={styles.statCol}>
+            <Text style={styles.statNumber}>{referralInfo?.totalReferrals || 0}</Text>
+            <Text style={styles.statLabel}>Friends Joined</Text>
+          </View>
+
+          <View style={styles.statDivider} />
+
+          <View style={styles.statCol}>
+            <Text style={styles.statNumber}>
+              ${referralInfo?.totalEarnings ? Number(referralInfo.totalEarnings).toFixed(2) : '0.00'}
+            </Text>
+            <Text style={styles.statLabel}>Total Earned</Text>
           </View>
         </View>
 
-        {/* Stats */}
-        {referralInfo && (
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{referralInfo.totalReferrals || 0}</Text>
-              <Text style={styles.statLabel}>Friends Invited</Text>
+        {/* How It Works Steps */}
+        <View style={styles.stepsCard}>
+          <Text style={styles.stepsHeading}>How It Works</Text>
+
+          <View style={styles.stepRow}>
+            <View style={styles.stepNumCircle}>
+              <Text style={styles.stepNumText}>1</Text>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>${referralInfo.totalEarnings || 0}</Text>
-              <Text style={styles.statLabel}>Total Earnings</Text>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.stepTitle}>Send an Invite</Text>
+              <Text style={styles.stepDesc}>Share your unique code via WhatsApp, SMS, or Social Media.</Text>
             </View>
           </View>
-        )}
 
-        <VTButton title="Share with Friends" onPress={handleShare} style={styles.shareButton} />
+          <View style={styles.stepRow}>
+            <View style={styles.stepNumCircle}>
+              <Text style={styles.stepNumText}>2</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.stepTitle}>Friends Book & Save</Text>
+              <Text style={styles.stepDesc}>They apply your code and get an instant discount on their cut.</Text>
+            </View>
+          </View>
+
+          <View style={styles.stepRow}>
+            <View style={styles.stepNumCircle}>
+              <Text style={styles.stepNumText}>3</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.stepTitle}>You Earn Credits</Text>
+              <Text style={styles.stepDesc}>Wallet credits are automatically deposited directly to your account.</Text>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Sticky Bottom Share Button */}
+      <View style={[styles.footerBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <Button title="Share Referral Link" onPress={handleShare} />
       </View>
 
       <VTLoading visible={loading} />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
-  header: {
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    padding: Spacing.base,
+    paddingBottom: 100,
+  },
+  heroCard: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: Spacing.base,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  giftIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  heroSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  codeCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.base,
+    marginBottom: Spacing.base,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  codeLabel: {
+    fontSize: 12,
+    fontWeight: FontWeights.bold,
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  codeBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.CardColor,
-  },
-  menuIcon: {
-    fontSize: FontSizes.xl,
-  },
-  headerTitle: {
-    fontSize: FontSizes.lg,
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
-  },
-  content: {
-    flex: 1,
-    padding: Spacing.xl,
-  },
-  illustrationContainer: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  illustrationEmoji: {
-    fontSize: FontSizes['3xl'],
-    marginBottom: Spacing.lg,
-  },
-  illustrationTitle: {
-    fontSize: FontSizes['2xl'],
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.sm,
-  },
-  illustrationDesc: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.lg,
-  },
-  codeContainer: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  codeLabel: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.DescriptionTextLight,
-    marginBottom: Spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  codeBox: {
-    backgroundColor: Colors.TextFieldColor,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 2,
+    backgroundColor: '#F8FAFC',
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
     borderStyle: 'dashed',
-    borderColor: Colors.CardColor,
-    minWidth: 200,
-    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    width: '100%',
   },
   codeText: {
-    fontSize: FontSizes['2xl'],
-    fontFamily: Fonts.uberMoveBold,
+    fontSize: 18,
+    fontWeight: '900',
     color: Colors.ButtonPrimaryColor,
     letterSpacing: 2,
   },
-  statsContainer: {
+  copyPill: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.xl,
-    backgroundColor: Colors.BGColor,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.CardColor,
-    padding: Spacing.lg,
+    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  statItem: {
+  copyPillText: {
+    fontSize: 12,
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  statsCard: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.md,
+    padding: 16,
+    marginBottom: Spacing.base,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  statCol: {
     flex: 1,
     alignItems: 'center',
   },
   statDivider: {
     width: 1,
-    height: 40,
-    backgroundColor: Colors.CardColor,
+    backgroundColor: '#E2E8F0',
   },
-  statValue: {
-    fontSize: FontSizes.xl,
-    fontFamily: Fonts.uberMoveBold,
+  statNumber: {
+    fontSize: 22,
+    fontWeight: '900',
     color: Colors.TitleColor,
-    marginBottom: Spacing.xs,
   },
   statLabel: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: FontWeights.semibold,
+    marginTop: 2,
   },
-  shareButton: {
-    marginTop: Spacing.lg,
+  stepsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.base,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  stepsHeading: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+    marginBottom: 14,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  stepNumCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: `${Colors.ButtonPrimaryColor}14`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  stepNumText: {
+    fontSize: 12,
+    fontWeight: FontWeights.bold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  stepTitle: {
+    fontSize: 13,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+  },
+  stepDesc: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  footerBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    padding: Spacing.base,
   },
 });
 

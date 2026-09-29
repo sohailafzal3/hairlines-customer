@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   Switch,
@@ -22,6 +21,7 @@ import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
+import { Header } from '../../components';
 import { VTButton, VTTextField } from '../../components/common';
 import { useJobStore, useAuthStore } from '../../store';
 import { JobsApi, UploadApi } from '../../api';
@@ -143,6 +143,10 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     if (selectedDate) {
       setDate(selectedDate);
       setCreateJobField('jobStartTime', selectedDate.toISOString());
+      // Match iOS: weekDay = getDayOfWeekFC() - 1 (0-based, Sunday=0)
+      setCreateJobField('weekDay', selectedDate.getDay());
+      // Match iOS: TimeZone.current string e.g. "America/New_York"
+      setCreateJobField('timeZone', Intl.DateTimeFormat().resolvedOptions().timeZone);
     }
   };
 
@@ -185,6 +189,8 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleContinue = () => {
     setCreateJobField('jobStartTime', date.toISOString());
+    setCreateJobField('weekDay', date.getDay());
+    setCreateJobField('timeZone', Intl.DateTimeFormat().resolvedOptions().timeZone);
     setCreateJobField('descriptionText', description);
     setCreateJobField('specialInstruction', specialInstructions);
     setCreateJobField('atUserLocation', atUserLocation);
@@ -206,28 +212,18 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-back" size={24} color={Colors.TitleColor} />
-          </TouchableOpacity>
-          <Text style={styles.title}>Appointment Details</Text>
-          <View style={{ width: 40 }} />
-        </View>
+        <Header title="Appointment Details" onBackPress={() => navigation.goBack()} />
 
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: Math.max(insets.bottom + 100, 120) },
+            { paddingBottom: Math.max(insets.bottom + 90, 110) },
           ]}
           showsVerticalScrollIndicator={false}
         >
@@ -586,7 +582,7 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           </KeyboardAvoidingView>
         </Modal>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 

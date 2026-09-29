@@ -23,6 +23,13 @@ export interface Account {
   isPhoneNumberRequired: boolean;
 }
 
+export interface CountryCode {
+  id?: string;
+  name: string;
+  phoneCode: string;
+  countryCode: string;
+}
+
 export interface User {
   languageCode: string;
   lastLanguageUpdatedTime: string;
@@ -118,11 +125,11 @@ export interface CreateJobData {
   subServiceTypeId?: string;
   memberId?: string;
   serviceFor?: string;
-  bookingType?: string;
+  bookingType?: string | number;
   weekDay?: string;
   timeZone?: string;
-  isJobOfferedFor?: boolean;
-  barberGender?: string;
+  isJobOfferedFor?: boolean | number;
+  barberGender?: string | number;
   isFilterApplied?: boolean;
   minRating?: number;
   maxRating?: number;
@@ -137,6 +144,7 @@ export interface CreateJobData {
   jobStartTime?: string;
   jobEndTime?: string;
   selectedSp?: SP;
+  spProfileId?: string;
   specialInstruction?: string;
   promoCode?: string;
   jobId?: string;
@@ -149,16 +157,22 @@ export interface CreateJobData {
 
 export interface SP {
   id: string;
-  userId: string;
+  userId?: string;
   name: string;
   profileImage?: string;
   avgRating: number;
-  currency: string;
-  latitude: number;
-  longitude: number;
-  distanceAway: string;
-  spJobCompletedCount: number;
+  currency?: string;
+  latitude?: number;
+  longitude?: number;
+  distanceAway?: string;
+  spJobCompletedCount?: number;
   serviceHourRate?: number;
+  servicePrice?: number;
+  hourlyRate?: number;
+  isHourly?: boolean;
+  isCompany?: boolean;
+  about?: string;
+  ratingCount?: number;
   numberOfEmployees?: number;
   jobsDone?: number;
   totalJobDone?: number;
@@ -178,11 +192,11 @@ export interface SPProfile {
   id: string;
   about: string;
   name: string;
-  firstName: string;
-  lastName: string;
-  phonePreFix: string;
-  phoneNumber: string;
-  email: string;
+  firstName?: string;
+  lastName?: string;
+  phonePreFix?: string;
+  phoneNumber?: string;
+  email?: string;
   profileImage?: string;
   avgRating: number;
   ratingAndReview: Rating[];
@@ -193,7 +207,7 @@ export interface SPProfile {
   jobCount: number;
   tools: string[];
   referenceImages: string[];
-  gender: string;
+  gender?: string;
 }
 
 export interface Rating {
@@ -216,7 +230,11 @@ export interface Service {
   serviceDescription: string;
   serviceName: string;
   serviceHourlyRate?: number;
-  subServices: SubService[];
+  serviceFixedRate?: number;
+  isHourly?: boolean;
+  serviceDuration?: number;
+  tags?: string[];
+  subServices?: SubService[];
   serviceTypeName?: string;
   serviceTypeDescription?: string;
   serviceTypeImage?: string;
@@ -226,10 +244,11 @@ export interface SubService {
   id: string;
   subServiceName: string;
   subServiceImage?: string;
-  serviceDescription: string;
-  serviceName: string;
-  serviceId: string;
-  serviceInfo: SubServiceInfo[];
+  serviceDescription?: string;
+  subServiceDescription?: string;
+  serviceName?: string;
+  serviceId?: string;
+  serviceInfo?: SubServiceInfo[];
 }
 
 export interface SubServiceInfo {
@@ -239,7 +258,7 @@ export interface SubServiceInfo {
   hasDuration: boolean;
   durationUnit: string;
   name: string;
-  subServiceId: string;
+  subServiceId?: string;
 }
 
 export interface Job {
@@ -265,6 +284,7 @@ export interface Job {
     name?: string;
     profileImage?: string;
     avgRating?: number;
+    phoneNumber?: string;
   };
   avgRating?: number;
   name?: string;
@@ -423,7 +443,9 @@ export interface NotificationModel {
   jobId?: string;
   isRead: boolean;
   name?: string;
+  title?: string;
   message: string;
+  body?: string;
   timePassed: string;
   image?: string;
   shouldNavigate: boolean;
@@ -497,51 +519,4 @@ export interface Filter {
   maxAge?: number;
   distance?: number;
   communities?: string[];
-}
-
-export interface TermsCondition {
-  isPrivacyPolicyUpdated: boolean;
-  isTermAndConditionUpdated: boolean;
-  privacyPolicyId: string;
-  privacyPolicyDescription: string;
-  privacyPolicyVersion: string;
-  termAndConditionId: string;
-  termAndConditionDescription: string;
-  termAndConditionVersion: string;
-}
-
-export interface UserPushNotification {
-  appTitle?: string;
-  message: string;
-  jobId?: string;
-  type: string;
-  latitude?: number;
-  longitude?: number;
-  bearing?: number;
-  name?: string;
-  avgRating?: number;
-  profileImage?: string;
-  spProfileId?: string;
-  image?: string;
-  spName?: string;
-  gratuities?: number[];
-  completeJobName?: string;
-  completeJobAvgRating?: number;
-  completeJobProfileImage?: string;
-}
-
-export interface SocketMessagePayload {
-  body: string;
-  jobId: string;
-  senderUserType: string;
-  receiverUserType: string;
-  senderUserId: string;
-}
-
-export interface CountryCode {
-  id: string;
-  name: string;
-  phoneCode: string;
-  countryCode: string;
-  flag?: string;
 }
