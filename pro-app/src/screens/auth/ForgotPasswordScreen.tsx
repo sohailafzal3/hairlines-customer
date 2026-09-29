@@ -47,8 +47,16 @@ export function ForgotPasswordScreen({ route, navigation }: Props) {
     setSuccessMsg("");
     setLoading(true);
     try {
-      await api.forgotPassword(phoneNumber);
-      setSuccessMsg("Password reset instructions have been sent successfully.");
+      const res: any = await api.forgotPassword(phoneNumber);
+      const verificationCode = res?.verificationCode ? String(res.verificationCode) : "";
+      setSuccessMsg("Verification code sent successfully.");
+      navigation.navigate("Verification", {
+        countryCode,
+        phoneNumber,
+        code: verificationCode,
+        isSignUp: false,
+        isForgotPassword: true,
+      });
     } catch (e: any) {
       setErrorMsg(e.message || "Failed to process request. Please try again.");
     } finally {

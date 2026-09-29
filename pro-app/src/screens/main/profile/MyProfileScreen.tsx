@@ -85,61 +85,148 @@ export function MyProfileScreen({ navigation }: Props) {
 
   const formatDOBString = (raw: any): string => {
     if (!raw || raw === 0 || raw === "0" || raw === "0.0" || raw === 0.0) return "";
+    const str = String(raw).trim();
+
+    // 1. Check if already 8 digits YYYYMMDD (e.g. 19961212 or "19961212")
+    if (/^\d{8}$/.test(str)) {
+      return str;
+    }
+
     const num = Number(raw);
-    if (!isNaN(num) && num > 0 && (!String(raw).includes("/") && !String(raw).includes("-"))) {
+    if (!isNaN(num) && num > 19000000 && num < 21000000 && /^\d{8}$/.test(String(num))) {
+      return String(num);
+    }
+
+    // 2. Unix timestamp
+    if (!isNaN(num) && num > 0 && !str.includes("/") && !str.includes("-")) {
       const ms = num > 1e11 ? num : num * 1000;
       const d = new Date(ms);
       if (!isNaN(d.getTime())) {
+        const yyyy = String(d.getFullYear());
         const mm = String(d.getMonth() + 1).padStart(2, "0");
         const dd = String(d.getDate()).padStart(2, "0");
-        const yyyy = d.getFullYear();
-        return `${mm}/${dd}/${yyyy}`;
+        return `${yyyy}${mm}${dd}`;
       }
     }
-    if (typeof raw === "string") {
-      if (raw.includes("T")) {
-        const d = new Date(raw);
-        if (!isNaN(d.getTime())) {
-          const mm = String(d.getMonth() + 1).padStart(2, "0");
-          const dd = String(d.getDate()).padStart(2, "0");
-          const yyyy = d.getFullYear();
-          return `${mm}/${dd}/${yyyy}`;
-        }
+
+    // 3. ISO format (e.g. 1996-12-12T00:00:00.000Z)
+    if (str.includes("T")) {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        const yyyy = String(d.getFullYear());
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        return `${yyyy}${mm}${dd}`;
       }
-      return raw;
     }
-    return "";
+
+    // 4. Dash separated (YYYY-MM-DD or MM-DD-YYYY)
+    if (str.includes("-")) {
+      const parts = str.split("-");
+      if (parts[0].length === 4 && parts.length === 3) {
+        const yyyy = parts[0];
+        const mm = parts[1].padStart(2, "0");
+        const dd = parts[2].padStart(2, "0");
+        return `${yyyy}${mm}${dd}`;
+      }
+      if (parts.length === 3) {
+        const mm = parts[0].padStart(2, "0");
+        const dd = parts[1].padStart(2, "0");
+        const yyyy = parts[2];
+        return `${yyyy}${mm}${dd}`;
+      }
+    }
+
+    // 5. Slash separated (MM/DD/YYYY or YYYY/MM/DD)
+    if (str.includes("/")) {
+      const parts = str.split("/");
+      if (parts[0].length === 4 && parts.length === 3) {
+        const yyyy = parts[0];
+        const mm = parts[1].padStart(2, "0");
+        const dd = parts[2].padStart(2, "0");
+        return `${yyyy}${mm}${dd}`;
+      }
+      if (parts.length === 3) {
+        const mm = parts[0].padStart(2, "0");
+        const dd = parts[1].padStart(2, "0");
+        const yyyy = parts[2];
+        return `${yyyy}${mm}${dd}`;
+      }
+    }
+
+    return str;
   };
 
-  const getDobTimestamp = (dobString: string): number => {
-    if (!dobString || dobString.trim() === "") return 0;
-    const parts = dobString.split("/");
-    if (parts.length === 3) {
-      const mm = parseInt(parts[0], 10) - 1;
-      const dd = parseInt(parts[1], 10);
-      const yyyy = parseInt(parts[2], 10);
-      const d = new Date(yyyy, mm, dd);
-      if (!isNaN(d.getTime())) {
-        return Math.floor(d.getTime() / 1000); // Unix timestamp in seconds for backend
-      }
+  const getDobFormatted = (dobString: string): string => {
+    if (!dobString || dobString.trim() === "") return "";
+    const str = dobString.trim();
+    if (/^\d{8}$/.test(str)) {
+      return str;
     }
-    const d = new Date(dobString);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      const parts = str.split("-");
+      return `${parts[0]}${parts[1]}${parts[2]}`;
+    }
+    if (/^\d{2}-\d{2}-\d{4}$/.test(str)) {
+      const parts = str.split("-");
+      return `${parts[2]}${parts[0]}${parts[1]}`;
+    }
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
+      const parts = str.split("/");
+      const mm = parts[0].padStart(2, "0");
+      const dd = parts[1].padStart(2, "0");
+      const yyyy = parts[2];
+      return `${yyyy}${mm}${dd}`;
+    }
+    const d = new Date(str);
     if (!isNaN(d.getTime())) {
-      return Math.floor(d.getTime() / 1000);
+      const yyyy = String(d.getFullYear());
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}${mm}${dd}`;
     }
-    return 0;
+    return str;
   };
 
   const openDobModal = () => {
     if (dateOfBirth) {
-      const parts = dateOfBirth.split("/");
-      if (parts.length === 3) {
-        const m = parseInt(parts[0], 10);
-        const d = parseInt(parts[1], 10);
-        const y = parseInt(parts[2], 10);
+      const str = dateOfBirth.trim();
+      if (/^\d{8}$/.test(str)) {
+        const y = parseInt(str.slice(0, 4), 10);
+        const m = parseInt(str.slice(4, 6), 10);
+        const d = parseInt(str.slice(6, 8), 10);
         if (!isNaN(m) && m >= 1 && m <= 12) setTempMonth(m);
         if (!isNaN(d) && d >= 1 && d <= 31) setTempDay(d);
         if (!isNaN(y) && y >= 1920) setTempYear(y);
+      } else if (str.includes("-")) {
+        const parts = str.split("-");
+        if (parts.length === 3) {
+          if (parts[0].length === 4) {
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            const d = parseInt(parts[2], 10);
+            if (!isNaN(m) && m >= 1 && m <= 12) setTempMonth(m);
+            if (!isNaN(d) && d >= 1 && d <= 31) setTempDay(d);
+            if (!isNaN(y) && y >= 1920) setTempYear(y);
+          } else {
+            const m = parseInt(parts[0], 10);
+            const d = parseInt(parts[1], 10);
+            const y = parseInt(parts[2], 10);
+            if (!isNaN(m) && m >= 1 && m <= 12) setTempMonth(m);
+            if (!isNaN(d) && d >= 1 && d <= 31) setTempDay(d);
+            if (!isNaN(y) && y >= 1920) setTempYear(y);
+          }
+        }
+      } else if (str.includes("/")) {
+        const parts = str.split("/");
+        if (parts.length === 3) {
+          const m = parseInt(parts[0], 10);
+          const d = parseInt(parts[1], 10);
+          const y = parseInt(parts[2], 10);
+          if (!isNaN(m) && m >= 1 && m <= 12) setTempMonth(m);
+          if (!isNaN(d) && d >= 1 && d <= 31) setTempDay(d);
+          if (!isNaN(y) && y >= 1920) setTempYear(y);
+        }
       }
     }
     setDobModalVisible(true);
@@ -184,11 +271,30 @@ export function MyProfileScreen({ navigation }: Props) {
         setLongitude(lng);
 
         if (dobStr) {
-          const parts = dobStr.split("/");
-          if (parts.length === 3) {
-            setTempMonth(parseInt(parts[0], 10) || 1);
-            setTempDay(parseInt(parts[1], 10) || 15);
-            setTempYear(parseInt(parts[2], 10) || 1995);
+          if (/^\d{8}$/.test(dobStr)) {
+            setTempYear(parseInt(dobStr.slice(0, 4), 10) || 1995);
+            setTempMonth(parseInt(dobStr.slice(4, 6), 10) || 1);
+            setTempDay(parseInt(dobStr.slice(6, 8), 10) || 15);
+          } else if (dobStr.includes("-")) {
+            const parts = dobStr.split("-");
+            if (parts.length === 3) {
+              if (parts[0].length === 4) {
+                setTempYear(parseInt(parts[0], 10) || 1995);
+                setTempMonth(parseInt(parts[1], 10) || 1);
+                setTempDay(parseInt(parts[2], 10) || 15);
+              } else {
+                setTempMonth(parseInt(parts[0], 10) || 1);
+                setTempDay(parseInt(parts[1], 10) || 15);
+                setTempYear(parseInt(parts[2], 10) || 1995);
+              }
+            }
+          } else if (dobStr.includes("/")) {
+            const parts = dobStr.split("/");
+            if (parts.length === 3) {
+              setTempMonth(parseInt(parts[0], 10) || 1);
+              setTempDay(parseInt(parts[1], 10) || 15);
+              setTempYear(parseInt(parts[2], 10) || 1995);
+            }
           }
         }
 
@@ -266,7 +372,7 @@ export function MyProfileScreen({ navigation }: Props) {
     const mm = String(tempMonth).padStart(2, "0");
     const dd = String(tempDay).padStart(2, "0");
     const yyyy = String(tempYear);
-    setDateOfBirth(`${mm}/${dd}/${yyyy}`);
+    setDateOfBirth(`${yyyy}${mm}${dd}`);
     setDobModalVisible(false);
   };
 
@@ -638,17 +744,17 @@ export function MyProfileScreen({ navigation }: Props) {
       return;
     }
 
-    const dobUnix = getDobTimestamp(dateOfBirth);
+    const formattedDob = getDobFormatted(dateOfBirth);
 
     try {
       setLoading(true);
       await api.updateBasicInfo({
-        firstName,
-        lastName,
-        email: email.toLowerCase(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.toLowerCase().trim(),
         gender,
-        dob: dobUnix,
-        dateOfBirth: dobUnix,
+        dob: formattedDob,
+        dateOfBirth: formattedDob,
         about: bio,
         permanentAddress: address,
         address,
@@ -660,12 +766,12 @@ export function MyProfileScreen({ navigation }: Props) {
       });
 
       await updateUser({
-        firstName,
-        lastName,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         name: `${firstName} ${lastName}`.trim(),
-        email: email.toLowerCase(),
+        email: email.toLowerCase().trim(),
         gender,
-        dob: dateOfBirth,
+        dob: formattedDob,
         permanentAddress: address,
         city,
         state,
@@ -859,7 +965,7 @@ export function MyProfileScreen({ navigation }: Props) {
                     !dateOfBirth && { color: Colors.PlaceholderInactive },
                   ]}
                 >
-                  {dateOfBirth || "Select Date of Birth (MM/DD/YYYY)"}
+                  {dateOfBirth || "Select Date of Birth (e.g. 19961212)"}
                 </Text>
                 <Ionicons
                   name="calendar-outline"
@@ -1170,52 +1276,56 @@ export function MyProfileScreen({ navigation }: Props) {
             <View style={{ width: 24 }} />
           </View>
 
-          {/* Search Input */}
-          <View style={styles.searchBarWrap}>
-            <Ionicons
-              name="search"
-              size={20}
-              color={Colors.DescriptionTextDark}
-              style={{ marginRight: 8 }}
-            />
-            <TextInput
-              placeholder="Search street, city, zip code..."
-              placeholderTextColor={Colors.PlaceholderInactive}
-              value={addressQuery}
-              onChangeText={searchAddress}
-              style={styles.addressSearchInput}
-              autoFocus={true}
-              clearButtonMode="while-editing"
-            />
-            {searchingAddress && <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} />}
-          </View>
-
-          {/* Predictions Dropdown / Search Results (Top of list) */}
-          {addressPredictions.length > 0 && (
-            <View style={styles.predictionsSection}>
-              <Text style={styles.quickOptionsTitle}>Search Results</Text>
-              <FlatList
-                data={addressPredictions}
-                keyExtractor={(item) => item.place_id}
-                keyboardShouldPersistTaps="handled"
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.predictionItem}
-                    onPress={() => selectPlacePrediction(item)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name="location-outline"
-                      size={20}
-                      color={Colors.ButtonPrimaryColor}
-                      style={{ marginRight: 12, marginTop: 2 }}
-                    />
-                    <Text style={styles.predictionText}>{item.description}</Text>
-                  </TouchableOpacity>
-                )}
+          {/* Search Input & Floating Dropdown Overlay */}
+          <View style={styles.searchWrapper}>
+            <View style={styles.searchBarWrap}>
+              <Ionicons
+                name="search"
+                size={20}
+                color={Colors.DescriptionTextDark}
+                style={{ marginRight: 8 }}
               />
+              <TextInput
+                placeholder="Search street, city, zip code..."
+                placeholderTextColor={Colors.PlaceholderInactive}
+                value={addressQuery}
+                onChangeText={searchAddress}
+                style={styles.addressSearchInput}
+                autoFocus={true}
+                clearButtonMode="while-editing"
+              />
+              {searchingAddress && <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} />}
             </View>
-          )}
+
+            {/* Predictions Dropdown Overlay (Floats on Top of Quick Options) */}
+            {addressPredictions.length > 0 && (
+              <View style={styles.predictionsDropdownOverlay}>
+                <Text style={styles.dropdownHeaderTitle}>Search Results</Text>
+                <FlatList
+                  data={addressPredictions}
+                  keyExtractor={(item) => item.place_id}
+                  keyboardShouldPersistTaps="handled"
+                  style={{ maxHeight: 280 }}
+                  nestedScrollEnabled={true}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.predictionItem}
+                      onPress={() => selectPlacePrediction(item)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name="location-outline"
+                        size={20}
+                        color={Colors.ButtonPrimaryColor}
+                        style={{ marginRight: 12, marginTop: 2 }}
+                      />
+                      <Text style={styles.predictionText}>{item.description}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            )}
+          </View>
 
           {/* Quick Preset Options */}
           <View style={styles.quickOptionsSection}>
@@ -1589,6 +1699,40 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
 
+  stackedLocationOptions: {
+    marginTop: 6,
+    marginBottom: Spacing.md,
+    gap: 8,
+  },
+  stackedLocationCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  stackedLocationIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  stackedLocationTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+  },
+  stackedLocationSub: {
+    fontSize: FontSizes.xs,
+    color: Colors.DescriptionTextDark,
+    marginTop: 2,
+  },
+
   // Address Modal
   addressModalContainer: {
     flex: 1,
@@ -1611,13 +1755,17 @@ const styles = StyleSheet.create({
     fontWeight: FontWeights.bold,
     color: Colors.TitleColor,
   },
+  searchWrapper: {
+    position: "relative",
+    zIndex: 9999,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.base,
+    paddingHorizontal: Spacing.lg,
+  },
   searchBarWrap: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F8FAFC",
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.base,
     paddingHorizontal: Spacing.md,
     height: 48,
     borderRadius: BorderRadius.lg,
@@ -1629,9 +1777,36 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     color: Colors.TitleColor,
   },
+  predictionsDropdownOverlay: {
+    position: "absolute",
+    top: 52,
+    left: Spacing.lg,
+    right: Spacing.lg,
+    backgroundColor: "#FFFFFF",
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    zIndex: 99999,
+    elevation: 20,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+  },
+  dropdownHeaderTitle: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.bold,
+    color: Colors.DescriptionTextDark,
+    textTransform: "uppercase",
+    marginVertical: 4,
+    letterSpacing: 0.5,
+  },
   quickOptionsSection: {
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
+    zIndex: 1,
   },
   quickOptionsTitle: {
     fontSize: FontSizes.xs,
@@ -1673,7 +1848,7 @@ const styles = StyleSheet.create({
   predictionItem: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
   },

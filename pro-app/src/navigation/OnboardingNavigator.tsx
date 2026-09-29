@@ -26,10 +26,14 @@ export function OnboardingNavigator() {
       case 2:
         return "Services";
       case 3:
-        return "BankingLanguages";
+        return "Certificates";
       case 4:
-        return "Availability";
+        return "IdentityDocuments";
       case 5:
+        return "BankingLanguages";
+      case 6:
+        return "Availability";
+      case 7:
         return "ThankYou";
       default:
         return "PersonalInfo";

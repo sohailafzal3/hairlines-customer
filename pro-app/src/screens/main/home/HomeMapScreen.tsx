@@ -130,6 +130,21 @@ export function HomeMapScreen({ navigation }: Props) {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === "granted") {
+          const lastLoc = await Location.getLastKnownPositionAsync();
+          if (lastLoc) {
+            const coords = {
+              latitude: lastLoc.coords.latitude,
+              longitude: lastLoc.coords.longitude,
+            };
+            setUserLocation(coords);
+            const initialRegion = {
+              ...coords,
+              latitudeDelta: 0.05,
+              longitudeDelta: 0.05,
+            };
+            setRegion(initialRegion);
+            mapRef.current?.animateToRegion(initialRegion, 300);
+          }
           const loc = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,
           });
@@ -156,6 +171,15 @@ export function HomeMapScreen({ navigation }: Props) {
         }
       } catch (err) {
         console.warn("Location error:", err);
+        if (user.lat && user.long) {
+          const coords = { latitude: user.lat, longitude: user.long };
+          setUserLocation(coords);
+          setRegion({
+            ...coords,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          });
+        }
       }
     })();
   }, []);

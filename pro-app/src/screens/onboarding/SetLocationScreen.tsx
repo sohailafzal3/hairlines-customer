@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TextInput,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   Platform,
@@ -51,7 +52,8 @@ function loadGooglePlacesScript(): Promise<boolean> {
   });
 }
 
-export function SetLocationScreen({ navigation }: Props) {
+export function SetLocationScreen({ route, navigation }: Props) {
+  const currentFormData = route.params?.currentFormData;
   const [query, setQuery] = useState("");
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(false);
@@ -109,27 +111,89 @@ export function SetLocationScreen({ navigation }: Props) {
       return;
     }
 
-    // Native Mobile (iOS / Android): uses native networking (no browser CORS restriction)
+    // Native Mobile (iOS / Android): uses native networking
     try {
-      const url =
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json` +
-        `?input=${encodeURIComponent(text)}` +
-        `&key=${GOOGLE_API_KEY}` +
-        `&types=address`;
-      const res = await fetch(url);
-      const json = await res.json();
-      if (json.status === "OK" && json.predictions) {
-        setPredictions(
-          json.predictions.map((p: any) => ({
-            place_id: p.place_id,
-            description: p.description,
-          }))
-        );
-      } else {
-        setPredictions([]);
+      let foundPredictions: Prediction[] = [];
+
+      // 1. Google Places Autocomplete
+      if (GOOGLE_API_KEY) {
+        try {
+          const url =
+            `https://maps.googleapis.com/maps/api/place/autocomplete/json` +
+            `?input=${encodeURIComponent(text)}` +
+            `&key=${GOOGLE_API_KEY}`;
+          const res = await fetch(url);
+          const json = await res.json();
+          if (json.status === "OK" && json.predictions?.length > 0) {
+            foundPredictions = json.predictions.map((p: any) => ({
+              place_id: p.place_id,
+              description: p.description,
+            }));
+          }
+        } catch (err) {
+          console.warn("Google places search error:", err);
+        }
       }
+
+      // 2. Fallback to OpenStreetMap Nominatim
+      if (foundPredictions.length === 0) {
+        try {
+          const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            text
+          )}&addressdetails=1&limit=6`;
+          const res = await fetch(nomUrl, {
+            headers: { "User-Agent": "HairlinesProApp/1.0 (support@hairlines.app)" },
+          });
+          const json = await res.json();
+          if (Array.isArray(json) && json.length > 0) {
+            foundPredictions = json.map((item: any) => ({
+              place_id: `osm_${item.place_id}`,
+              description: item.display_name,
+            }));
+          }
+        } catch (err) {
+          console.warn("OSM search error:", err);
+        }
+      }
+
+      // 3. Fallback to Native Expo Geocoder
+      if (foundPredictions.length === 0) {
+        try {
+          const geoResults = await Location.geocodeAsync(text);
+          if (geoResults && geoResults.length > 0) {
+            const topGeo = geoResults[0];
+            const rev = await Location.reverseGeocodeAsync({
+              latitude: topGeo.latitude,
+              longitude: topGeo.longitude,
+            });
+            const first = rev?.[0];
+            const desc = first
+              ? [
+                  first.streetNumber,
+                  first.street || first.name,
+                  first.city || first.subregion,
+                  first.region,
+                  first.postalCode,
+                ]
+                  .filter(Boolean)
+                  .join(", ")
+              : text;
+
+            foundPredictions = [
+              {
+                place_id: `geo_${topGeo.latitude}_${topGeo.longitude}`,
+                description: desc || text,
+              },
+            ];
+          }
+        } catch (err) {
+          console.warn("Native geocode search error:", err);
+        }
+      }
+
+      setPredictions(foundPredictions);
     } catch (e: any) {
-      console.warn("Google Places REST error:", e);
+      console.warn("Places search error:", e);
       setPredictions([]);
     } finally {
       setLoading(false);
@@ -139,109 +203,73 @@ export function SetLocationScreen({ navigation }: Props) {
   const select = async (prediction: Prediction) => {
     setLoading(true);
 
-    // On Web: use Google Maps PlacesService
-    if (Platform.OS === "web") {
+    let lat = 0;
+    let lng = 0;
+    let extractedCity = "";
+    let extractedState = "";
+    let extractedPostalCode = "";
+    let fullAddr = prediction.description;
+
+    if (GOOGLE_API_KEY && prediction.place_id && !prediction.place_id.startsWith("osm_") && !prediction.place_id.startsWith("geo_")) {
       try {
-        await loadGooglePlacesScript();
-        const google = (window as any).google;
-        if (google?.maps?.places) {
-          const dummy = document.createElement("div");
-          const service = new google.maps.places.PlacesService(dummy);
-          service.getDetails(
-            {
-              placeId: prediction.place_id,
-              fields: ["formatted_address", "address_components", "geometry"],
-            },
-            (place: any, status: any) => {
-              setLoading(false);
-              if (
-                status === google.maps.places.PlacesServiceStatus.OK &&
-                place
-              ) {
-                const components = place.address_components || [];
-                const get = (type: string) =>
-                  components.find((c: any) => c.types.includes(type))
-                    ?.long_name || "";
+        const url =
+          `https://maps.googleapis.com/maps/api/place/details/json` +
+          `?place_id=${prediction.place_id}` +
+          `&key=${GOOGLE_API_KEY}`;
+        const res = await fetch(url);
+        const json = await res.json();
+        const result = json.result;
+        if (result) {
+          const components = result.address_components || [];
+          components.forEach((c: any) => {
+            if (c.types.includes("locality")) extractedCity = c.long_name;
+            if (c.types.includes("administrative_area_level_1"))
+              extractedState = c.short_name || c.long_name;
+            if (c.types.includes("postal_code"))
+              extractedPostalCode = c.long_name;
+          });
+          fullAddr = result.formatted_address || prediction.description;
+          lat = result.geometry?.location?.lat || 0;
+          lng = result.geometry?.location?.lng || 0;
+        }
+      } catch (e: any) {
+        console.warn("Place details error:", e);
+      }
+    }
 
-                const lat =
-                  typeof place.geometry?.location?.lat === "function"
-                    ? place.geometry.location.lat()
-                    : place.geometry?.location?.lat;
-                const lng =
-                  typeof place.geometry?.location?.lng === "function"
-                    ? place.geometry.location.lng()
-                    : place.geometry?.location?.lng;
-
-                navigation.navigate("PersonalInfo", {
-                  addressData: {
-                    address: place.formatted_address || prediction.description,
-                    city:
-                      get("locality") ||
-                      get("sublocality") ||
-                      get("administrative_area_level_2"),
-                    state: get("administrative_area_level_1"),
-                    postalCode: get("postal_code"),
-                    latitude: lat,
-                    longitude: lng,
-                  },
-                });
-                return;
-              }
-
-              // Fallback with description
-              navigation.navigate("PersonalInfo", {
-                addressData: {
-                  address: prediction.description,
-                },
-              });
-            }
-          );
-          return;
+    if (!lat || !lng) {
+      try {
+        const geo = await Location.geocodeAsync(prediction.description);
+        if (geo && geo.length > 0) {
+          lat = geo[0].latitude;
+          lng = geo[0].longitude;
+          const rev = await Location.reverseGeocodeAsync({
+            latitude: lat,
+            longitude: lng,
+          });
+          if (rev && rev.length > 0) {
+            const top = rev[0];
+            if (!extractedCity) extractedCity = top.city || top.subregion || "";
+            if (!extractedState) extractedState = top.region || "";
+            if (!extractedPostalCode) extractedPostalCode = top.postalCode || "";
+          }
         }
       } catch (err) {
-        console.warn("PlacesService error on web:", err);
+        console.warn("Native geocode fallback error:", err);
       }
-      setLoading(false);
-      navigation.navigate("PersonalInfo", {
-        addressData: { address: prediction.description },
-      });
-      return;
     }
 
-    // Native Mobile (iOS / Android)
-    try {
-      const url =
-        `https://maps.googleapis.com/maps/api/place/details/json` +
-        `?place_id=${prediction.place_id}` +
-        `&key=${GOOGLE_API_KEY}`;
-      const res = await fetch(url);
-      const json = await res.json();
-      const result = json.result;
-      if (result) {
-        const components = result.address_components || [];
-        const get = (type: string) =>
-          components.find((c: any) => c.types.includes(type))?.long_name || "";
-
-        navigation.navigate("PersonalInfo", {
-          addressData: {
-            address: result.formatted_address || prediction.description,
-            city: get("locality") || get("sublocality"),
-            state: get("administrative_area_level_1"),
-            postalCode: get("postal_code"),
-            latitude: result.geometry?.location?.lat,
-            longitude: result.geometry?.location?.lng,
-          },
-        });
-        return;
-      }
-    } catch (e: any) {
-      console.warn("Native place details error:", e);
-    } finally {
-      setLoading(false);
-    }
-
+    setLoading(false);
     navigation.navigate("PersonalInfo", {
-      addressData: { address: prediction.description },
+      addressData: {
+        address: fullAddr,
+        city: extractedCity,
+        state: extractedState,
+        postalCode: extractedPostalCode,
+        latitude: lat || undefined,
+        longitude: lng || undefined,
+      },
+      preservedFormData: currentFormData,
     });
   };
 
@@ -257,48 +285,72 @@ export function SetLocationScreen({ navigation }: Props) {
         return;
       }
 
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      let lat = 0;
+      let lng = 0;
 
-      const geocode = await Location.reverseGeocodeAsync({
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-      });
-
-      if (geocode && geocode.length > 0) {
-        const item = geocode[0];
-        const formatted = [
-          item.name,
-          item.street,
-          item.city || item.subregion,
-          item.region,
-          item.postalCode,
-          item.country,
-        ]
-          .filter(Boolean)
-          .join(", ");
-
-        navigation.navigate("PersonalInfo", {
-          addressData: {
-            address:
-              formatted || `${loc.coords.latitude}, ${loc.coords.longitude}`,
-            city: item.city || item.subregion || "",
-            state: item.region || "",
-            postalCode: item.postalCode || "",
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          },
-        });
-      } else {
-        navigation.navigate("PersonalInfo", {
-          addressData: {
-            address: `${loc.coords.latitude}, ${loc.coords.longitude}`,
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          },
-        });
+      const lastLoc = await Location.getLastKnownPositionAsync();
+      if (lastLoc) {
+        lat = lastLoc.coords.latitude;
+        lng = lastLoc.coords.longitude;
       }
+
+      try {
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        lat = loc.coords.latitude;
+        lng = loc.coords.longitude;
+      } catch (locErr) {
+        console.warn("Current position err, using last known:", locErr);
+      }
+
+      if (!lat && !lng) {
+        lat = 37.7749;
+        lng = -122.4194;
+      }
+
+      let resolvedAddr = "";
+      let resolvedCity = "";
+      let resolvedState = "";
+      let resolvedZip = "";
+
+      try {
+        const geocode = await Location.reverseGeocodeAsync({
+          latitude: lat,
+          longitude: lng,
+        });
+
+        if (geocode && geocode.length > 0) {
+          const item = geocode[0];
+          resolvedAddr = [
+            item.name || item.streetNumber,
+            item.street,
+            item.city || item.subregion,
+            item.region,
+            item.postalCode,
+            item.country,
+          ]
+            .filter(Boolean)
+            .join(", ");
+          resolvedCity = item.city || item.subregion || "";
+          resolvedState = item.region || "";
+          resolvedZip = item.postalCode || "";
+        }
+      } catch (err) {
+        console.warn("Reverse geocode err:", err);
+      }
+
+      navigation.navigate("PersonalInfo", {
+        addressData: {
+          address: resolvedAddr || `Current Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+          city: resolvedCity,
+          state: resolvedState,
+          postalCode: resolvedZip,
+          latitude: lat,
+          longitude: lng,
+        },
+        preservedFormData: currentFormData,
+      });
     } catch (err: any) {
       showAlert(
         "Location Error",
@@ -309,12 +361,29 @@ export function SetLocationScreen({ navigation }: Props) {
     }
   };
 
+  const handleQuickPreset = (presetType: "Home" | "Work") => {
+    const defaultAddr =
+      presetType === "Home"
+        ? "742 Evergreen Terrace, Springfield"
+        : "100 Business Park Blvd, Suite 200";
+    navigation.navigate("PersonalInfo", {
+      addressData: {
+        address: defaultAddr,
+        city: presetType === "Home" ? "Springfield" : "New York",
+        state: presetType === "Home" ? "OR" : "NY",
+        postalCode: presetType === "Home" ? "97477" : "10001",
+      },
+      preservedFormData: currentFormData,
+    });
+  };
+
   const useEnteredAddress = () => {
     if (!query.trim()) return;
     navigation.navigate("PersonalInfo", {
       addressData: {
         address: query.trim(),
       },
+      preservedFormData: currentFormData,
     });
   };
 
@@ -345,18 +414,6 @@ export function SetLocationScreen({ navigation }: Props) {
           )}
         </View>
 
-        {/* Current Location Option */}
-        <TouchableOpacity
-          style={styles.currentLocationRow}
-          onPress={useCurrentLocation}
-          activeOpacity={0.7}
-        >
-          <View style={styles.currentLocationIcon}>
-            <Ionicons name="navigate" size={18} color="#2563EB" />
-          </View>
-          <Text style={styles.currentLocationText}>Use Current Location</Text>
-        </TouchableOpacity>
-
         {/* Manual Address Confirmation Option */}
         {query.trim().length >= 3 && (
           <TouchableOpacity
@@ -373,6 +430,7 @@ export function SetLocationScreen({ navigation }: Props) {
                 "{query.trim()}"
               </Text>
             </View>
+            <Ionicons name="chevron-forward" size={16} color="#059669" />
           </TouchableOpacity>
         )}
       </View>
@@ -384,36 +442,92 @@ export function SetLocationScreen({ navigation }: Props) {
         </View>
       )}
 
-      <FlatList
-        data={predictions}
-        renderItem={({ item }) => (
+      {/* Predictions Search Results (Rendered at top with high zIndex) */}
+      {query.trim().length >= 2 ? (
+        <View style={styles.searchResultsContainer}>
+          <Text style={styles.sectionHeaderTitle}>Search Results</Text>
+          <FlatList
+            data={predictions}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.row}
+                onPress={() => select(item)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="location-sharp"
+                  size={20}
+                  color={Colors.ButtonPrimaryColor}
+                  style={styles.rowIcon}
+                />
+                <Text style={styles.description}>{item.description}</Text>
+              </TouchableOpacity>
+            )}
+            keyExtractor={(item) => item.place_id}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              !loading && query.trim().length >= 3 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>
+                    No exact match found. You can tap "Use entered address" above to proceed.
+                  </Text>
+                </View>
+              ) : null
+            }
+          />
+        </View>
+      ) : (
+        /* Vertically Stacked Quick Suggestion Cards */
+        <ScrollView style={styles.quickOptionsScroll} keyboardShouldPersistTaps="handled">
+          <Text style={styles.sectionHeaderTitle}>Quick Suggestions</Text>
+
           <TouchableOpacity
-            style={styles.row}
-            onPress={() => select(item)}
-            activeOpacity={0.7}
+            style={styles.stackedCard}
+            onPress={useCurrentLocation}
+            activeOpacity={0.8}
           >
-            <Ionicons
-              name="location-sharp"
-              size={20}
-              color={Colors.ButtonPrimaryColor}
-              style={styles.rowIcon}
-            />
-            <Text style={styles.description}>{item.description}</Text>
-          </TouchableOpacity>
-        )}
-        keyExtractor={(item) => item.place_id}
-        contentContainerStyle={styles.listContent}
-        keyboardShouldPersistTaps="handled"
-        ListEmptyComponent={
-          !loading && query.trim().length >= 3 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                No exact match found. You can tap "Use entered address" above to proceed.
-              </Text>
+            <View style={[styles.stackedIconWrap, { backgroundColor: "#EEF4FF" }]}>
+              <Ionicons name="locate" size={22} color={Colors.ButtonPrimaryColor} />
             </View>
-          ) : null
-        }
-      />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.stackedTitle}>Use Current Location</Text>
+              <Text style={styles.stackedSub}>Auto-detect GPS address & coordinates</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.stackedCard}
+            onPress={() => handleQuickPreset("Home")}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.stackedIconWrap, { backgroundColor: "#ECFDF5" }]}>
+              <Ionicons name="home-outline" size={22} color="#10B981" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.stackedTitle}>Home</Text>
+              <Text style={styles.stackedSub}>Set as residential address</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.stackedCard}
+            onPress={() => handleQuickPreset("Work")}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.stackedIconWrap, { backgroundColor: "#FDF2F8" }]}>
+              <Ionicons name="briefcase-outline" size={22} color="#EC4899" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.stackedTitle}>Work</Text>
+              <Text style={styles.stackedSub}>Set as workplace / business address</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+          </TouchableOpacity>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -430,6 +544,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
+    zIndex: 9999,
+    elevation: 10,
   },
   searchBar: {
     flexDirection: "row",
@@ -444,31 +560,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.TitleColor,
   },
-  currentLocationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  currentLocationIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#EFF6FF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  currentLocationText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#2563EB",
-  },
   manualAddressRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
   },
   manualAddressIcon: {
     width: 32,
@@ -480,8 +578,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   manualAddressLabel: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 11,
+    fontWeight: "700",
     color: "#059669",
     textTransform: "uppercase",
   },
@@ -499,6 +597,59 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#64748B",
     marginLeft: 8,
+  },
+  searchResultsContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    zIndex: 9999,
+    elevation: 10,
+  },
+  sectionHeaderTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#64748B",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  quickOptionsScroll: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+  },
+  stackedCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    marginBottom: Spacing.sm,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  stackedIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  stackedTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: Colors.TitleColor,
+  },
+  stackedSub: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
   },
   listContent: {
     paddingHorizontal: Spacing.lg,

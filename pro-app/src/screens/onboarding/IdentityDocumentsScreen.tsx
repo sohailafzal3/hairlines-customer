@@ -53,40 +53,69 @@ export function IdentityDocumentsScreen({ route, navigation }: Props) {
   ];
 
   useEffect(() => {
-    api
-      .getAllDocumentTypes()
-      .then((res: any) => {
-        let docList: Document[] = [];
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const res: any = await api.getAllDocumentTypes();
+        let docList: any[] = [];
         if (Array.isArray(res)) {
           docList = res;
+        } else if (Array.isArray(res?.identityDoc)) {
+          docList = res.identityDoc;
+        } else if (Array.isArray(res?.data?.identityDoc)) {
+          docList = res.data.identityDoc;
         } else if (Array.isArray(res?.documents)) {
           docList = res.documents;
+        } else if (Array.isArray(res?.data?.documents)) {
+          docList = res.data.documents;
         } else if (Array.isArray(res?.data)) {
           docList = res.data;
         } else if (Array.isArray(res?.documentList)) {
           docList = res.documentList;
         }
 
-        // Normalize fields (id, _id, docId, name, documentName, title)
+        // Normalize fields (id, _id, docId, name, label, documentName, title)
         const normalized: Document[] = docList
           .map((item: any) => ({
-            id: String(item.id || item._id || item.docId || item.identityDocId || ""),
-            name: String(item.name || item.documentName || item.docName || item.title || ""),
+            id: String(item._id || item.id || item.docId || item.identityDocId || ""),
+            name: String(item.name || item.label || item.documentName || item.docName || item.title || ""),
           }))
           .filter((item) => Boolean(item.id && item.name));
 
-        const finalDocs = normalized.length > 0 ? normalized : DEFAULT_DOCUMENT_TYPES;
-        setTypes(finalDocs);
-        if (finalDocs.length > 0 && finalDocs[0].id) {
-          setSelectedType(finalDocs[0].id);
+        if (normalized.length > 0 && normalized[0].id) {
+          setTypes(normalized);
+          setSelectedType(normalized[0].id);
         }
-      })
-      .catch((e) => {
-        console.warn("getAllDocumentTypes fallback error:", e.message);
-        setTypes(DEFAULT_DOCUMENT_TYPES);
-        setSelectedType(DEFAULT_DOCUMENT_TYPES[0].id || "");
-      })
-      .finally(() => setLoading(false));
+
+        // Fetch pre-saved profile docs if available (matches iOS fetchSPProfile)
+        try {
+          const profile = await api.getSPProfile();
+          const rawData: any =
+            (profile as any)?.identityVerificationDocuments || profile || {};
+          const savedDocId = rawData?.identityDocId;
+          const savedFront = rawData?.identityFront;
+          const savedBack = rawData?.identityBack;
+
+          if (savedDocId && normalized.some((d) => d.id === String(savedDocId))) {
+            setSelectedType(String(savedDocId));
+          }
+          if (savedFront) {
+            setFront(savedFront);
+          }
+          if (savedBack) {
+            setBack(savedBack);
+          }
+        } catch (pErr) {
+          console.log("Profile identity doc load note:", pErr);
+        }
+      } catch (e: any) {
+        console.warn("getAllDocumentTypes error:", e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
   const selectedDocName =
@@ -104,30 +133,45 @@ export function IdentityDocumentsScreen({ route, navigation }: Props) {
 
   const submit = async () => {
     if (!selectedType) {
-      showAlert("Required", "Please select a document type from the dropdown.");
+      showAlert("Required", "Please Select Photo ID Type");
+      return;
+    }
+    if (!front && !back) {
+      showAlert("Required", "Please Upload front and back of your Photo ID!");
       return;
     }
     if (!front) {
-      showAlert("Required", "Please upload the front image of your ID.");
+      showAlert("Required", "Please Upload front of your Photo ID!");
       return;
     }
+    if (!back) {
+      showAlert("Required", "Please Upload back of your Photo ID!");
+      return;
+    }
+
     try {
       setSubmitting(true);
-      const frontUrl = await api.uploadImage(
-        front,
-        UploadImageType.identityDocumentsImages
-      );
-      const backUrl = back
+      const frontUrl = front && !front.startsWith("http")
+        ? await api.uploadImage(front, UploadImageType.identityDocumentsImages)
+        : front || "";
+
+      const backUrl = back && !back.startsWith("http")
         ? await api.uploadImage(back, UploadImageType.identityDocumentsImages)
-        : "";
+        : back || "";
+
       await api.addIdentityDocument({
         identityDocId: selectedType,
+        docId: selectedType,
+        identityFrontUrl: frontUrl,
+        identityBackUrl: backUrl,
         identityFront: frontUrl,
         identityBack: backUrl,
+        frontImage: frontUrl,
+        backImage: backUrl,
       });
 
       if (isFromSettings) {
-        showAlert("Success", "Your identity verification documents have been updated.");
+        showAlert("Success", "Your Documents has been updated.");
         if (navigation.canGoBack()) {
           navigation.goBack();
         } else {
@@ -137,7 +181,7 @@ export function IdentityDocumentsScreen({ route, navigation }: Props) {
         navigation.navigate("BankingLanguages");
       }
     } catch (e: any) {
-      showAlert("Error", e.message);
+      showAlert("Error", e.message || "Failed to update identity document.");
     } finally {
       setSubmitting(false);
     }

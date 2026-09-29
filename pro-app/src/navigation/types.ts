@@ -17,7 +17,7 @@ export type AuthStackParamList = {
 };
 
 export type OnboardingStackParamList = {
-  PersonalInfo: { addressData?: any; isFromSettings?: boolean } | undefined;
+  PersonalInfo: { addressData?: any; preservedFormData?: any; isFromSettings?: boolean } | undefined;
   Services: { isFromSettings?: boolean } | undefined;
   ServicesFor: { isFromSettings?: boolean } | undefined;
   Certificates: { isFromSettings?: boolean } | undefined;
@@ -25,7 +25,7 @@ export type OnboardingStackParamList = {
   BankingLanguages: { isFromSettings?: boolean } | undefined;
   Availability: { isFromSettings?: boolean } | undefined;
   ThankYou: undefined;
-  SetLocation: undefined;
+  SetLocation: { currentFormData?: any } | undefined;
 };
 
 export type MainDrawerParamList = {

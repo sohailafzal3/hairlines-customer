@@ -62,20 +62,22 @@ export function SignInScreen({ route, navigation }: Props) {
     setLoading(true);
     try {
       if (isForgotPassword) {
-        await api.forgotPassword(phoneNumber);
+        const res: any = await api.forgotPassword(phoneNumber);
+        const verificationCode = res?.verificationCode ? String(res.verificationCode) : "";
         navigation.navigate("Verification", {
           countryCode,
           phoneNumber,
-          code: "",
+          code: verificationCode,
           isSignUp: false,
           isForgotPassword: true,
         });
       } else if (isSignUp) {
-        await api.sendVerificationCode(phoneNumber, countryCode);
+        const res: any = await api.sendVerificationCode(phoneNumber, countryCode);
+        const verificationCode = res?.verificationCode ? String(res.verificationCode) : "";
         navigation.navigate("Verification", {
           countryCode,
           phoneNumber,
-          code: "",
+          code: verificationCode,
           isSignUp: true,
         });
       } else {

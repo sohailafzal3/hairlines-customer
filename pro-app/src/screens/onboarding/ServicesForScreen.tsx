@@ -26,22 +26,22 @@ interface RoleOption {
 
 const roleOptions: RoleOption[] = [
   {
-    label: "Barber / Hair Stylist Only",
-    sub: "Provide professional haircuts, beard trimming, styling & grooming",
+    label: "Normal Customers Only",
+    sub: "I will provide services to only normal customers.",
+    value: 0,
+    icon: "person-outline",
+  },
+  {
+    label: "Disabled Customers Only",
+    sub: "I will provide services to only disabled customers.",
     value: 1,
-    icon: "cut-outline",
+    icon: "accessibility-outline",
   },
   {
-    label: "Cleaning Pro Only",
-    sub: "Provide home, apartment, office & premise cleaning services",
+    label: "Both Normal & Disabled Customers",
+    sub: "I will provide services to both normal customers and disabled customers.",
     value: 2,
-    icon: "sparkles-outline",
-  },
-  {
-    label: "Both (Barber / Stylist & Cleaning)",
-    sub: "Offer both hair & grooming and specialized cleaning services",
-    value: 3,
-    icon: "apps-outline",
+    icon: "people-outline",
   },
 ];
 
@@ -49,7 +49,9 @@ export function ServicesForScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user, updateUser } = useUser();
-  const [selected, setSelected] = useState<number>(user.serviceFor && user.serviceFor > 0 ? user.serviceFor : 3);
+  const [selected, setSelected] = useState<number>(
+    typeof user.serviceFor === "number" && user.serviceFor >= 0 ? user.serviceFor : 2
+  );
   const [loading, setLoading] = useState(false);
 
   const isFromSettings =
@@ -58,11 +60,17 @@ export function ServicesForScreen({ route, navigation }: Props) {
   const submit = async () => {
     try {
       setLoading(true);
-      await api.selectServiceFor({ serviceFor: selected, userType: 2 });
       await updateUser({ serviceFor: selected });
 
+      // Non-blocking sync to backend (matches iOS where this call is non-blocking / bundled into certificates)
+      try {
+        await api.selectServiceFor({ serviceFor: selected, userType: 2 });
+      } catch (err) {
+        console.log("selectServiceFor non-blocking sync note:", err);
+      }
+
       if (isFromSettings) {
-        showAlert("Success", "Your service role category has been updated.");
+        showAlert("Success", "Your customer preference has been updated.");
         if (navigation.canGoBack()) {
           navigation.goBack();
         } else {
@@ -72,7 +80,7 @@ export function ServicesForScreen({ route, navigation }: Props) {
         navigation.navigate("Services");
       }
     } catch (e: any) {
-      showAlert("Error", e.message);
+      showAlert("Error", e.message || "Could not save preference.");
     } finally {
       setLoading(false);
     }

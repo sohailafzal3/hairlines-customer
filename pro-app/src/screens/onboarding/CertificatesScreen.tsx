@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -17,7 +17,6 @@ import DateTimePicker, {
 import { OnboardingStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
 import { Header } from "../../components/Header";
-import { Input } from "../../components/Input";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
 import { api } from "../../services/api";
 import { showAlert } from "../../utils/helpers";
@@ -36,17 +35,64 @@ export function CertificatesScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
-  const [title, setTitle] = useState("");
-  const [expiry, setExpiry] = useState("");
+
+  // Customer / Service type: 0 = Normal only, 1 = Disabled only, 2 = Both
+  const customerType =
+    typeof user.serviceFor === "number" && user.serviceFor >= 0
+      ? user.serviceFor
+      : 2;
+
+  // Document Photos (matches iOS drivingLicenseImages[0] and drivingLicenseImages[1])
+  const [front1, setFront1] = useState<string | null>(null);
+  const [front2, setFront2] = useState<string | null>(null);
+
+  // Expiry Date (matches iOS documentExpiry Double Unix timestamp in seconds)
+  const [expiryFormatted, setExpiryFormatted] = useState<string>("");
+  const [expiryTimestamp, setExpiryTimestamp] = useState<number>(0);
   const [expiryDate, setExpiryDate] = useState<Date>(
     new Date(new Date().setFullYear(new Date().getFullYear() + 1))
   );
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [front, setFront] = useState<string | null>(null);
-  const [back, setBack] = useState<string | null>(null);
 
   const isFromSettings =
     (route.params as any)?.isFromSettings || user.isSignUpCompleted;
+
+  useEffect(() => {
+    // Pre-populate existing license documents if available
+    const loadProfileDocs = async () => {
+      try {
+        setLoading(true);
+        const profile = await api.getSPProfile();
+        const docs = (profile as any)?.professionalLicenseDocuments || [];
+        if (Array.isArray(docs) && docs.length > 0) {
+          if (docs[0]?.professionalDocsFront) {
+            setFront1(docs[0].professionalDocsFront);
+          }
+          if (docs.length > 1 && docs[1]?.professionalDocsFront) {
+            setFront2(docs[1].professionalDocsFront);
+          }
+          if (docs[0]?.expiryDate) {
+            const rawExp = Number(docs[0].expiryDate);
+            if (!isNaN(rawExp) && rawExp > 0) {
+              const d = new Date(rawExp > 10000000000 ? rawExp : rawExp * 1000);
+              setExpiryDate(d);
+              setExpiryTimestamp(Math.floor(d.getTime() / 1000));
+              const mm = String(d.getMonth() + 1).padStart(2, "0");
+              const dd = String(d.getDate()).padStart(2, "0");
+              const yyyy = d.getFullYear();
+              setExpiryFormatted(`${mm}/${dd}/${yyyy}`);
+            }
+          }
+        }
+      } catch (err) {
+        console.log("Profile docs load note:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfileDocs();
+  }, []);
 
   const pick = async (setter: (uri: string) => void) => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -64,49 +110,115 @@ export function CertificatesScreen({ route, navigation }: Props) {
     }
     if (selectedDate) {
       setExpiryDate(selectedDate);
-      const yyyy = selectedDate.getFullYear();
       const mm = String(selectedDate.getMonth() + 1).padStart(2, "0");
       const dd = String(selectedDate.getDate()).padStart(2, "0");
-      setExpiry(`${yyyy}-${mm}-${dd}`);
+      const yyyy = selectedDate.getFullYear();
+      setExpiryFormatted(`${mm}/${dd}/${yyyy}`);
+      setExpiryTimestamp(Math.floor(selectedDate.getTime() / 1000));
     }
   };
 
   const submit = async () => {
-    if (!title.trim()) {
-      showAlert("Required", "Please enter the license / certification title.");
+    // Validation matching iOS SrviceCertificatesViewController.swift
+    if (customerType === 0 || customerType === 1) {
+      if (!front1) {
+        showAlert("Required", "Please add image first!");
+        return;
+      }
+    } else {
+      if (!front1 || !front2) {
+        showAlert("Required", "Please add images first!");
+        return;
+      }
+    }
+
+    if (!expiryTimestamp || expiryTimestamp < 1) {
+      showAlert("Required", "Please add expiry date");
       return;
     }
+
     try {
       setLoading(true);
-      const frontUrl = front
-        ? await api.uploadImage(front, UploadImageType.certificates)
-        : "";
-      const backUrl = back
-        ? await api.uploadImage(back, UploadImageType.certificates)
-        : "";
-      await api.updateServicePreference({
-        professionalLicenseDocuments: [
+
+      // Upload front image 1 (if local uri)
+      const frontUrl1 = front1 && !front1.startsWith("http")
+        ? await api.uploadImage(front1, UploadImageType.certificates)
+        : front1 || "";
+
+      // Upload front image 2 (if local uri and customerType == 2)
+      let frontUrl2 = "";
+      if (customerType === 2) {
+        frontUrl2 = front2 && !front2.startsWith("http")
+          ? await api.uploadImage(front2, UploadImageType.certificates)
+          : front2 || "";
+      }
+
+      // Build serviceImages array matching iOS schema
+      let serviceImages: any[] = [];
+      if (customerType === 0) {
+        serviceImages = [
           {
-            professionalDocsTitle: title.trim(),
-            professionalDocsFront: frontUrl,
-            professionalDocsBack: backUrl,
-            expiryDate: expiry || undefined,
+            professionalDocsType: 0,
+            professionalDocsFront: frontUrl1,
+            expiryDate: expiryTimestamp,
           },
-        ],
+        ];
+      } else if (customerType === 1) {
+        serviceImages = [
+          {
+            professionalDocsType: 1,
+            professionalDocsFront: frontUrl1,
+            expiryDate: expiryTimestamp,
+          },
+        ];
+      } else {
+        serviceImages = [
+          {
+            professionalDocsType: 0,
+            professionalDocsFront: frontUrl1,
+            expiryDate: expiryTimestamp,
+          },
+          {
+            professionalDocsType: 1,
+            professionalDocsFront: frontUrl2,
+            expiryDate: expiryTimestamp,
+          },
+        ];
+      }
+
+      // Non-blocking sync for selectServiceFor matching iOS line 341
+      try {
+        await api.selectServiceFor({ serviceFor: customerType, userType: 2 });
+      } catch (e) {
+        console.log("selectServiceFor sync:", e);
+      }
+
+      // Main certificates update API call matching iOS line 349
+      await api.updateServicePreference({
+        serviceImages,
+        serviceFor: customerType,
+        professionalLicenseDocuments: serviceImages.map((img) => ({
+          ...img,
+          professionalDocsTitle: "Professional License",
+          professionalDocsBack: "",
+        })),
       });
 
       if (isFromSettings) {
-        showAlert("Success", "Your professional license details have been updated.");
+        showAlert(
+          "Success",
+          "Service certificate has been updated successfully."
+        );
         if (navigation.canGoBack()) {
           navigation.goBack();
         } else {
-          navigation.navigate("ServicesFor");
+          navigation.navigate("Services");
         }
       } else {
         navigation.navigate("IdentityDocuments");
       }
     } catch (e: any) {
-      showAlert("Error", e.message);
+      showAlert("Error", e.message || "Failed to update professional license.");
     } finally {
       setLoading(false);
     }
@@ -116,13 +228,21 @@ export function CertificatesScreen({ route, navigation }: Props) {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      navigation.navigate("ServicesFor");
+      navigation.navigate("Services");
     }
   };
 
+  const label1 =
+    customerType === 1
+      ? "Please upload a front side clear image of your Professional License for disabled customers"
+      : "Please upload a front side clear image of your Professional License";
+
+  const label2 =
+    "Please upload a front side clear image of your Professional License for disabled customers";
+
   return (
     <View style={styles.container}>
-      <Header title="Professional Licenses" onBackPress={handleBack} />
+      <Header title="Professional License" onBackPress={handleBack} />
 
       <ScrollView
         contentContainerStyle={[
@@ -134,20 +254,82 @@ export function CertificatesScreen({ route, navigation }: Props) {
         <LoadingOverlay visible={loading} />
 
         <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>License & Certifications</Text>
+          <Text style={styles.headerTitle}>Professional License</Text>
           <Text style={styles.headerSubtitle}>
-            Upload your professional licensing or trade certificates to build credibility with clients.
+            Upload clear photos of your valid license and provide its expiration date.
           </Text>
         </View>
 
+        {/* 1. First License Upload Card */}
         <View style={styles.card}>
-          <Input
-            label="License / Certificate Title"
-            placeholder="e.g. Master Barber License, Cosmetology"
-            value={title}
-            onChangeText={setTitle}
-          />
+          <Text style={styles.uploadCardTitle}>{label1}</Text>
+          <TouchableOpacity
+            onPress={() => pick(setFront1)}
+            style={[styles.uploadBox, front1 && styles.uploadBoxFilled]}
+            activeOpacity={0.8}
+          >
+            {front1 ? (
+              <View style={styles.imagePreviewWrap}>
+                <Image source={{ uri: front1 }} style={styles.imagePreview} />
+                <View style={styles.changeBadge}>
+                  <Ionicons name="camera" size={14} color="#FFFFFF" />
+                  <Text style={styles.changeBadgeText}>Change Photo</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.uploadPlaceholder}>
+                <View style={styles.uploadIconCircle}>
+                  <Ionicons
+                    name="cloud-upload-outline"
+                    size={28}
+                    color={Colors.ButtonPrimaryColor}
+                  />
+                </View>
+                <Text style={styles.uploadMainText}>Tap to Upload License Photo</Text>
+                <Text style={styles.uploadSubText}>PNG, JPG up to 10MB</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
 
+        {/* 2. Second License Upload Card (Shown when customerType == 2 / Both) */}
+        {customerType === 2 && (
+          <View style={styles.card}>
+            <Text style={styles.uploadCardTitle}>{label2}</Text>
+            <TouchableOpacity
+              onPress={() => pick(setFront2)}
+              style={[styles.uploadBox, front2 && styles.uploadBoxFilled]}
+              activeOpacity={0.8}
+            >
+              {front2 ? (
+                <View style={styles.imagePreviewWrap}>
+                  <Image source={{ uri: front2 }} style={styles.imagePreview} />
+                  <View style={styles.changeBadge}>
+                    <Ionicons name="camera" size={14} color="#FFFFFF" />
+                    <Text style={styles.changeBadgeText}>Change Photo</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.uploadPlaceholder}>
+                  <View style={styles.uploadIconCircle}>
+                    <Ionicons
+                      name="cloud-upload-outline"
+                      size={28}
+                      color={Colors.ButtonPrimaryColor}
+                    />
+                  </View>
+                  <Text style={styles.uploadMainText}>
+                    Tap to Upload License Photo
+                  </Text>
+                  <Text style={styles.uploadSubText}>PNG, JPG up to 10MB</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* 3. Expiration Date Card */}
+        <View style={styles.card}>
           <Text style={styles.inputLabel}>License Expiry Date</Text>
           <TouchableOpacity
             style={styles.datePickerTrigger}
@@ -157,10 +339,10 @@ export function CertificatesScreen({ route, navigation }: Props) {
             <Text
               style={[
                 styles.datePickerText,
-                !expiry && { color: Colors.PlaceholderInactive },
+                !expiryFormatted && { color: Colors.PlaceholderInactive },
               ]}
             >
-              {expiry || "Select Expiry Date (YYYY-MM-DD)"}
+              {expiryFormatted || "Select Expiry Date (MM/DD/YYYY)"}
             </Text>
             <Ionicons
               name="calendar-outline"
@@ -182,10 +364,11 @@ export function CertificatesScreen({ route, navigation }: Props) {
                 <TouchableOpacity
                   style={styles.dateConfirmBtn}
                   onPress={() => {
-                    const yyyy = expiryDate.getFullYear();
                     const mm = String(expiryDate.getMonth() + 1).padStart(2, "0");
                     const dd = String(expiryDate.getDate()).padStart(2, "0");
-                    setExpiry(`${yyyy}-${mm}-${dd}`);
+                    const yyyy = expiryDate.getFullYear();
+                    setExpiryFormatted(`${mm}/${dd}/${yyyy}`);
+                    setExpiryTimestamp(Math.floor(expiryDate.getTime() / 1000));
                     setShowDatePicker(false);
                   }}
                 >
@@ -195,73 +378,9 @@ export function CertificatesScreen({ route, navigation }: Props) {
             </View>
           )}
         </View>
-
-        <Text style={styles.sectionHeading}>DOCUMENT PHOTOS</Text>
-
-        <View style={styles.card}>
-          <Text style={styles.uploadCardTitle}>Front of License / Certificate</Text>
-          <TouchableOpacity
-            onPress={() => pick(setFront)}
-            style={[styles.uploadBox, front && styles.uploadBoxFilled]}
-            activeOpacity={0.8}
-          >
-            {front ? (
-              <View style={styles.imagePreviewWrap}>
-                <Image source={{ uri: front }} style={styles.imagePreview} />
-                <View style={styles.changeBadge}>
-                  <Ionicons name="camera" size={14} color="#FFFFFF" />
-                  <Text style={styles.changeBadgeText}>Change</Text>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.uploadPlaceholder}>
-                <View style={styles.uploadIconCircle}>
-                  <Ionicons
-                    name="cloud-upload-outline"
-                    size={26}
-                    color={Colors.ButtonPrimaryColor}
-                  />
-                </View>
-                <Text style={styles.uploadMainText}>Tap to Upload Front Photo</Text>
-                <Text style={styles.uploadSubText}>PNG, JPG up to 10MB</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <Text style={[styles.uploadCardTitle, { marginTop: Spacing.lg }]}>
-            Back of License (Optional)
-          </Text>
-          <TouchableOpacity
-            onPress={() => pick(setBack)}
-            style={[styles.uploadBox, back && styles.uploadBoxFilled]}
-            activeOpacity={0.8}
-          >
-            {back ? (
-              <View style={styles.imagePreviewWrap}>
-                <Image source={{ uri: back }} style={styles.imagePreview} />
-                <View style={styles.changeBadge}>
-                  <Ionicons name="camera" size={14} color="#FFFFFF" />
-                  <Text style={styles.changeBadgeText}>Change</Text>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.uploadPlaceholder}>
-                <View style={styles.uploadIconCircle}>
-                  <Ionicons
-                    name="cloud-upload-outline"
-                    size={26}
-                    color={Colors.ButtonPrimaryColor}
-                  />
-                </View>
-                <Text style={styles.uploadMainText}>Tap to Upload Back Photo</Text>
-                <Text style={styles.uploadSubText}>Optional if single-sided</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
       </ScrollView>
 
-      {/* Main Save / Update Button Pinned at Bottom */}
+      {/* Main Bottom Submit Button */}
       <View
         style={[
           styles.footerWrap,
@@ -305,14 +424,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  sectionHeading: {
-    fontSize: FontSizes.xs,
-    fontWeight: FontWeights.bold,
-    color: Colors.DescriptionTextDark,
-    letterSpacing: 0.5,
-    marginBottom: Spacing.xs,
-    marginTop: Spacing.xs,
-  },
   inputLabel: {
     fontSize: FontSizes.xs,
     fontWeight: FontWeights.medium,
@@ -331,7 +442,6 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     paddingHorizontal: 14,
     height: 50,
-    marginBottom: Spacing.md,
   },
   datePickerText: {
     fontSize: FontSizes.sm,
@@ -341,7 +451,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: BorderRadius.lg,
     padding: Spacing.sm,
-    marginBottom: Spacing.md,
+    marginTop: Spacing.md,
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
@@ -362,10 +472,11 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.bold,
     color: Colors.TitleColor,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
+    lineHeight: 20,
   },
   uploadBox: {
-    height: 160,
+    height: 180,
     borderRadius: BorderRadius.lg,
     borderWidth: 1.5,
     borderColor: "#CBD5E1",
@@ -386,19 +497,20 @@ const styles = StyleSheet.create({
     padding: Spacing.base,
   },
   uploadIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: "#EEF4FF",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   uploadMainText: {
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.bold,
     color: Colors.TitleColor,
     marginBottom: 2,
+    textAlign: "center",
   },
   uploadSubText: {
     fontSize: FontSizes.xs,
@@ -422,8 +534,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     backgroundColor: "rgba(15, 23, 42, 0.75)",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
   },
   changeBadgeText: {

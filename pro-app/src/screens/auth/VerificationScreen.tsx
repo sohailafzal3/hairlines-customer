@@ -25,14 +25,33 @@ import { api } from "../../services/api";
 type Props = NativeStackScreenProps<AuthStackParamList, "Verification">;
 
 export function VerificationScreen({ route, navigation }: Props) {
-  const { phoneNumber, countryCode, isSignUp, isForgotPassword } = route.params;
+  const { phoneNumber, countryCode, isSignUp, isForgotPassword, code: incomingCode } = route.params;
   const { setAccount, setLoggedIn } = useUser();
 
-  const [code, setCode] = useState(["", "", "", ""]);
+  const getInitialCode = () => {
+    if (incomingCode) {
+      const cleaned = String(incomingCode).replace(/\D/g, "");
+      if (cleaned.length >= 4) {
+        return cleaned.slice(0, 4).split("");
+      }
+    }
+    return ["", "", "", ""];
+  };
+
+  const [code, setCode] = useState<string[]>(getInitialCode);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
   const [errorMsg, setErrorMsg] = useState("");
   const inputs = useRef<Array<TextInput | null>>([]);
+
+  useEffect(() => {
+    if (incomingCode) {
+      const cleaned = String(incomingCode).replace(/\D/g, "");
+      if (cleaned.length >= 4) {
+        setCode(cleaned.slice(0, 4).split(""));
+      }
+    }
+  }, [incomingCode]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -42,11 +61,23 @@ export function VerificationScreen({ route, navigation }: Props) {
   }, []);
 
   const handleChange = (text: string, index: number) => {
+    const cleaned = text.replace(/\D/g, "");
+    if (cleaned.length > 1) {
+      const digits = cleaned.slice(0, 4).split("");
+      const newCode = ["", "", "", ""];
+      digits.forEach((d, i) => {
+        newCode[i] = d;
+      });
+      setCode(newCode);
+      inputs.current[Math.min(digits.length - 1, 3)]?.focus();
+      return;
+    }
+
     const newCode = [...code];
-    newCode[index] = text;
+    newCode[index] = cleaned;
     setCode(newCode);
 
-    if (text && index < 3) {
+    if (cleaned && index < 3) {
       inputs.current[index + 1]?.focus();
     }
   };
@@ -61,10 +92,17 @@ export function VerificationScreen({ route, navigation }: Props) {
     setErrorMsg("");
     setTimer(60);
     try {
+      let res: any;
       if (isForgotPassword) {
-        await api.forgotPassword(phoneNumber);
+        res = await api.forgotPassword(phoneNumber);
       } else {
-        await api.sendVerificationCode(phoneNumber, countryCode);
+        res = await api.sendVerificationCode(phoneNumber, countryCode);
+      }
+      if (res?.verificationCode) {
+        const cleaned = String(res.verificationCode).replace(/\D/g, "");
+        if (cleaned.length >= 4) {
+          setCode(cleaned.slice(0, 4).split(""));
+        }
       }
     } catch (error: any) {
       setErrorMsg(error.message || "Failed to resend verification code.");

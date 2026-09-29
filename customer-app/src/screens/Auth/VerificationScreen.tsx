@@ -29,13 +29,32 @@ type Props = {
 };
 
 const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { countryCode, phoneNumber, isSignUp, isForgotPassword } = route.params;
+  const { countryCode, phoneNumber, isSignUp, isForgotPassword, code: incomingCode } = route.params;
   const { setAccount, login } = useAuthStore();
 
-  const [code, setCode] = useState(['', '', '', '']);
+  const getInitialCode = () => {
+    if (incomingCode) {
+      const cleaned = String(incomingCode).replace(/\D/g, '');
+      if (cleaned.length >= 4) {
+        return cleaned.slice(0, 4).split('');
+      }
+    }
+    return ['', '', '', ''];
+  };
+
+  const [code, setCode] = useState<string[]>(getInitialCode);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
   const inputs = useRef<Array<TextInput | null>>([]);
+
+  useEffect(() => {
+    if (incomingCode) {
+      const cleaned = String(incomingCode).replace(/\D/g, '');
+      if (cleaned.length >= 4) {
+        setCode(cleaned.slice(0, 4).split(''));
+      }
+    }
+  }, [incomingCode]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -45,11 +64,23 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   }, []);
 
   const handleChange = (text: string, index: number) => {
+    const cleaned = text.replace(/\D/g, '');
+    if (cleaned.length > 1) {
+      const digits = cleaned.slice(0, 4).split('');
+      const newCode = ['', '', '', ''];
+      digits.forEach((d, i) => {
+        newCode[i] = d;
+      });
+      setCode(newCode);
+      inputs.current[Math.min(digits.length - 1, 3)]?.focus();
+      return;
+    }
+
     const newCode = [...code];
-    newCode[index] = text;
+    newCode[index] = cleaned;
     setCode(newCode);
 
-    if (text && index < 3) {
+    if (cleaned && index < 3) {
       inputs.current[index + 1]?.focus();
     }
   };
@@ -63,7 +94,13 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleResend = async () => {
     setTimer(60);
     try {
-      await AuthApi.sendVerificationCode(countryCode, phoneNumber);
+      const res: any = await AuthApi.sendVerificationCode(countryCode, phoneNumber);
+      if (res?.verificationCode) {
+        const cleaned = String(res.verificationCode).replace(/\D/g, '');
+        if (cleaned.length >= 4) {
+          setCode(cleaned.slice(0, 4).split(''));
+        }
+      }
       Toast.show({
         type: 'success',
         text1: 'Code Resent',

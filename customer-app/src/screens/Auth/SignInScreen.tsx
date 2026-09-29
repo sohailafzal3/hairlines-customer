@@ -46,12 +46,13 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
       const deviceToken = 'simulator-device-token';
 
       if (isForgotPassword) {
-        await AuthApi.forgotPassword({
+        const res: any = await AuthApi.forgotPassword({
           countryCode,
           phoneNumber,
           deviceToken,
           deviceType: 'ios',
         });
+        const verificationCode = res?.verificationCode ? String(res.verificationCode) : '';
         Toast.show({
           type: 'success',
           text1: 'Code Sent',
@@ -60,11 +61,13 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
         navigation.navigate('Verification', {
           countryCode,
           phoneNumber,
+          code: verificationCode,
           isSignUp: false,
           isForgotPassword: true,
         });
       } else if (isSignUp) {
-        await AuthApi.sendVerificationCode(countryCode, phoneNumber);
+        const res: any = await AuthApi.sendVerificationCode(countryCode, phoneNumber);
+        const verificationCode = res?.verificationCode ? String(res.verificationCode) : '';
         Toast.show({
           type: 'success',
           text1: 'Code Sent',
@@ -73,6 +76,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
         navigation.navigate('Verification', {
           countryCode,
           phoneNumber,
+          code: verificationCode,
           isSignUp: true,
         });
       } else {

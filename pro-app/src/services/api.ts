@@ -319,6 +319,7 @@ class ApiClient {
   addBankInfo(bankToken: string, ssnLast4: string) {
     return this.request<any>("POST", "bank/account", {
       bankToken,
+      ssnNumber: ssnLast4,
       ssnLast4,
     });
   }

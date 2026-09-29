@@ -132,49 +132,63 @@ export function ServicesScreen({ route, navigation }: Props) {
   ];
 
   useEffect(() => {
+    // Helper to extract list from any backend response structure
+    const extractList = (res: any): any[] => {
+      if (!res) return [];
+      if (Array.isArray(res)) return res;
+      if (Array.isArray(res.servicesList)) return res.servicesList;
+      if (Array.isArray(res.services)) return res.services;
+      if (Array.isArray(res.data?.servicesList)) return res.data.servicesList;
+      if (Array.isArray(res.data?.services)) return res.data.services;
+      if (Array.isArray(res.data)) return res.data;
+      return [];
+    };
+
     // Try multiple endpoints to retrieve services
     const loadServices = async () => {
       try {
         setLoading(true);
         let fetchedList: any[] = [];
 
-        // 1. Try SP services
+        // 1. Try sp/all-services (Primary endpoint used by iOS app)
         try {
-          const res0 = await api.getSPServices();
-          const list = (res0 as any)?.services || (res0 as any)?.data || (Array.isArray(res0) ? res0 : []);
-          if (Array.isArray(list) && list.length > 0) {
+          const res0 = await api.getAllServices();
+          const list = extractList(res0);
+          if (list.length > 0) {
             fetchedList = list;
           }
-        } catch (err) {}
+        } catch (err) {
+          console.log("Failed to fetch all services:", err);
+        }
 
-        // 2. Try all services
+        // 2. Try sp/services/list
         if (fetchedList.length === 0) {
           try {
-            const res1 = await api.getAllServices();
-            const list = (res1 as any)?.services || (res1 as any)?.data || (Array.isArray(res1) ? res1 : []);
-            if (Array.isArray(list) && list.length > 0) {
+            const res1 = await api.getServicesList();
+            const list = extractList(res1);
+            if (list.length > 0) {
               fetchedList = list;
             }
           } catch (err) {}
         }
 
-        // 3. Try fetch all services
+        // 3. Try sp/services
         if (fetchedList.length === 0) {
           try {
-            const res2 = await api.fetchAllServices();
-            const list = (res2 as any)?.services || (res2 as any)?.data || (Array.isArray(res2) ? res2 : []);
-            if (Array.isArray(list) && list.length > 0) {
+            const res2 = await api.getSPServices();
+            const list = extractList(res2);
+            if (list.length > 0) {
               fetchedList = list;
             }
           } catch (err) {}
         }
 
-        // 4. Try services list
+        // 4. Try fetch all services
         if (fetchedList.length === 0) {
           try {
-            const res3 = await api.getServicesList();
-            const list = (res3 as any)?.services || (res3 as any)?.data || (Array.isArray(res3) ? res3 : []);
-            if (Array.isArray(list) && list.length > 0) {
+            const res3 = await api.fetchAllServices();
+            const list = extractList(res3);
+            if (list.length > 0) {
               fetchedList = list;
             }
           } catch (err) {}
@@ -184,8 +198,8 @@ export function ServicesScreen({ route, navigation }: Props) {
         if (fetchedList.length === 0) {
           try {
             const res4 = await api.getMerchantServices();
-            const list = (res4 as any)?.services || (res4 as any)?.data || (Array.isArray(res4) ? res4 : []);
-            if (Array.isArray(list) && list.length > 0) {
+            const list = extractList(res4);
+            if (list.length > 0) {
               fetchedList = list;
             }
           } catch (err) {}
@@ -197,22 +211,27 @@ export function ServicesScreen({ route, navigation }: Props) {
           rawList.map(async (item: any, idx: number) => {
             const serviceId = String(item._id || item.id || `srv_${idx}`);
             const sName = String(item.serviceName || item.name || item.title || "Service Category");
-            let subDetails: SubServiceDetail[] = [];
+            let subDetails: any[] = [];
 
-            if (Array.isArray(item.subServiceDetails) && item.subServiceDetails.length > 0) {
+            if (Array.isArray(item.subService) && item.subService.length > 0) {
+              subDetails = item.subService;
+            } else if (Array.isArray(item.subServiceDetails) && item.subServiceDetails.length > 0) {
               subDetails = item.subServiceDetails;
             } else if (Array.isArray(item.subServices) && item.subServices.length > 0) {
               subDetails = item.subServices;
             } else if (Array.isArray(item.subServiceList) && item.subServiceList.length > 0) {
               subDetails = item.subServiceList;
-            } else if (fetchedList.length > 0 && item._id) {
+            } else if (fetchedList.length > 0 && item._id && !item._id.startsWith("cat_") && !item._id.startsWith("srv_")) {
               // Try fetching subservices for this specific service ID if not embedded
               try {
                 const subRes = await api.getSubServicesByServiceId(item._id);
-                if (Array.isArray(subRes?.subServices) && subRes.subServices.length > 0) {
-                  subDetails = subRes.subServices as any;
+                const subList = extractList(subRes) || (subRes as any)?.subServices || [];
+                if (Array.isArray(subList) && subList.length > 0) {
+                  subDetails = subList;
                 }
-              } catch (subErr) {}
+              } catch (subErr) {
+                console.log("Error loading subservices for", item._id, subErr);
+              }
             }
 
             const cleanSubs: SubServiceDetail[] = subDetails.map((sub: any, subIdx: number) => ({
@@ -220,11 +239,13 @@ export function ServicesScreen({ route, navigation }: Props) {
               subServiceName: String(sub.subServiceName || sub.name || sub.title || "Service Option"),
               subServiceDescription: sub.subServiceDescription || sub.description || "",
               subServiceCharges: Number(sub.subServiceCharges || sub.charges || sub.hourlyRate || sub.price || 30),
+              serviceId: String(sub.serviceId || serviceId),
             }));
 
             return {
               _id: serviceId,
               serviceName: sName,
+              serviceDescription: item.serviceDescription || "",
               subServiceDetails: cleanSubs,
             };
           })
@@ -240,19 +261,33 @@ export function ServicesScreen({ route, navigation }: Props) {
         // Try to pre-load previously saved services
         try {
           const prevSaved = await api.getCompanySelectedServices();
-          const prevList = (prevSaved as any)?.services || (prevSaved as any)?.selectedServices || [];
+          const prevList = extractList(prevSaved) || (prevSaved as any)?.selectedServices || [];
           if (Array.isArray(prevList) && prevList.length > 0) {
             const initialMap: Record<string, SelectedServiceItem> = {};
             prevList.forEach((s: any) => {
               const sId = String(s.serviceId || s._id || "");
-              const subId = String(s.subServiceId || s._id || "");
-              if (sId && subId) {
-                initialMap[`${sId}_${subId}`] = {
-                  serviceId: sId,
-                  subServiceId: subId,
-                  name: String(s.serviceName || s.subServiceName || s.name || "Service"),
-                  price: String(s.serviceCharges || s.hourlyRate || s.price || 25),
-                };
+              if (Array.isArray(s.subServices) && s.subServices.length > 0) {
+                s.subServices.forEach((sub: any) => {
+                  const subId = String(sub.subServiceId || sub._id || "");
+                  if (sId && subId) {
+                    initialMap[`${sId}_${subId}`] = {
+                      serviceId: sId,
+                      subServiceId: subId,
+                      name: String(sub.subServiceName || sub.name || "Service"),
+                      price: String(sub.subServiceCharges || sub.charges || 25),
+                    };
+                  }
+                });
+              } else {
+                const subId = String(s.subServiceId || s._id || "");
+                if (sId && subId) {
+                  initialMap[`${sId}_${subId}`] = {
+                    serviceId: sId,
+                    subServiceId: subId,
+                    name: String(s.serviceName || s.subServiceName || s.name || "Service"),
+                    price: String(s.serviceCharges || s.hourlyRate || s.price || 25),
+                  };
+                }
               }
             });
             if (Object.keys(initialMap).length > 0) {
@@ -336,27 +371,46 @@ export function ServicesScreen({ route, navigation }: Props) {
     try {
       setLoading(true);
 
-      const parentServiceIds = Array.from(
-        new Set(selectedItems.map((s) => s.serviceId).filter(Boolean))
-      );
-      const subServiceIds = selectedItems.map((s) => s.subServiceId).filter(Boolean);
+      // Group selected subservices by parent serviceId (matches iOS app schema)
+      const serviceGroups: Record<
+        string,
+        Array<{ subServiceId: string; subServiceCharges: number }>
+      > = {};
 
-      const selectedServicesPayload = selectedItems.map((item) => ({
-        serviceId: item.serviceId,
-        subServiceId: item.subServiceId,
-        serviceName: item.name,
-        serviceCharges: parseFloat(item.price) || 0,
-        hourlyRate: parseFloat(item.price) || 0,
-        price: parseFloat(item.price) || 0,
-      }));
+      for (const item of selectedItems) {
+        const parentId = item.serviceId;
+        const subId = item.subServiceId || item.serviceId;
+        const charges = parseFloat(item.price) || 0;
+
+        if (!parentId) continue;
+
+        if (!serviceGroups[parentId]) {
+          serviceGroups[parentId] = [];
+        }
+
+        serviceGroups[parentId].push({
+          subServiceId: subId,
+          subServiceCharges: charges,
+        });
+      }
+
+      const selectedServicesArray = Object.entries(serviceGroups).map(
+        ([sId, subs]) => ({
+          serviceId: sId,
+          subServices: subs,
+        })
+      );
+
+      if (selectedServicesArray.length === 0) {
+        showAlert("Required", "Please select at least one service to offer.");
+        return;
+      }
 
       const payload: any = {
-        services: parentServiceIds.length > 0 ? parentServiceIds : subServiceIds,
-        serviceId: parentServiceIds[0] || subServiceIds[0] || "",
-        subServices: subServiceIds,
-        subServiceIds: subServiceIds,
-        selectedServices: selectedServicesPayload,
-        userType: 2,
+        selectedServices: selectedServicesArray,
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        profileImage: user.profileImage || "",
       };
 
       await api.selectServices(payload);
@@ -369,7 +423,7 @@ export function ServicesScreen({ route, navigation }: Props) {
           navigation.navigate("ServicesFor");
         }
       } else {
-        navigation.navigate("BankingLanguages");
+        navigation.navigate("Certificates");
       }
     } catch (e: any) {
       showAlert("Error", e.message);

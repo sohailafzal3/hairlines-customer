@@ -37,11 +37,11 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, "PersonalInfo">;
 
 export function PersonalInfoScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
-  const { clearUser } = useUser();
+  const { user, clearUser } = useUser();
   const [loading, setLoading] = useState(false);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState(user?.firstName || user?.name?.split(" ")[0] || "");
+  const [lastName, setLastName] = useState(user?.lastName || user?.name?.split(" ").slice(1).join(" ") || "");
+  const [email, setEmail] = useState(user?.email || "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [gender, setGender] = useState<Gender>(Gender.male);
@@ -86,14 +86,65 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
   useEffect(() => {
     const data = route.params?.addressData;
     if (data) {
-      setAddress(data.address || "");
-      setCity(data.city || "");
-      setState(data.state || "");
-      setPostalCode(data.postalCode || "");
-      setLatitude(data.latitude);
-      setLongitude(data.longitude);
+      if (data.address) setAddress(data.address);
+      if (data.city) setCity(data.city);
+      if (data.state) setState(data.state);
+      if (data.postalCode) setPostalCode(data.postalCode);
+      if (data.latitude) setLatitude(data.latitude);
+      if (data.longitude) setLongitude(data.longitude);
     }
-  }, [route.params?.addressData]);
+
+    const preserved = route.params?.preservedFormData;
+    if (preserved) {
+      if (preserved.firstName) setFirstName(preserved.firstName);
+      if (preserved.lastName) setLastName(preserved.lastName);
+      if (preserved.email) setEmail(preserved.email);
+      if (preserved.password) setPassword(preserved.password);
+      if (preserved.confirmPassword) setConfirmPassword(preserved.confirmPassword);
+      if (preserved.gender) setGender(preserved.gender);
+      if (preserved.dob) setDob(preserved.dob);
+      if (preserved.dobDate) setDobDate(new Date(preserved.dobDate));
+      if (preserved.referralCode) setReferralCode(preserved.referralCode);
+      if (preserved.isTermsAccepted !== undefined) setIsTermsAccepted(preserved.isTermsAccepted);
+      if (preserved.photo) setPhoto(preserved.photo);
+    }
+  }, [route.params?.addressData, route.params?.preservedFormData]);
+
+  const handleUseCurrentLocation = async () => {
+    try {
+      setLoading(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        showAlert("Permission Denied", "Location permission is required to detect your location.");
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const lat = loc.coords.latitude;
+      const lng = loc.coords.longitude;
+      setLatitude(lat);
+      setLongitude(lng);
+
+      const rev = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+      if (rev && rev.length > 0) {
+        const top = rev[0];
+        const parts = [
+          top.name || top.streetNumber,
+          top.street,
+          top.city || top.subregion,
+          top.region,
+          top.postalCode,
+        ].filter(Boolean);
+        setAddress(parts.join(", ") || `Current Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
+        if (top.city || top.subregion) setCity(top.city || top.subregion || "");
+        if (top.region) setState(top.region);
+        if (top.postalCode) setPostalCode(top.postalCode);
+      }
+    } catch (e: any) {
+      showAlert("Location Error", e.message || "Could not retrieve current location.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -154,7 +205,21 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
 
       // Default to Florida coordinates if geocoding was unavailable
       if (typeof finalLat !== "number") finalLat = 27.5959;
-      if (typeof finalLng !== "number") finalLng = -81.5062;
+      let formattedDob = dob;
+      if (dob) {
+        const clean = dob.replace(/\D/g, "");
+        if (clean.length === 8) {
+          formattedDob = clean;
+        } else {
+          const d = new Date(dob);
+          if (!isNaN(d.getTime())) {
+            const yyyy = String(d.getFullYear());
+            const mm = String(d.getMonth() + 1).padStart(2, "0");
+            const dd = String(d.getDate()).padStart(2, "0");
+            formattedDob = `${yyyy}${mm}${dd}`;
+          }
+        }
+      }
 
       await api.addBasicInfo({
         firstName: firstName.trim(),
@@ -163,7 +228,7 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
         password,
         confirmPassword,
         gender,
-        dob,
+        dob: formattedDob,
         address,
         city,
         state,
@@ -314,7 +379,7 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
                   !dob && { color: Colors.PlaceholderInactive },
                 ]}
               >
-                {dob || "Select Date of Birth (YYYY-MM-DD)"}
+                {dob || "Select Date of Birth (e.g. 19961212)"}
               </Text>
               <Ionicons
                 name="calendar-outline"
@@ -339,7 +404,7 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
                       const yyyy = selectedDate.getFullYear();
                       const mm = String(selectedDate.getMonth() + 1).padStart(2, "0");
                       const dd = String(selectedDate.getDate()).padStart(2, "0");
-                      setDob(`${yyyy}-${mm}-${dd}`);
+                      setDob(`${yyyy}${mm}${dd}`);
                     }
                   }}
                 />
@@ -350,7 +415,7 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
                       const yyyy = dobDate.getFullYear();
                       const mm = String(dobDate.getMonth() + 1).padStart(2, "0");
                       const dd = String(dobDate.getDate()).padStart(2, "0");
-                      setDob(`${yyyy}-${mm}-${dd}`);
+                      setDob(`${yyyy}${mm}${dd}`);
                       setShowDobPicker(false);
                     }}
                   >
@@ -378,7 +443,23 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
 
             {/* Address with Tap to Set Location */}
             <TouchableOpacity
-              onPress={() => navigation.navigate("SetLocation")}
+              onPress={() =>
+                navigation.navigate("SetLocation", {
+                  currentFormData: {
+                    firstName,
+                    lastName,
+                    email,
+                    password,
+                    confirmPassword,
+                    gender,
+                    dob,
+                    dobDate: dobDate?.toISOString(),
+                    referralCode,
+                    isTermsAccepted,
+                    photo,
+                  },
+                })
+              }
               activeOpacity={0.8}
             >
               <Input
@@ -386,7 +467,7 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
                 value={address}
                 editable={false}
                 pointerEvents="none"
-                placeholder="Tap to set location"
+                placeholder="Tap to search or set location"
               />
             </TouchableOpacity>
 
@@ -779,5 +860,43 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.ButtonPrimaryColor,
     borderRadius: BorderRadius.lg,
     minHeight: 50,
+  },
+  stackedLocationOptions: {
+    marginTop: 6,
+    marginBottom: Spacing.md,
+    gap: 8,
+  },
+  stackedLocationCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  stackedLocationIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  stackedLocationTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+  },
+  stackedLocationSub: {
+    fontSize: FontSizes.xs,
+    color: Colors.DescriptionTextDark,
+    marginTop: 2,
   },
 });

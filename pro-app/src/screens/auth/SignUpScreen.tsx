@@ -45,11 +45,12 @@ export function SignUpScreen({ route, navigation }: Props) {
     setErrorMsg("");
     setLoading(true);
     try {
-      await api.sendVerificationCode(phoneNumber, countryCode);
+      const res: any = await api.sendVerificationCode(phoneNumber, countryCode);
+      const verificationCode = res?.verificationCode ? String(res.verificationCode) : "";
       navigation.navigate("Verification", {
         countryCode,
         phoneNumber,
-        code: "",
+        code: verificationCode,
         isSignUp: true,
       });
     } catch (error: any) {

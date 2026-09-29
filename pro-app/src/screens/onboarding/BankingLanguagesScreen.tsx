@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Ionicons } from "@expo/vector-icons";
 import { OnboardingStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
 import { Header } from "../../components/Header";
@@ -10,12 +9,12 @@ import { Input } from "../../components/Input";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
 import { api } from "../../services/api";
 import { showAlert } from "../../utils/helpers";
-import { Document } from "../../types/models";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUser } from "../../context/UserContext";
 import { Colors } from "../../theme/colors";
 import { FontSizes, FontWeights } from "../../theme/fonts";
 import { BorderRadius, Spacing } from "../../theme/spacing";
+import { STRIPE_PUBLISHABLE_KEY } from "../../constants";
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, "BankingLanguages">;
 
@@ -25,63 +24,97 @@ export function BankingLanguagesScreen({ route, navigation }: Props) {
   const { user } = useUser();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [accountName, setAccountName] = useState("");
   const [routingNumber, setRoutingNumber] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [ssn, setSsn] = useState("");
-  const [languages, setLanguages] = useState<Document[]>([]);
-  const [levels, setLevels] = useState<Document[]>([]);
-  const [selectedLang, setSelectedLang] = useState<string>("");
-  const [selectedLevel, setSelectedLevel] = useState<string>("");
 
   const isFromSettings =
     route.params?.isFromSettings || user.isSignUpCompleted;
 
   useEffect(() => {
-    Promise.all([
-      api.getActiveLanguages().catch(() => ({ languageList: [] })),
-      api.getLanguageLevels().catch(() => ({ languageLevelList: [] })),
-    ])
-      .then(([l, lv]) => {
-        const langList = l.languageList ?? [];
-        const lvlList = lv.languageLevelList ?? [];
-        setLanguages(langList);
-        setLevels(lvlList);
-        if (langList.length > 0 && langList[0].id) setSelectedLang(langList[0].id);
-        if (lvlList.length > 0 && lvlList[0].id) setSelectedLevel(lvlList[0].id);
+    // Load existing bank account details if available
+    api
+      .getBankDetails()
+      .then((bankRes) => {
+        if (bankRes) {
+          const data = (bankRes as any)?.data || bankRes;
+          if (data.routingNum) setRoutingNumber(String(data.routingNum));
+          if (data.last4) setAccountNumber(`*** *** ***${data.last4}`);
+          if (data.ssnNumber) setSsn(String(data.ssnNumber));
+        }
       })
-      .catch((e) => showAlert("Error", e.message))
+      .catch(() => null)
       .finally(() => setLoading(false));
   }, []);
 
+
+
+  const createStripeBankToken = async (): Promise<string> => {
+    const params = new URLSearchParams();
+    params.append("bank_account[country]", "US");
+    params.append("bank_account[currency]", "usd");
+    params.append("bank_account[routing_number]", routingNumber.trim());
+    params.append("bank_account[account_number]", accountNumber.trim());
+    if (user.firstName || user.lastName) {
+      params.append(
+        "bank_account[account_holder_name]",
+        `${user.firstName || ""} ${user.lastName || ""}`.trim()
+      );
+      params.append("bank_account[account_holder_type]", "individual");
+    }
+
+    const res = await fetch("https://api.stripe.com/v1/tokens", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${STRIPE_PUBLISHABLE_KEY}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    });
+
+    const data = await res.json();
+    if (data.error) {
+      throw new Error(
+        data.error.message || "Failed to create bank token with Stripe."
+      );
+    }
+    return data.id;
+  };
+
   const submit = async () => {
-    if (!accountName.trim()) {
-      showAlert("Required", "Please enter the account holder name.");
-      return;
-    }
     if (!routingNumber.trim() || routingNumber.trim().length < 9) {
-      showAlert("Required", "Please enter a valid 9-digit routing number.");
+      showAlert("Required", "Please Enter Routing Number");
       return;
     }
-    if (!accountNumber.trim() || accountNumber.trim().length < 4) {
-      showAlert("Required", "Please enter a valid bank account number.");
+
+    if (!accountNumber.trim()) {
+      showAlert("Required", "Please Enter Account Number");
       return;
     }
-    if (!ssn.trim() || ssn.trim().length < 4) {
-      showAlert("Required", "Please enter the last 4 digits of your SSN / Tax ID.");
+
+    if (accountNumber.includes("*")) {
+      showAlert("Required", "Please re-enter your account number to update.");
+      return;
+    }
+
+    const cleanSSN = ssn.replace(/\D/g, "");
+    if (!cleanSSN || cleanSSN.length < 4) {
+      showAlert("Required", "Please enter valid SSN");
       return;
     }
 
     try {
       setSubmitting(true);
-      await api.addBankInfo("bank_token_placeholder", ssn.trim());
+
+      const bankToken = await createStripeBankToken();
+      await api.addBankInfo(bankToken, ssn.trim());
 
       if (isFromSettings) {
-        showAlert("Success", "Your banking payout details have been updated.");
+        showAlert("Success", "Bank details are updated successfully!");
         if (navigation.canGoBack()) {
           navigation.goBack();
         } else {
-          navigation.navigate("Services");
+          navigation.navigate("IdentityDocuments");
         }
       } else {
         navigation.navigate("Availability");
@@ -97,13 +130,15 @@ export function BankingLanguagesScreen({ route, navigation }: Props) {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      navigation.navigate("Services");
+      navigation.navigate("IdentityDocuments");
     }
   };
 
+  const screenTitle = isFromSettings ? "Banking Details" : "Account Details";
+
   return (
     <View style={styles.container}>
-      <Header title="Account Details" onBackPress={handleBack} />
+      <Header title={screenTitle} onBackPress={handleBack} />
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -113,94 +148,41 @@ export function BankingLanguagesScreen({ route, navigation }: Props) {
       >
         <LoadingOverlay visible={loading || submitting} />
 
-        <Text style={styles.headerTitle}>Payout & Account Details</Text>
+        <Text style={styles.headerTitle}>{screenTitle}</Text>
         <Text style={styles.headerSubtitle}>
-          Provide your bank account details for direct payouts and set your communication preferences.
+          Provide your bank account details for direct payouts.
         </Text>
 
         <View style={styles.cardSection}>
-          <Text style={styles.cardSectionTitle}>Bank Payout Information</Text>
-
-          <Input
-            label="Account Holder Name"
-            placeholder="John Doe"
-            value={accountName}
-            onChangeText={setAccountName}
-            autoCapitalize="words"
-          />
-
+          {/* 1. Routing Number */}
           <Input
             label="Routing Number"
-            placeholder="9-Digit Routing Number"
+            placeholder="e.g 110000000"
             value={routingNumber}
             onChangeText={setRoutingNumber}
             keyboardType="number-pad"
             maxLength={9}
           />
 
+          {/* 2. Account Number */}
           <Input
             label="Account Number"
-            placeholder="Bank Account Number"
+            placeholder="e.g 000123456789"
             value={accountNumber}
             onChangeText={setAccountNumber}
             keyboardType="number-pad"
           />
 
+          {/* 3. SSN */}
           <Input
-            label="SSN (Last 4 Digits)"
-            placeholder="e.g. 1234"
-            maxLength={4}
+            label="SSN"
+            placeholder="e.g 123456789"
             value={ssn}
             onChangeText={setSsn}
             keyboardType="number-pad"
+            maxLength={9}
           />
         </View>
-
-        {languages.length > 0 && (
-          <View style={styles.cardSection}>
-            <Text style={styles.cardSectionTitle}>Preferred Language</Text>
-            <View style={styles.chipGrid}>
-              {languages.map((lang) => {
-                const isSel = selectedLang === lang.id;
-                return (
-                  <TouchableOpacity
-                    key={lang.id}
-                    style={[styles.chip, isSel && styles.chipSelected]}
-                    onPress={() => setSelectedLang(lang.id || "")}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.chipText, isSel && styles.chipTextSelected]}>
-                      {lang.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {levels.length > 0 && (
-          <View style={styles.cardSection}>
-            <Text style={styles.cardSectionTitle}>Proficiency Level</Text>
-            <View style={styles.chipGrid}>
-              {levels.map((lvl) => {
-                const isSel = selectedLevel === lvl.id;
-                return (
-                  <TouchableOpacity
-                    key={lvl.id}
-                    style={[styles.chip, isSel && styles.chipSelected]}
-                    onPress={() => setSelectedLevel(lvl.id || "")}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.chipText, isSel && styles.chipTextSelected]}>
-                      {lvl.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        )}
 
         <View style={{ height: Spacing.xl }} />
       </ScrollView>
@@ -213,7 +195,7 @@ export function BankingLanguagesScreen({ route, navigation }: Props) {
         ]}
       >
         <Button
-          title={isFromSettings ? "Update Payout Details" : "Continue to Availability"}
+          title={isFromSettings ? "UPDATE" : "SUBMIT"}
           onPress={submit}
         />
       </View>
@@ -248,38 +230,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 2,
-  },
-  cardSectionTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.md,
-  },
-  chipGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  chipSelected: {
-    backgroundColor: "#EEF4FF",
-    borderColor: Colors.ButtonPrimaryColor,
-  },
-  chipText: {
-    fontSize: FontSizes.sm,
-    color: Colors.TitleColor,
-    fontWeight: FontWeights.medium,
-  },
-  chipTextSelected: {
-    color: Colors.ButtonPrimaryColor,
-    fontWeight: FontWeights.bold,
   },
   footerWrap: {
     position: "absolute",

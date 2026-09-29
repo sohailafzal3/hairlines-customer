@@ -24,7 +24,12 @@ export const GOOGLE_API_KEY =
   process.env.EXPO_PUBLIC_GOOGLE_API_KEY ||
   process.env.GOOGLE_API_KEY ||
   "AIzaSyBRO8-9PkS3p4ZTay5BjR53QJUOQoFvg6M";
-export const STRIPE_PUBLISHABLE_KEY = process.env.STRIPE_PUBLISHABLE_KEY;
+export const STRIPE_PUBLISHABLE_KEY =
+  process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
+  process.env.STRIPE_PUBLISHABLE_KEY ||
+  (BASE_URL.includes("staging")
+    ? "pk_test_51HIRdrAFQrnBnGI3TmTo44QpdENrFM107sUQPqEhJx7J40eYeblIUt8LV714AOW3bsV4IDgOb9sUFFGDZXj4isTl00Aeo2TVgG"
+    : "pk_live_51HIRdrAFQrnBnGI3txfyzgfPjfXJaOKO3NZJ2OeF0uYQg2s9AKYU2EpRrU1NkrjkP6s93xPeOAunrqwhUDUHX5gf006xTFYGmc");
 
 // MARK: S3
 export const S3_PREFIX = "https://hairlines-lives2.s3.us-east-1.amazonaws.com/";
