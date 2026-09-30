@@ -23,6 +23,13 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export function RootNavigator() {
   const { user, loading, updateUser } = useUser();
 
+  // Register push notifications on app mount so deviceToken is ready before login/signup
+  useEffect(() => {
+    registerForPushNotificationsAsync().then((token) => {
+      if (token) updateUser({ deviceToken: token });
+    });
+  }, []);
+
   useEffect(() => {
     if (!user.isLoggedIn) return;
 
@@ -119,10 +126,7 @@ export function RootNavigator() {
         {!user.isLoggedIn ? (
           <Stack.Screen name="Auth" component={AuthNavigator} />
         ) : !user.isSignUpCompleted ? (
-          <>
-            <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
-            <Stack.Screen name="Main" component={DrawerNavigator} />
-          </>
+          <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
         ) : (
           <>
             <Stack.Screen name="Main" component={DrawerNavigator} />

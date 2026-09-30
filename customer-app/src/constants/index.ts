@@ -28,6 +28,7 @@ export const kPrivicyPolicyLink = 'https://www.hairlines.app/privacyPolicy.html'
 
 // Pagination
 export const kOffSet = 10;
+export const DUMMY_DEVICE_TOKEN = '88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9';
 
 // Enums
 export enum JobStatus {

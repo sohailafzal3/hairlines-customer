@@ -1,6 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS, DUMMY_DEVICE_TOKEN } from '../constants';
+import { Storage } from '../utils/storage';
 
 const LOCAL_DEVICE_TOKEN_KEY = 'kCustomerLocalDeviceTokenKey';
 
@@ -14,7 +16,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export async function registerForPushNotificationsAsync(): Promise<string | null> {
+export async function registerForPushNotificationsAsync(): Promise<string> {
   let token: string | null = null;
 
   try {
@@ -47,48 +49,78 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
         webToken = `web_cust_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
         await AsyncStorage.setItem(LOCAL_DEVICE_TOKEN_KEY, webToken);
       }
-      return webToken;
-    }
+      token = webToken;
+    } else {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync({
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+          },
+        });
+        finalStatus = status;
+      }
 
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync({
-        ios: {
-          allowAlert: true,
-          allowBadge: true,
-          allowSound: true,
-        },
-      });
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      return null;
-    }
-
-    try {
-      const devicePush = await Notifications.getDevicePushTokenAsync();
-      token = devicePush.data as string;
-    } catch (nativeErr) {
-      try {
-        const expoPush = await Notifications.getExpoPushTokenAsync();
-        token = expoPush.data;
-      } catch (expoErr) {
-        let simToken = await AsyncStorage.getItem(LOCAL_DEVICE_TOKEN_KEY);
-        if (!simToken) {
-          simToken = `sim_cust_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-          await AsyncStorage.setItem(LOCAL_DEVICE_TOKEN_KEY, simToken);
+      if (finalStatus === 'granted') {
+        try {
+          const devicePush = await Notifications.getDevicePushTokenAsync();
+          if (devicePush?.data && typeof devicePush.data === 'string' && devicePush.data.trim()) {
+            token = devicePush.data.trim();
+          }
+        } catch (nativeErr) {
+          try {
+            const expoPush = await Notifications.getExpoPushTokenAsync();
+            if (expoPush?.data && typeof expoPush.data === 'string' && expoPush.data.trim()) {
+              token = expoPush.data.trim();
+            }
+          } catch (expoErr) {
+            let simToken = await AsyncStorage.getItem(LOCAL_DEVICE_TOKEN_KEY);
+            if (!simToken) {
+              simToken = `sim_cust_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+              await AsyncStorage.setItem(LOCAL_DEVICE_TOKEN_KEY, simToken);
+            }
+            token = simToken;
+          }
         }
-        token = simToken;
       }
     }
   } catch (error) {
     console.warn('Customer push token registration error:', error);
   }
 
-  return token;
+  const resolvedToken =
+    token && typeof token === 'string' && token.trim().length > 0
+      ? token.trim()
+      : DUMMY_DEVICE_TOKEN;
+
+  try {
+    await Storage.setItem(STORAGE_KEYS.kDeviceToken, resolvedToken);
+    await AsyncStorage.setItem(LOCAL_DEVICE_TOKEN_KEY, resolvedToken);
+  } catch (e) {
+    console.warn('Failed to persist customer device token:', e);
+  }
+
+  return resolvedToken;
+}
+
+export async function getDeviceToken(): Promise<string> {
+  try {
+    const cached = await Storage.getItem(STORAGE_KEYS.kDeviceToken);
+    if (cached && typeof cached === 'string' && cached.trim().length > 0) {
+      return cached.trim();
+    }
+    const token = await registerForPushNotificationsAsync();
+    if (token && typeof token === 'string' && token.trim().length > 0) {
+      return token.trim();
+    }
+  } catch (err) {
+    console.warn('getDeviceToken error:', err);
+  }
+  return DUMMY_DEVICE_TOKEN;
 }
 
 export function addNotificationReceivedListener(

@@ -55,6 +55,7 @@ export function SettingsScreen({ navigation }: Props) {
       action: () =>
         (navigation as any).navigate("HomeTab", {
           screen: "ToolsAndEquipment",
+          params: { isFromSettings: true },
         }),
     },
     {

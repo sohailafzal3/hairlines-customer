@@ -50,19 +50,36 @@ export function WorkersListScreen({ navigation }: Props) {
     </Card>
   );
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("HomeTab");
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Header
         title="Team / Workers"
-        onMenuPress={() => navigation.openDrawer()}
+        onBackPress={handleBack}
         right={
-          <TouchableOpacity
-            onPress={() => navigation.navigate("CreateWorker")}
-            style={styles.addBtn}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("CreateWorker")}
+              style={styles.addBtn}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => navigation.openDrawer()}
+              hitSlop={10}
+              style={{ padding: 4 }}
+            >
+              <Ionicons name="menu" size={24} color={Colors.NavigationTitle} />
+            </TouchableOpacity>
+          </View>
         }
       />
       <FlatList

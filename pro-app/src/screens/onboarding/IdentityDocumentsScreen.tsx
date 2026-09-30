@@ -26,6 +26,7 @@ import { useUser } from "../../context/UserContext";
 import { Colors } from "../../theme/colors";
 import { FontSizes, FontWeights } from "../../theme/fonts";
 import { BorderRadius, Spacing } from "../../theme/spacing";
+import { navigationRef } from "../../navigation/navigationRef";
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, "IdentityDocuments">;
 
@@ -172,10 +173,12 @@ export function IdentityDocumentsScreen({ route, navigation }: Props) {
 
       if (isFromSettings) {
         showAlert("Success", "Your Documents has been updated.");
-        if (navigation.canGoBack()) {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate("Main", { screen: "Settings" } as any);
+        } else if (navigation.canGoBack()) {
           navigation.goBack();
         } else {
-          navigation.navigate("Certificates");
+          (navigation as any).navigate("Settings");
         }
       } else {
         navigation.navigate("BankingLanguages");
@@ -188,6 +191,16 @@ export function IdentityDocumentsScreen({ route, navigation }: Props) {
   };
 
   const handleBack = () => {
+    if (isFromSettings) {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate("Main", { screen: "Settings" } as any);
+      } else if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        (navigation as any).navigate("Settings");
+      }
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {

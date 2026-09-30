@@ -6,8 +6,19 @@ export const PaymentsApi = {
 
   fetchCustomer: () => apiClient.get<StripeCustomer>('stripe/customer'),
 
-  addCard: (paymentMethodID: string, isFromApplePay: boolean = false) =>
-    apiClient.post('stripe/card/add', { paymentMethodID, isFromApplePay }),
+  addCard: (
+    paymentMethod: string | { number: string; expMonth: number; expYear: number; cvc: string; name?: string; paymentMethodID?: string },
+    isFromApplePay: boolean = false
+  ) => {
+    if (typeof paymentMethod === 'string') {
+      return apiClient.post('stripe/card/add', { paymentMethodID: paymentMethod, isFromApplePay });
+    }
+    return apiClient.post('stripe/card/add', {
+      paymentMethodID: paymentMethod.paymentMethodID || `pm_tok_${Date.now()}`,
+      isFromApplePay,
+      ...paymentMethod,
+    });
+  },
 
   setDefaultCard: (cardId: string) =>
     apiClient.put('stripe/card/default', { cardId }),

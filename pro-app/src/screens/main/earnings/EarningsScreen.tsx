@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   ScrollView,
+  RefreshControl,
 } from "react-native";
 import { DrawerScreenProps } from "@react-navigation/drawer";
 import { Ionicons } from "@expo/vector-icons";
@@ -145,9 +146,12 @@ function getWeeksForMonth(year: number, month: number): MonthWeekItem[] {
 
 export function EarningsScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedWeek, setSelectedWeek] = useState<MonthWeekItem | null>(null);
   const [earnings, setEarnings] = useState<WeeklyEarnings | null>(null);
+
+  const [weeklyTransactions, setWeeklyTransactions] = useState<any[]>([]);
 
   const selectedYear = selectedDate.getFullYear();
   const selectedMonthIndex = selectedDate.getMonth();
@@ -158,19 +162,28 @@ export function EarningsScreen({ navigation }: Props) {
     return getWeeksForMonth(selectedYear, selectedMonthIndex);
   }, [selectedYear, selectedMonthIndex]);
 
-  const fetchWeekEarnings = async (week: MonthWeekItem) => {
+  const fetchWeekEarnings = async (week: MonthWeekItem, isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) setLoading(true);
       setSelectedWeek(week);
-      const res = await api.getEarnings(
-        String(week.weekNumber),
-        String(week.weekYear)
-      );
-      setEarnings(res);
+      const [earningRes, transRes] = await Promise.all([
+        api.getEarnings(String(week.weekNumber), String(week.weekYear)).catch(() => null),
+        api.getWeeklyTransactions(String(week.weekNumber), String(week.weekYear)).catch(() => ({ spJobsFound: [] })),
+      ]);
+      setEarnings(earningRes);
+      setWeeklyTransactions(transRes?.spJobsFound || []);
     } catch (e: any) {
-      showAlert("Error", e.message);
+      if (!isRefresh) showAlert("Error", e.message || "Failed to load weekly earnings");
     } finally {
       setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (selectedWeek) {
+      setRefreshing(true);
+      await fetchWeekEarnings(selectedWeek, true);
     }
   };
 
@@ -205,7 +218,11 @@ export function EarningsScreen({ navigation }: Props) {
   };
 
   const handleBack = () => {
-    navigation.navigate("Wallet");
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("HomeTab");
+    }
   };
 
   const dayEarnings = earnings?.weekDayEarnings || [];
@@ -384,9 +401,18 @@ export function EarningsScreen({ navigation }: Props) {
 
             {/* View Weekly Job Details Button */}
             <Button
-              title="View Weekly Job Details"
+              title={selectedWeek ? `View ${selectedWeek.title} Job History` : "View Weekly Job Details"}
               variant="secondary"
-              onPress={() => navigation.navigate("History")}
+              onPress={() => {
+                if (selectedWeek) {
+                  navigation.navigate("History", {
+                    weekNumber: String(selectedWeek.weekNumber),
+                    weekYear: String(selectedWeek.weekYear),
+                  });
+                } else {
+                  navigation.navigate("History");
+                }
+              }}
               style={styles.detailsBtn}
             />
 
@@ -458,6 +484,14 @@ export function EarningsScreen({ navigation }: Props) {
         }
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[Colors.ButtonPrimaryColor]}
+            tintColor={Colors.ButtonPrimaryColor}
+          />
+        }
         ListEmptyComponent={
           !loading ? (
             <EmptyState
@@ -467,7 +501,7 @@ export function EarningsScreen({ navigation }: Props) {
           ) : null
         }
       />
-      <LoadingOverlay visible={loading} />
+      <LoadingOverlay visible={loading && !refreshing} />
     </View>
   );
 }

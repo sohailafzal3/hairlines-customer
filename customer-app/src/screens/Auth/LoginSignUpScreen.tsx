@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,6 +17,7 @@ import { Spacing, BorderRadius } from '../../theme/spacing';
 import { Button, LoadingOverlay } from '../../components';
 import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
+import { getDeviceToken } from '../../services/notifications';
 import Toast from 'react-native-toast-message';
 
 type Props = {
@@ -30,12 +32,13 @@ const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
   const handleGuestLogin = async () => {
     try {
       setLoading(true);
-      const deviceToken = 'simulator-device-token';
+      const deviceToken = await getDeviceToken();
+      const deviceType = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
       const account = await AuthApi.signUpGuest({
         countryCode: '+1',
         phoneNumber: '',
         deviceToken,
-        deviceType: 'ios',
+        deviceType,
       });
       if (account) {
         Toast.show({

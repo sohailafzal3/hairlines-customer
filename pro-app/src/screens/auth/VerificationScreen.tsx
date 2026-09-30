@@ -123,6 +123,31 @@ export function VerificationScreen({ route, navigation }: Props) {
         isSignUp
       );
       if (account) {
+        account.phoneNumber = account.phoneNumber || phoneNumber;
+        account.countryCode = account.countryCode || countryCode || "+1";
+        account.phoneCode = account.phoneCode || countryCode || "+1";
+
+        if (!isSignUp) {
+          const raw = account as any;
+          const userObj = raw.userData || raw.user || raw;
+          const isExplicitlyIncomplete =
+            raw.isSignupCompleted === false ||
+            raw.isSignUpCompleted === false ||
+            userObj.isSignupCompleted === false ||
+            userObj.isSignUpCompleted === false ||
+            (typeof raw.signUpStepCompleted === "number" && raw.signUpStepCompleted >= 0 && raw.signUpStepCompleted < 7) ||
+            (typeof userObj.signUpStepCompleted === "number" && userObj.signUpStepCompleted >= 0 && userObj.signUpStepCompleted < 7) ||
+            (typeof raw.stepCompleted === "number" && raw.stepCompleted >= 0 && raw.stepCompleted < 7) ||
+            (typeof userObj.stepCompleted === "number" && userObj.stepCompleted >= 0 && userObj.stepCompleted < 7);
+
+          if (!isExplicitlyIncomplete) {
+            raw.isSignUpCompleted = true;
+            raw.isSignupCompleted = true;
+            if (raw.signUpStepCompleted === undefined && raw.stepCompleted === undefined) {
+              raw.signUpStepCompleted = 7;
+            }
+          }
+        }
         await setAccount(account, true);
       }
     } catch (error: any) {

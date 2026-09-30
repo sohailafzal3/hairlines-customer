@@ -23,6 +23,11 @@ import { Colors } from "../../../theme/colors";
 import { FontSizes, FontWeights } from "../../../theme/fonts";
 import { BorderRadius, Spacing } from "../../../theme/spacing";
 
+import { useUser } from "../../../context/UserContext";
+import { storage } from "../../../utils/storage";
+import { StorageKeys } from "../../../constants";
+import { navigationRef } from "../../../navigation/navigationRef";
+
 type Props = NativeStackScreenProps<HomeTabParamList, "ToolsAndEquipment">;
 
 const PRESET_TOOLS = [
@@ -42,22 +47,44 @@ const PRESET_TOOLS = [
   "Rubber Gloves",
 ];
 
-export function ToolsAndEquipmentScreen({ navigation }: Props) {
+export function ToolsAndEquipmentScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { user, updateUser } = useUser();
+  const isFromSettings = (route.params as any)?.isFromSettings;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [tools, setTools] = useState<string[]>([]);
+  const [tools, setTools] = useState<string[]>(user.tools || []);
   const [newTool, setNewTool] = useState("");
 
-  useEffect(() => {
-    api
-      .fetchTools()
-      .then((res) => {
-        const fetched = res.tools ?? [];
+  const loadTools = async () => {
+    try {
+      setLoading(true);
+      const res = await api.fetchTools();
+      const fetched = res?.tools ?? [];
+      if (fetched.length > 0) {
         setTools(fetched);
-      })
-      .catch((e) => showAlert("Error", e.message))
-      .finally(() => setLoading(false));
+        await updateUser({ tools: fetched });
+        await storage.set(StorageKeys.userTools, fetched);
+      } else if (user.tools && user.tools.length > 0) {
+        setTools(user.tools);
+      } else {
+        const localSaved = await storage.get<string[]>(StorageKeys.userTools);
+        if (localSaved && localSaved.length > 0) {
+          setTools(localSaved);
+          await updateUser({ tools: localSaved });
+        }
+      }
+    } catch (e: any) {
+      if (user.tools && user.tools.length > 0) {
+        setTools(user.tools);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTools();
   }, []);
 
   const addCustomTool = () => {
@@ -84,15 +111,54 @@ export function ToolsAndEquipmentScreen({ navigation }: Props) {
   };
 
   const save = async () => {
+    let finalTools = [...tools];
+    const pending = newTool.trim();
+    if (pending && !finalTools.some((t) => t.toLowerCase() === pending.toLowerCase())) {
+      finalTools = [pending, ...finalTools];
+      setTools(finalTools);
+      setNewTool("");
+    }
+
+    if (finalTools.length === 0) {
+      showAlert("Required", "Please add at least one tool or piece of equipment.");
+      return;
+    }
+
     try {
       setSaving(true);
-      await api.updateTools(tools);
-      showAlert("Success", "Your tools and equipment list has been updated.");
-      navigation.goBack();
+      await api.updateTools(finalTools);
+      await updateUser({ tools: finalTools });
+      await storage.set(StorageKeys.userTools, finalTools);
+      showAlert("Success", "Tools & Equipment updated successfully!");
+      if (isFromSettings) {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate("Main", { screen: "Settings" } as any);
+        } else {
+          (navigation as any).navigate("Settings");
+        }
+      } else if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate("HomeMap");
+      }
     } catch (e: any) {
-      showAlert("Error", e.message);
+      showAlert("Error", e.message || "Failed to update tools");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleBack = () => {
+    if (isFromSettings) {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate("Main", { screen: "Settings" } as any);
+      } else {
+        (navigation as any).navigate("Settings");
+      }
+    } else if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("HomeMap");
     }
   };
 
@@ -100,20 +166,23 @@ export function ToolsAndEquipmentScreen({ navigation }: Props) {
     <View style={styles.container}>
       <Header
         title="Tools & Equipment"
-        onBackPress={() => navigation.goBack()}
+        onBackPress={handleBack}
       />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <ScrollView
+          style={{ flex: 1 }}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: insets.bottom + 80 },
+            { paddingBottom: Spacing.xl },
           ]}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="none"
+          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
         >
           {/* Header Description Card */}
           <View style={styles.descCard}>
@@ -238,21 +307,20 @@ export function ToolsAndEquipmentScreen({ navigation }: Props) {
             )}
           </View>
         </ScrollView>
+        {/* Action Button */}
+        <View
+          style={[
+            styles.footerWrap,
+            { paddingBottom: Math.max(insets.bottom, 16) },
+          ]}
+        >
+          <Button
+            title={`Save Equipment List (${tools.length})`}
+            onPress={save}
+            style={styles.saveBtn}
+          />
+        </View>
       </KeyboardAvoidingView>
-
-      {/* Pinned Bottom Save Button */}
-      <View
-        style={[
-          styles.footerWrap,
-          { paddingBottom: Math.max(insets.bottom, 16) },
-        ]}
-      >
-        <Button
-          title={`Save Equipment List (${tools.length})`}
-          onPress={save}
-          style={styles.saveBtn}
-        />
-      </View>
 
       <LoadingOverlay visible={loading || saving} />
     </View>
@@ -434,10 +502,6 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   footerWrap: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: Spacing.base,
     paddingTop: 12,

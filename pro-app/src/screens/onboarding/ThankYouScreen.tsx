@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
@@ -6,6 +6,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { OnboardingStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
 import { useUser } from "../../context/UserContext";
+import { navigationRef } from "../../navigation/navigationRef";
 import { Colors } from "../../theme/colors";
 import { FontSizes, FontWeights } from "../../theme/fonts";
 import { BorderRadius, Spacing } from "../../theme/spacing";
@@ -14,10 +15,31 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, "ThankYou">;
 
 export function ThankYouScreen({ navigation }: Props) {
   const { t } = useTranslation();
-  const { updateUser } = useUser();
+  const { updateUser, setLoggedIn } = useUser();
+  const [submitting, setSubmitting] = useState(false);
 
   const finish = async () => {
-    await updateUser({ isSignUpCompleted: true });
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await updateUser({
+        isSignUpCompleted: true,
+        signUpStepCompleted: 7,
+        isLoggedIn: true,
+      });
+      await setLoggedIn(true);
+
+      if (navigationRef.isReady()) {
+        navigationRef.reset({
+          index: 0,
+          routes: [{ name: "Main" as never }],
+        });
+      }
+    } catch (err) {
+      console.warn("ThankYou finish error:", err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -33,8 +55,9 @@ export function ThankYouScreen({ navigation }: Props) {
         Your profile details, services, pricing, and availability have been saved. You can now start managing appointments and explore your partner dashboard.
       </Text>
       <Button
-        title="Got It"
+        title="Start Exploring"
         onPress={finish}
+        loading={submitting}
         style={styles.button}
       />
     </View>

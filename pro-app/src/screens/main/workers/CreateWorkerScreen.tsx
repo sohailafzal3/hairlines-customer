@@ -42,19 +42,28 @@ export function CreateWorkerScreen({ navigation }: Props) {
   };
 
   const submit = async () => {
-    if (!name || !phone) {
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (!name.trim() || !cleanPhone) {
       showAlert("Error", "Name and phone are required");
+      return;
+    }
+    if (cleanPhone.length !== 10) {
+      showAlert("Invalid Phone", "Please enter a valid 10-digit phone number.");
       return;
     }
     try {
       setLoading(true);
       await api.sendInviteToMover({
-        name,
-        email,
-        phoneNumber: phone,
+        name: name.trim(),
+        email: email.trim(),
+        phoneNumber: cleanPhone,
         services: Array.from(selected),
       });
-      navigation.goBack();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate("Workers");
+      }
     } catch (e: any) {
       showAlert("Error", e.message);
     } finally {
@@ -62,9 +71,17 @@ export function CreateWorkerScreen({ navigation }: Props) {
     }
   };
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("Workers");
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Header title="Invite Worker" onBackPress={() => navigation.goBack()} />
+      <Header title="Invite Worker" onBackPress={handleBack} />
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -78,7 +95,14 @@ export function CreateWorkerScreen({ navigation }: Props) {
           <Text style={styles.cardTitle}>Worker Information</Text>
           <Input label="Full Name" placeholder="e.g. Alex Johnson" value={name} onChangeText={setName} />
           <Input label="Email Address" placeholder="alex@example.com" value={email} onChangeText={setEmail} keyboardType="email-address" />
-          <Input label="Phone Number" placeholder="512345678" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+          <Input
+            label="Phone Number"
+            placeholder="Phone Number (10 digits)"
+            value={phone}
+            onChangeText={(t) => setPhone(t.replace(/\D/g, "").slice(0, 10))}
+            keyboardType="number-pad"
+            maxLength={10}
+          />
         </View>
 
         <Text style={styles.section}>ASSIGN SERVICES</Text>

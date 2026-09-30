@@ -21,7 +21,7 @@ import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
 import { Storage } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../constants';
-
+import { getDeviceToken } from '../../services/notifications';
 import Toast from 'react-native-toast-message';
 
 type Props = {
@@ -124,7 +124,8 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
 
     setLoading(true);
     try {
-      const deviceToken = 'simulator-device-token';
+      const deviceToken = await getDeviceToken();
+      const deviceType = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
 
       if (isSignUp) {
         const account = await AuthApi.verifyCode({
@@ -132,7 +133,7 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
           phoneNumber,
           code: fullCode,
           deviceToken,
-          deviceType: 'ios',
+          deviceType,
         });
         if (account) {
           if (account.isSignUpCompleted) {
@@ -153,7 +154,7 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
           phoneNumber,
           code: fullCode,
           deviceToken,
-          deviceType: 'ios',
+          deviceType,
         });
         if (account) {
           Toast.show({

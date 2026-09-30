@@ -21,6 +21,7 @@ import { Spacing, BorderRadius } from '../../theme/spacing';
 import { Button, Input, LoadingOverlay } from '../../components';
 import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
+import { getDeviceToken } from '../../services/notifications';
 import Toast from 'react-native-toast-message';
 
 type Props = {
@@ -50,20 +51,35 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [route.params]);
 
   const handleSubmit = async () => {
-    if (!phoneNumber.trim()) return;
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    if (!cleanPhone) {
+      setErrorMsg('Please enter your mobile phone number');
+      return;
+    }
+
+    if (cleanPhone.length !== 10) {
+      const msg = 'Phone number must be exactly 10 digits';
+      setErrorMsg(msg);
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid Phone Number',
+        text2: msg,
+      });
+      return;
+    }
 
     setErrorMsg('');
     setLoading(true);
     try {
-        const deviceToken = "88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9";
-        const deviceType = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
+      const deviceToken = await getDeviceToken();
+      const deviceType = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
 
       if (isForgotPassword) {
         const res: any = await AuthApi.forgotPassword({
           countryCode,
           phoneNumber,
           deviceToken,
-          deviceType: deviceType,
+          deviceType,
         });
         const verificationCode = res?.verificationCode ? String(res?.verificationCode) : '';
         Toast.show({
@@ -98,7 +114,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
           phoneNumber,
           password,
           deviceToken,
-          deviceType: 'ios',
+          deviceType,
         });
         if (account) {
           Toast.show({
@@ -208,11 +224,12 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
                 {/* Phone Input Field */}
                 <View style={styles.phoneInputFlex}>
                   <TextInput
-                    placeholder="Phone Number"
+                    placeholder="10-digit number"
                     placeholderTextColor={Colors.placeholderGray}
                     value={phoneNumber}
-                    onChangeText={setPhoneNumber}
+                    onChangeText={(text) => setPhoneNumber(text.replace(/[^0-9]/g, '').slice(0, 10))}
                     keyboardType="phone-pad"
+                    maxLength={10}
                     style={styles.phoneInputText}
                   />
                 </View>

@@ -27,6 +27,7 @@ import { useUser } from "../../context/UserContext";
 import { Colors } from "../../theme/colors";
 import { FontSizes, FontWeights } from "../../theme/fonts";
 import { BorderRadius, Spacing } from "../../theme/spacing";
+import { navigationRef } from "../../navigation/navigationRef";
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, "Certificates">;
 
@@ -209,10 +210,12 @@ export function CertificatesScreen({ route, navigation }: Props) {
           "Success",
           "Service certificate has been updated successfully."
         );
-        if (navigation.canGoBack()) {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate("Main", { screen: "Settings" } as any);
+        } else if (navigation.canGoBack()) {
           navigation.goBack();
         } else {
-          navigation.navigate("Services");
+          (navigation as any).navigate("Settings");
         }
       } else {
         navigation.navigate("IdentityDocuments");
@@ -225,6 +228,16 @@ export function CertificatesScreen({ route, navigation }: Props) {
   };
 
   const handleBack = () => {
+    if (isFromSettings) {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate("Main", { screen: "Settings" } as any);
+      } else if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        (navigation as any).navigate("Settings");
+      }
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {

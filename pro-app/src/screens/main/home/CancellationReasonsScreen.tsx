@@ -41,9 +41,17 @@ export function CancellationReasonsScreen({ route, navigation }: Props) {
     }
   };
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("HomeMap");
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Header title="Cancel Job" onBackPress={() => navigation.goBack()} />
+      <Header title="Cancel Job" onBackPress={handleBack} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Why are you cancelling?</Text>
         {reasons.map((r) => (

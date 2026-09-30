@@ -22,7 +22,7 @@ export type OnboardingStackParamList = {
   ServicesFor: { isFromSettings?: boolean } | undefined;
   Certificates: { isFromSettings?: boolean } | undefined;
   IdentityDocuments: { isFromSettings?: boolean } | undefined;
-  BankingLanguages: { isFromSettings?: boolean } | undefined;
+  BankingLanguages: { isFromSettings?: boolean; returnScreen?: "Settings" | "Wallet" } | undefined;
   Availability: { isFromSettings?: boolean } | undefined;
   ThankYou: undefined;
   SetLocation: { currentFormData?: any } | undefined;
@@ -40,7 +40,7 @@ export type MainDrawerParamList = {
   Support: undefined;
   Workers: undefined;
   CreateWorker: undefined;
-  History: undefined;
+  History: { weekNumber?: string; weekYear?: string } | undefined;
 };
 
 export type HomeTabParamList = {
@@ -52,7 +52,7 @@ export type HomeTabParamList = {
   Chat: { jobId: string; receiverId?: string; title?: string };
   VoiceCall: { callSid?: string; phoneNumber?: string };
   ServicesSelection: { jobId?: string };
-  ToolsAndEquipment: undefined;
+  ToolsAndEquipment: { isFromSettings?: boolean } | undefined;
   RateUser: { jobId: string; userProfileId: string; name?: string; image?: string };
 };
 

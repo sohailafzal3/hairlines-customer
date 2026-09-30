@@ -67,9 +67,17 @@ export function ChatScreen({ route, navigation }: Props) {
   );
 
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("HomeMap");
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Header title={title || t("job:chat")} onBackPress={() => navigation.goBack()} />
+      <Header title={title || t("job:chat")} onBackPress={handleBack} />
       <GiftedChat
         messages={messages}
         onSend={onSend}

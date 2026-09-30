@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,9 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  findNodeHandle,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { OnboardingStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
@@ -22,6 +27,9 @@ import { useUser } from "../../context/UserContext";
 import { Colors } from "../../theme/colors";
 import { FontSizes, FontWeights } from "../../theme/fonts";
 import { BorderRadius, Spacing } from "../../theme/spacing";
+import { navigationRef } from "../../navigation/navigationRef";
+import { storage } from "../../utils/storage";
+import { StorageKeys } from "../../constants";
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, "Services">;
 
@@ -36,10 +44,30 @@ export function ServicesScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useUser();
+  const scrollViewRef = useRef<ScrollView>(null);
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedMap, setSelectedMap] = useState<Record<string, SelectedServiceItem>>({});
   const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set());
+
+  const handleInputFocus = (event: any) => {
+    if (Platform.OS === "web") {
+      try {
+        event.target?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+      } catch {}
+      return;
+    }
+    try {
+      const reactNode = findNodeHandle(event.target);
+      if (reactNode && scrollViewRef.current) {
+        (scrollViewRef.current as any)?.getScrollResponder?.()?.scrollNativeHandleToKeyboard?.(
+          reactNode,
+          150,
+          true
+        );
+      }
+    } catch {}
+  };
 
   const isFromSettings =
     route.params?.isFromSettings || user.isSignUpCompleted;
@@ -131,139 +159,189 @@ export function ServicesScreen({ route, navigation }: Props) {
     },
   ];
 
-  useEffect(() => {
-    // Helper to extract list from any backend response structure
-    const extractList = (res: any): any[] => {
-      if (!res) return [];
-      if (Array.isArray(res)) return res;
-      if (Array.isArray(res.servicesList)) return res.servicesList;
-      if (Array.isArray(res.services)) return res.services;
-      if (Array.isArray(res.data?.servicesList)) return res.data.servicesList;
-      if (Array.isArray(res.data?.services)) return res.data.services;
-      if (Array.isArray(res.data)) return res.data;
-      return [];
-    };
+  const userServicesKey = user.id
+    ? `${StorageKeys.userServices}_${user.id}`
+    : StorageKeys.userServices;
 
-    // Try multiple endpoints to retrieve services
-    const loadServices = async () => {
-      try {
-        setLoading(true);
-        let fetchedList: any[] = [];
+  const loadServices = useCallback(async () => {
+    try {
+      setLoading(true);
 
-        // 1. Try sp/all-services (Primary endpoint used by iOS app)
+      // 1. If editing from Settings (existing provider), load cached selected services & prices
+      let cachedMap: Record<string, SelectedServiceItem> = {};
+      if (isFromSettings) {
         try {
-          const res0 = await api.getAllServices();
-          const list = extractList(res0);
+          const savedMap = await storage.get<Record<string, SelectedServiceItem>>(
+            userServicesKey
+          );
+          if (savedMap && typeof savedMap === "object" && Object.keys(savedMap).length > 0) {
+            cachedMap = savedMap;
+            setSelectedMap(savedMap);
+          }
+        } catch {}
+      } else {
+        // Fresh onboarding: start with empty selectedMap so previous user's custom rates are never inherited
+        setSelectedMap({});
+      }
+
+      // Helper to extract list from any backend response structure
+      const extractList = (res: any): any[] => {
+        if (!res) return [];
+        if (Array.isArray(res)) return res;
+        if (Array.isArray(res.servicesList)) return res.servicesList;
+        if (Array.isArray(res.services)) return res.services;
+        if (Array.isArray(res.data?.servicesList)) return res.data.servicesList;
+        if (Array.isArray(res.data?.services)) return res.data.services;
+        if (Array.isArray(res.data)) return res.data;
+        return [];
+      };
+
+      let fetchedList: any[] = [];
+
+      // 1. Try sp/all-services (Primary endpoint used by iOS app)
+      try {
+        const res0 = await api.getAllServices();
+        const list = extractList(res0);
+        if (list.length > 0) {
+          fetchedList = list;
+        }
+      } catch (err) {
+        console.log("Failed to fetch all services:", err);
+      }
+
+      // 2. Try sp/services/list
+      if (fetchedList.length === 0) {
+        try {
+          const res1 = await api.getServicesList();
+          const list = extractList(res1);
           if (list.length > 0) {
             fetchedList = list;
           }
-        } catch (err) {
-          console.log("Failed to fetch all services:", err);
-        }
+        } catch (err) {}
+      }
 
-        // 2. Try sp/services/list
-        if (fetchedList.length === 0) {
-          try {
-            const res1 = await api.getServicesList();
-            const list = extractList(res1);
-            if (list.length > 0) {
-              fetchedList = list;
+      // 3. Try sp/services
+      if (fetchedList.length === 0) {
+        try {
+          const res2 = await api.getSPServices();
+          const list = extractList(res2);
+          if (list.length > 0) {
+            fetchedList = list;
+          }
+        } catch (err) {}
+      }
+
+      // 4. Try fetch all services
+      if (fetchedList.length === 0) {
+        try {
+          const res3 = await api.fetchAllServices();
+          const list = extractList(res3);
+          if (list.length > 0) {
+            fetchedList = list;
+          }
+        } catch (err) {}
+      }
+
+      // 5. Try merchant services
+      if (fetchedList.length === 0) {
+        try {
+          const res4 = await api.getMerchantServices();
+          const list = extractList(res4);
+          if (list.length > 0) {
+            fetchedList = list;
+          }
+        } catch (err) {}
+      }
+
+      // Normalize service structure (handle various backend field names)
+      const rawList = fetchedList.length > 0 ? fetchedList : DEFAULT_CATALOG;
+      const initialMap: Record<string, SelectedServiceItem> = { ...cachedMap };
+
+      const normalized: Service[] = await Promise.all(
+        rawList.map(async (item: any, idx: number) => {
+          const serviceId = String(item._id || item.id || `srv_${idx}`);
+          const sName = String(item.serviceName || item.name || item.title || "Service Category");
+          let subDetails: any[] = [];
+
+          if (Array.isArray(item.subService) && item.subService.length > 0) {
+            subDetails = item.subService;
+          } else if (Array.isArray(item.subServiceDetails) && item.subServiceDetails.length > 0) {
+            subDetails = item.subServiceDetails;
+          } else if (Array.isArray(item.subServices) && item.subServices.length > 0) {
+            subDetails = item.subServices;
+          } else if (Array.isArray(item.subServiceList) && item.subServiceList.length > 0) {
+            subDetails = item.subServiceList;
+          } else if (fetchedList.length > 0 && item._id && !item._id.startsWith("cat_") && !item._id.startsWith("srv_")) {
+            // If from Settings, try fetching provider's already selected subservices with custom pricing
+            if (isFromSettings) {
+              try {
+                const selectedSubRes = await api.getSubServicesAndPlans(item._id);
+                const selectedList = extractList(selectedSubRes) || (selectedSubRes as any)?.subServices || [];
+                if (Array.isArray(selectedList) && selectedList.length > 0) {
+                  subDetails = selectedList;
+                }
+              } catch {}
             }
-          } catch (err) {}
-        }
 
-        // 3. Try sp/services
-        if (fetchedList.length === 0) {
-          try {
-            const res2 = await api.getSPServices();
-            const list = extractList(res2);
-            if (list.length > 0) {
-              fetchedList = list;
-            }
-          } catch (err) {}
-        }
-
-        // 4. Try fetch all services
-        if (fetchedList.length === 0) {
-          try {
-            const res3 = await api.fetchAllServices();
-            const list = extractList(res3);
-            if (list.length > 0) {
-              fetchedList = list;
-            }
-          } catch (err) {}
-        }
-
-        // 5. Try merchant services
-        if (fetchedList.length === 0) {
-          try {
-            const res4 = await api.getMerchantServices();
-            const list = extractList(res4);
-            if (list.length > 0) {
-              fetchedList = list;
-            }
-          } catch (err) {}
-        }
-
-        // Normalize service structure (handle various backend field names)
-        const rawList = fetchedList.length > 0 ? fetchedList : DEFAULT_CATALOG;
-        const normalized: Service[] = await Promise.all(
-          rawList.map(async (item: any, idx: number) => {
-            const serviceId = String(item._id || item.id || `srv_${idx}`);
-            const sName = String(item.serviceName || item.name || item.title || "Service Category");
-            let subDetails: any[] = [];
-
-            if (Array.isArray(item.subService) && item.subService.length > 0) {
-              subDetails = item.subService;
-            } else if (Array.isArray(item.subServiceDetails) && item.subServiceDetails.length > 0) {
-              subDetails = item.subServiceDetails;
-            } else if (Array.isArray(item.subServices) && item.subServices.length > 0) {
-              subDetails = item.subServices;
-            } else if (Array.isArray(item.subServiceList) && item.subServiceList.length > 0) {
-              subDetails = item.subServiceList;
-            } else if (fetchedList.length > 0 && item._id && !item._id.startsWith("cat_") && !item._id.startsWith("srv_")) {
-              // Try fetching subservices for this specific service ID if not embedded
+            // If empty or fresh onboarding, fetch general default subservices catalog
+            if (subDetails.length === 0) {
               try {
                 const subRes = await api.getSubServicesByServiceId(item._id);
                 const subList = extractList(subRes) || (subRes as any)?.subServices || [];
                 if (Array.isArray(subList) && subList.length > 0) {
                   subDetails = subList;
                 }
-              } catch (subErr) {
-                console.log("Error loading subservices for", item._id, subErr);
+              } catch {}
+            }
+          }
+
+          const cleanSubs: SubServiceDetail[] = subDetails.map((sub: any, subIdx: number) => {
+            const subId = String(sub._id || sub.id || sub.subServiceId || `${serviceId}_sub_${subIdx}`);
+            const subName = String(sub.subServiceName || sub.name || sub.title || "Service Option");
+            const key = `${serviceId}_${subId}`;
+
+            const chargeVal = sub.subServiceCharges || sub.charges || sub.hourlyRate || sub.price;
+            if (chargeVal !== undefined && chargeVal !== null && Number(chargeVal) > 0) {
+              if (!initialMap[key]) {
+                initialMap[key] = {
+                  serviceId,
+                  subServiceId: subId,
+                  name: subName,
+                  price: String(chargeVal),
+                };
               }
             }
 
-            const cleanSubs: SubServiceDetail[] = subDetails.map((sub: any, subIdx: number) => ({
-              _id: String(sub._id || sub.id || sub.subServiceId || `${serviceId}_sub_${subIdx}`),
-              subServiceName: String(sub.subServiceName || sub.name || sub.title || "Service Option"),
-              subServiceDescription: sub.subServiceDescription || sub.description || "",
-              subServiceCharges: Number(sub.subServiceCharges || sub.charges || sub.hourlyRate || sub.price || 30),
-              serviceId: String(sub.serviceId || serviceId),
-            }));
-
             return {
-              _id: serviceId,
-              serviceName: sName,
-              serviceDescription: item.serviceDescription || "",
-              subServiceDetails: cleanSubs,
+              _id: subId,
+              subServiceName: subName,
+              subServiceDescription: sub.subServiceDescription || sub.description || "",
+              subServiceCharges: Number(chargeVal || 30),
+              serviceId: String(sub.serviceId || serviceId),
             };
-          })
-        );
+          });
 
-        setServices(normalized);
+          return {
+            _id: serviceId,
+            serviceName: sName,
+            serviceDescription: item.serviceDescription || "",
+            subServiceDetails: cleanSubs,
+          };
+        })
+      );
 
-        // Expand first service category by default
-        if (normalized.length > 0 && normalized[0]._id) {
-          setExpandedServices(new Set([normalized[0]._id]));
-        }
+      setServices(normalized);
 
-        // Try to pre-load previously saved services
+      if (normalized.length > 0 && normalized[0]._id) {
+        setExpandedServices(new Set([normalized[0]._id]));
+      }
+
+      // Pre-load from company selected services only if from Settings
+      if (isFromSettings) {
         try {
           const prevSaved = await api.getCompanySelectedServices();
           const prevList = extractList(prevSaved) || (prevSaved as any)?.selectedServices || [];
           if (Array.isArray(prevList) && prevList.length > 0) {
-            const initialMap: Record<string, SelectedServiceItem> = {};
             prevList.forEach((s: any) => {
               const sId = String(s.serviceId || s._id || "");
               if (Array.isArray(s.subServices) && s.subServices.length > 0) {
@@ -278,34 +356,29 @@ export function ServicesScreen({ route, navigation }: Props) {
                     };
                   }
                 });
-              } else {
-                const subId = String(s.subServiceId || s._id || "");
-                if (sId && subId) {
-                  initialMap[`${sId}_${subId}`] = {
-                    serviceId: sId,
-                    subServiceId: subId,
-                    name: String(s.serviceName || s.subServiceName || s.name || "Service"),
-                    price: String(s.serviceCharges || s.hourlyRate || s.price || 25),
-                  };
-                }
               }
             });
-            if (Object.keys(initialMap).length > 0) {
-              setSelectedMap(initialMap);
-            }
           }
-        } catch (pErr) {}
-      } catch (e: any) {
-        console.warn("Failed to load services, falling back to default catalog:", e.message);
-        setServices(DEFAULT_CATALOG);
-        setExpandedServices(new Set([DEFAULT_CATALOG[0]._id!]));
-      } finally {
-        setLoading(false);
+        } catch {}
       }
-    };
 
-    loadServices();
+      if (Object.keys(initialMap).length > 0) {
+        setSelectedMap(initialMap);
+      }
+    } catch (e: any) {
+      console.warn("Failed to load services, falling back to default catalog:", e.message);
+      setServices(DEFAULT_CATALOG);
+      setExpandedServices(new Set([DEFAULT_CATALOG[0]._id!]));
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadServices();
+    }, [loadServices])
+  );
 
   const toggleExpand = (serviceId: string) => {
     setExpandedServices((prev) => {
@@ -339,18 +412,22 @@ export function ServicesScreen({ route, navigation }: Props) {
     });
   };
 
-  const updatePrice = (serviceId: string, subServiceId: string, priceText: string) => {
+  const updatePrice = (
+    serviceId: string,
+    subServiceId: string,
+    priceText: string,
+    name?: string
+  ) => {
     const key = `${serviceId}_${subServiceId}`;
-    setSelectedMap((prev) => {
-      if (!prev[key]) return prev;
-      return {
-        ...prev,
-        [key]: {
-          ...prev[key],
-          price: priceText,
-        },
-      };
-    });
+    setSelectedMap((prev) => ({
+      ...prev,
+      [key]: {
+        serviceId,
+        subServiceId,
+        name: prev[key]?.name || name || "Service",
+        price: priceText,
+      },
+    }));
   };
 
   const submit = async () => {
@@ -414,13 +491,17 @@ export function ServicesScreen({ route, navigation }: Props) {
       };
 
       await api.selectServices(payload);
+      await storage.set(userServicesKey, selectedMap);
+      await storage.set(StorageKeys.userServices, selectedMap);
 
       if (isFromSettings) {
         showAlert("Success", "Your services and pricing have been updated.");
-        if (navigation.canGoBack()) {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate("Main", { screen: "Settings" } as any);
+        } else if (navigation.canGoBack()) {
           navigation.goBack();
         } else {
-          navigation.navigate("ServicesFor");
+          (navigation as any).navigate("Settings");
         }
       } else {
         navigation.navigate("Certificates");
@@ -433,6 +514,16 @@ export function ServicesScreen({ route, navigation }: Props) {
   };
 
   const handleBack = () => {
+    if (isFromSettings) {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate("Main", { screen: "Settings" } as any);
+      } else if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        (navigation as any).navigate("Settings");
+      }
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
@@ -445,199 +536,227 @@ export function ServicesScreen({ route, navigation }: Props) {
   return (
     <View style={styles.container}>
       <Header title="Select Services" onBackPress={handleBack} />
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: Math.max(insets.bottom + 32, 48) },
-        ]}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
-        <LoadingOverlay visible={loading} />
+        <ScrollView
+          ref={scrollViewRef}
+          style={{ flex: 1 }}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: Spacing.xl },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="none"
+          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+        >
+          <LoadingOverlay visible={loading} />
 
-        <Text style={styles.headerTitle}>Customize Your Offerings</Text>
-        <Text style={styles.headerSubtitle}>
-          Select the services you offer and customize your price ($) for each service.
-        </Text>
+          <Text style={styles.headerTitle}>Customize Your Offerings</Text>
+          <Text style={styles.headerSubtitle}>
+            Select the services you offer and customize your price ($) for each service.
+          </Text>
 
-        <View style={styles.servicesList}>
-          {services.map((service) => {
-            const serviceId = service._id || "";
-            const isExpanded = expandedServices.has(serviceId);
-            const subServices = service.subServiceDetails || [];
+          <View style={styles.servicesList}>
+            {services.map((service) => {
+              const serviceId = service._id || "";
+              const isExpanded = expandedServices.has(serviceId);
+              const subServices = service.subServiceDetails || [];
 
-            return (
-              <View key={serviceId} style={styles.serviceCategoryCard}>
-                <TouchableOpacity
-                  style={styles.serviceHeaderRow}
-                  onPress={() => toggleExpand(serviceId)}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.serviceHeaderLeft}>
+              return (
+                <View key={serviceId} style={styles.serviceCategoryCard}>
+                  <TouchableOpacity
+                    style={styles.serviceHeaderRow}
+                    onPress={() => toggleExpand(serviceId)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.serviceHeaderLeft}>
+                      <Ionicons
+                        name="layers-outline"
+                        size={20}
+                        color={Colors.ButtonPrimaryColor}
+                        style={{ marginRight: 10 }}
+                      />
+                      <Text style={styles.serviceCategoryTitle}>{service.serviceName}</Text>
+                    </View>
                     <Ionicons
-                      name="layers-outline"
+                      name={isExpanded ? "chevron-up" : "chevron-down"}
                       size={20}
-                      color={Colors.ButtonPrimaryColor}
-                      style={{ marginRight: 10 }}
+                      color="#64748B"
                     />
-                    <Text style={styles.serviceCategoryTitle}>{service.serviceName}</Text>
-                  </View>
-                  <Ionicons
-                    name={isExpanded ? "chevron-up" : "chevron-down"}
-                    size={20}
-                    color="#64748B"
-                  />
-                </TouchableOpacity>
+                  </TouchableOpacity>
 
-                {isExpanded && (
-                  <View style={styles.subServicesContainer}>
-                    {subServices.length === 0 ? (
-                      // Single standalone service
-                      (() => {
-                        const key = `${serviceId}_${serviceId}`;
-                        const isSelected = !!selectedMap[key];
-                        const item = selectedMap[key];
+                  {isExpanded && (
+                    <View style={styles.subServicesContainer}>
+                      {subServices.length === 0 ? (
+                        // Single standalone service
+                        (() => {
+                          const key = `${serviceId}_${serviceId}`;
+                          const isSelected = !!selectedMap[key];
+                          const item = selectedMap[key];
 
-                        return (
-                          <View style={styles.subServiceItem}>
-                            <TouchableOpacity
-                              style={styles.subServiceSelectRow}
-                              onPress={() =>
-                                toggleSubService(
-                                  serviceId,
-                                  serviceId,
-                                  service.serviceName || "Service",
-                                  "25.00"
-                                )
-                              }
-                              activeOpacity={0.8}
-                            >
-                              <Ionicons
-                                name={isSelected ? "checkbox" : "square-outline"}
-                                size={22}
-                                color={isSelected ? Colors.ButtonPrimaryColor : "#94A3B8"}
-                                style={{ marginRight: 10 }}
-                              />
-                              <Text
-                                style={[
-                                  styles.subServiceName,
-                                  isSelected && styles.subServiceNameSelected,
-                                ]}
+                          return (
+                            <View style={styles.subServiceItem}>
+                              <TouchableOpacity
+                                style={styles.subServiceSelectRow}
+                                onPress={() =>
+                                  toggleSubService(
+                                    serviceId,
+                                    serviceId,
+                                    service.serviceName || "Service",
+                                    "25.00"
+                                  )
+                                }
+                                activeOpacity={0.8}
                               >
-                                {service.serviceName}
-                              </Text>
-                            </TouchableOpacity>
-
-                            {isSelected && (
-                              <View style={styles.priceInputRow}>
-                                <Text style={styles.priceLabel}>Your Price ($):</Text>
-                                <View style={styles.dollarInputWrap}>
-                                  <Text style={styles.dollarSymbol}>$</Text>
-                                  <TextInput
-                                    style={styles.priceTextInput}
-                                    keyboardType="decimal-pad"
-                                    value={item?.price || ""}
-                                    onChangeText={(val) =>
-                                      updatePrice(serviceId, serviceId, val)
-                                    }
-                                    placeholder="25.00"
-                                    placeholderTextColor="#94A3B8"
-                                  />
-                                </View>
-                              </View>
-                            )}
-                          </View>
-                        );
-                      })()
-                    ) : (
-                      subServices.map((sub: SubServiceDetail) => {
-                        const subId = sub._id || "";
-                        const key = `${serviceId}_${subId}`;
-                        const isSelected = !!selectedMap[key];
-                        const item = selectedMap[key];
-
-                        return (
-                          <View key={subId} style={styles.subServiceItem}>
-                            <TouchableOpacity
-                              style={styles.subServiceSelectRow}
-                              onPress={() =>
-                                toggleSubService(
-                                  serviceId,
-                                  subId,
-                                  sub.subServiceName || "Service",
-                                  "30.00"
-                                )
-                              }
-                              activeOpacity={0.8}
-                            >
-                              <Ionicons
-                                name={isSelected ? "checkbox" : "square-outline"}
-                                size={22}
-                                color={isSelected ? Colors.ButtonPrimaryColor : "#94A3B8"}
-                                style={{ marginRight: 10 }}
-                              />
-                              <View style={{ flex: 1 }}>
+                                <Ionicons
+                                  name={isSelected ? "checkbox" : "square-outline"}
+                                  size={22}
+                                  color={isSelected ? Colors.ButtonPrimaryColor : "#94A3B8"}
+                                  style={{ marginRight: 10 }}
+                                />
                                 <Text
                                   style={[
                                     styles.subServiceName,
                                     isSelected && styles.subServiceNameSelected,
                                   ]}
                                 >
-                                  {sub.subServiceName}
+                                  {service.serviceName}
                                 </Text>
-                                {sub.subServiceDescription ? (
-                                  <Text style={styles.subServiceDesc}>
-                                    {sub.subServiceDescription}
-                                  </Text>
-                                ) : null}
-                              </View>
-                            </TouchableOpacity>
+                              </TouchableOpacity>
 
-                            {isSelected && (
-                              <View style={styles.priceInputRow}>
-                                <Text style={styles.priceLabel}>Your Price ($):</Text>
-                                <View style={styles.dollarInputWrap}>
-                                  <Text style={styles.dollarSymbol}>$</Text>
-                                  <TextInput
-                                    style={styles.priceTextInput}
-                                    keyboardType="decimal-pad"
-                                    value={item?.price || ""}
-                                    onChangeText={(val) => updatePrice(serviceId, subId, val)}
-                                    placeholder="30.00"
-                                    placeholderTextColor="#94A3B8"
-                                  />
+                              {isSelected && (
+                                <View style={styles.priceInputRow}>
+                                  <Text style={styles.priceLabel}>Your Price ($):</Text>
+                                  <View style={styles.dollarInputWrap}>
+                                    <Text style={styles.dollarSymbol}>$</Text>
+                                    <TextInput
+                                      style={styles.priceTextInput}
+                                      keyboardType="decimal-pad"
+                                      value={item?.price !== undefined ? String(item.price) : ""}
+                                      onChangeText={(val) =>
+                                        updatePrice(
+                                          serviceId,
+                                          serviceId,
+                                          val,
+                                          service.serviceName
+                                        )
+                                      }
+                                      onFocus={handleInputFocus}
+                                      placeholder="25.00"
+                                      placeholderTextColor="#94A3B8"
+                                      returnKeyType="done"
+                                    />
+                                  </View>
                                 </View>
-                              </View>
-                            )}
-                          </View>
-                        );
-                      })
-                    )}
-                  </View>
-                )}
-              </View>
-            );
-          })}
+                              )}
+                            </View>
+                          );
+                        })()
+                      ) : (
+                        subServices.map((sub: SubServiceDetail) => {
+                          const subId = sub._id || "";
+                          const key = `${serviceId}_${subId}`;
+                          const isSelected = !!selectedMap[key];
+                          const item = selectedMap[key];
+                          const defaultPrice = String(sub.subServiceCharges || 30);
+
+                          return (
+                            <View key={subId} style={styles.subServiceItem}>
+                              <TouchableOpacity
+                                style={styles.subServiceSelectRow}
+                                onPress={() =>
+                                  toggleSubService(
+                                    serviceId,
+                                    subId,
+                                    sub.subServiceName || "Service",
+                                    defaultPrice
+                                  )
+                                }
+                                activeOpacity={0.8}
+                              >
+                                <Ionicons
+                                  name={isSelected ? "checkbox" : "square-outline"}
+                                  size={22}
+                                  color={isSelected ? Colors.ButtonPrimaryColor : "#94A3B8"}
+                                  style={{ marginRight: 10 }}
+                                />
+                                <View style={{ flex: 1 }}>
+                                  <Text
+                                    style={[
+                                      styles.subServiceName,
+                                      isSelected && styles.subServiceNameSelected,
+                                    ]}
+                                  >
+                                    {sub.subServiceName}
+                                  </Text>
+                                  {sub.subServiceDescription ? (
+                                    <Text style={styles.subServiceDesc}>
+                                      {sub.subServiceDescription}
+                                    </Text>
+                                  ) : null}
+                                </View>
+                              </TouchableOpacity>
+
+                              {isSelected && (
+                                <View style={styles.priceInputRow}>
+                                  <Text style={styles.priceLabel}>Your Price ($):</Text>
+                                  <View style={styles.dollarInputWrap}>
+                                    <Text style={styles.dollarSymbol}>$</Text>
+                                    <TextInput
+                                      style={styles.priceTextInput}
+                                      keyboardType="decimal-pad"
+                                      value={item?.price !== undefined ? String(item.price) : ""}
+                                      onChangeText={(val) =>
+                                        updatePrice(
+                                          serviceId,
+                                          subId,
+                                          val,
+                                          sub.subServiceName
+                                        )
+                                      }
+                                      onFocus={handleInputFocus}
+                                      placeholder={defaultPrice}
+                                      placeholderTextColor="#94A3B8"
+                                      returnKeyType="done"
+                                    />
+                                  </View>
+                                </View>
+                              )}
+                            </View>
+                          );
+                        })
+                      )}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+
+          <View style={{ height: Spacing.xl }} />
+        </ScrollView>
+
+        {/* Action Button */}
+        <View
+          style={[
+            styles.footerWrap,
+            { paddingBottom: Math.max(insets.bottom, 16) },
+          ]}
+        >
+          <Button
+            title={
+              isFromSettings
+                ? `Update ${selectedCount} Service${selectedCount === 1 ? "" : "s"} & Rates`
+                : `Continue with ${selectedCount} Service${selectedCount === 1 ? "" : "s"}`
+            }
+            onPress={submit}
+          />
         </View>
-
-        <View style={{ height: Spacing.xl }} />
-      </ScrollView>
-
-      {/* Pinned Bottom Button */}
-      <View
-        style={[
-          styles.footerWrap,
-          { paddingBottom: Math.max(insets.bottom, 16) },
-        ]}
-      >
-        <Button
-          title={
-            isFromSettings
-              ? `Update ${selectedCount} Service${selectedCount === 1 ? "" : "s"} & Rates`
-              : `Continue with ${selectedCount} Service${selectedCount === 1 ? "" : "s"}`
-          }
-          onPress={submit}
-        />
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -758,10 +877,6 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   footerWrap: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
     borderTopColor: "#E2E8F0",

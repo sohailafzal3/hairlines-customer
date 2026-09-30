@@ -41,18 +41,24 @@ export function ForgotPasswordScreen({ route, navigation }: Props) {
   }, [route.params?.selectedCountryCode, route.params?.selectedFlag]);
 
   const handleSubmit = async () => {
-    if (!phoneNumber.trim()) return;
+    const cleanPhone = phoneNumber.replace(/\D/g, "");
+    if (!cleanPhone) return;
+
+    if (cleanPhone.length !== 10) {
+      setErrorMsg("Please enter a valid 10-digit phone number.");
+      return;
+    }
 
     setErrorMsg("");
     setSuccessMsg("");
     setLoading(true);
     try {
-      const res: any = await api.forgotPassword(phoneNumber);
+      const res: any = await api.forgotPassword(cleanPhone);
       const verificationCode = res?.verificationCode ? String(res.verificationCode) : "";
       setSuccessMsg("Verification code sent successfully.");
       navigation.navigate("Verification", {
         countryCode,
-        phoneNumber,
+        phoneNumber: cleanPhone,
         code: verificationCode,
         isSignUp: false,
         isForgotPassword: true,
@@ -149,11 +155,14 @@ export function ForgotPasswordScreen({ route, navigation }: Props) {
                 {/* Phone Input Field */}
                 <View style={styles.phoneInputFlex}>
                   <TextInput
-                    placeholder="Phone Number"
+                    placeholder="Phone Number (10 digits)"
                     placeholderTextColor="#94A3B8"
                     value={phoneNumber}
-                    onChangeText={setPhoneNumber}
-                    keyboardType="phone-pad"
+                    onChangeText={(text) =>
+                      setPhoneNumber(text.replace(/\D/g, "").slice(0, 10))
+                    }
+                    keyboardType="number-pad"
+                    maxLength={10}
                     style={styles.phoneInputText}
                   />
                 </View>
@@ -167,7 +176,7 @@ export function ForgotPasswordScreen({ route, navigation }: Props) {
               title="Send Reset Instructions"
               onPress={handleSubmit}
               loading={loading}
-              disabled={!phoneNumber.trim()}
+              disabled={phoneNumber.replace(/\D/g, "").length !== 10}
               style={styles.submitButton}
               textStyle={styles.submitButtonText}
             />

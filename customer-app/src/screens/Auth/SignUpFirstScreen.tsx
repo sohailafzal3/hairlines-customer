@@ -10,6 +10,7 @@ import {
   Platform,
   Modal,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,6 +22,7 @@ import { Spacing, BorderRadius } from '../../theme/spacing';
 import { Button, Input, LoadingOverlay } from '../../components';
 import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
+import { getDeviceToken } from '../../services/notifications';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
 
@@ -43,17 +45,35 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [isTermsAccepted, setIsTermsAccepted] = useState(false);
   const [termsDescription, setTermsDescription] = useState('');
+  const [termsLoading, setTermsLoading] = useState(false);
   const [termsModalVisible, setTermsModalVisible] = useState(false);
 
   useEffect(() => {
-    AuthApi.getTermsConditions()
-      .then((res: any) => {
-        if (res?.termAndConditionDescription) {
-          setTermsDescription(res.termAndConditionDescription);
-        }
-      })
-      .catch((err) => console.log('Failed to fetch terms:', err));
+    fetchTerms();
   }, []);
+
+  const fetchTerms = async () => {
+    try {
+      setTermsLoading(true);
+      const res: any = await AuthApi.getTermsConditions();
+      const text =
+        res?.termAndConditionDescription ||
+        res?.data?.termAndConditionDescription ||
+        res?.terms ||
+        res?.data?.terms ||
+        res?.termsAndConditions ||
+        res?.data?.termsAndConditions ||
+        res?.description ||
+        (typeof res === 'string' ? res : '');
+      if (text) {
+        setTermsDescription(text);
+      }
+    } catch (err) {
+      console.log('Failed to fetch terms:', err);
+    } finally {
+      setTermsLoading(false);
+    }
+  };
 
   const handleImagePick = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -97,12 +117,14 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
 
     setLoading(true);
     try {
+      const deviceToken = await getDeviceToken();
+      const deviceType = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
       const params = {
         countryCode: '+1',
         phoneNumber: account?.phoneNumber || '',
         userType: 1,
-        deviceToken: 'simulator-device-token',
-        deviceType: 'ios',
+        deviceToken,
+        deviceType,
         email: email.toLowerCase().trim(),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -256,24 +278,33 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
           />
 
           {/* Agreement Checkbox — matches iOS "I've read & agree with Terms & Conditions." */}
-          <View style={styles.agreementRow}>
-            <TouchableOpacity
-              onPress={() => setIsTermsAccepted(!isTermsAccepted)}
-              activeOpacity={0.8}
-              style={[styles.checkbox, isTermsAccepted && styles.checkboxActive]}
-            >
+          <TouchableOpacity
+            style={styles.agreementRow}
+            activeOpacity={0.8}
+            onPress={() => setIsTermsAccepted(!isTermsAccepted)}
+          >
+            <View style={[styles.checkbox, isTermsAccepted && styles.checkboxActive]}>
               {isTermsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-            </TouchableOpacity>
+            </View>
             <View style={styles.agreementTextContainer}>
               <Text style={styles.agreementText}>
                 {"I've read & agree with "}
-                <Text style={styles.termsLink} onPress={() => setTermsModalVisible(true)}>
+                <Text
+                  style={styles.termsLink}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (!termsDescription) {
+                      fetchTerms();
+                    }
+                    setTermsModalVisible(true);
+                  }}
+                >
                   Terms & Conditions
                 </Text>
                 {'.'}
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
           <Button
             title="Complete Registration"
@@ -294,27 +325,40 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
       >
         <View style={[styles.modalContainer, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Terms & Conditions</Text>
+            <View style={styles.modalHeaderLeft}>
+              <Ionicons name="document-text-outline" size={22} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+              <Text style={styles.modalTitle}>Terms & Conditions</Text>
+            </View>
             <TouchableOpacity
               onPress={() => setTermsModalVisible(false)}
               style={styles.modalCloseBtn}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close" size={24} color={Colors.TitleColor} />
+              <Ionicons name="close" size={22} color={Colors.TitleColor} />
             </TouchableOpacity>
           </View>
           <ScrollView
             style={styles.modalScroll}
             contentContainerStyle={styles.modalScrollContent}
+            showsVerticalScrollIndicator={true}
           >
-            <Text style={styles.modalBodyText}>
-              {termsDescription
-                ? termsDescription.replace(/<[^>]+>/g, '').trim()
-                : 'Welcome to Hairlines. By signing up and booking services through Hairlines, you agree to treat our verified service professionals with respect, adhere to safety and hygiene protocols during appointments, maintain accurate booking and contact information, and comply with our transparent cancellation and refund policy.'}
-            </Text>
+            {termsLoading ? (
+              <View style={styles.termsLoadingContainer}>
+                <ActivityIndicator size="large" color={Colors.ButtonPrimaryColor} />
+                <Text style={styles.termsLoadingText}>Loading latest terms...</Text>
+              </View>
+            ) : (
+              <Text style={styles.modalBodyText}>
+                {termsDescription
+                  ? termsDescription.replace(/<[^>]+>/g, '').trim()
+                  : 'Welcome to Hairlines. By signing up and booking services through Hairlines, you agree to treat our verified service professionals with respect, adhere to safety and hygiene protocols during appointments, maintain accurate booking and contact information, and comply with our transparent cancellation and refund policy.'}
+              </Text>
+            )}
           </ScrollView>
           <View style={styles.modalFooter}>
             <Button
-              title="I Agree & Accept"
+              title="I Understand & Accept"
               onPress={() => {
                 setIsTermsAccepted(true);
                 setTermsModalVisible(false);
@@ -501,6 +545,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.BorderColor,
+    backgroundColor: '#FFFFFF',
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   modalTitle: {
     fontSize: FontSizes.lg,
@@ -508,7 +557,12 @@ const styles = StyleSheet.create({
     color: Colors.TitleColor,
   },
   modalCloseBtn: {
-    padding: 6,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalScroll: {
     flex: 1,
@@ -516,6 +570,16 @@ const styles = StyleSheet.create({
   modalScrollContent: {
     padding: Spacing.xl,
     paddingBottom: Spacing['3xl'],
+  },
+  termsLoadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  termsLoadingText: {
+    marginTop: 12,
+    fontSize: FontSizes.sm,
+    color: '#64748B',
   },
   modalBodyText: {
     fontSize: FontSizes.sm,
@@ -526,7 +590,7 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     borderTopWidth: 1,
     borderTopColor: Colors.BorderColor,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#FFFFFF',
   },
 });
 

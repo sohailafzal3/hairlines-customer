@@ -10,6 +10,7 @@ import {
   ScrollView,
   StatusBar,
   TextInput,
+  Modal,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -27,8 +28,22 @@ export function SignUpScreen({ route, navigation }: Props) {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [countryCode, setCountryCode] = useState(route.params?.selectedCountryCode || "+1");
   const [flagEmoji, setFlagEmoji] = useState(route.params?.selectedFlag || "🇺🇸");
+  const [isTermsAccepted, setIsTermsAccepted] = useState(true);
+  const [termsModalVisible, setTermsModalVisible] = useState(false);
+  const [termsDescription, setTermsDescription] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    api
+      .getTermsConditions()
+      .then((res) => {
+        if (res?.termAndConditionDescription) {
+          setTermsDescription(res.termAndConditionDescription);
+        }
+      })
+      .catch((e) => console.log("Failed to fetch terms:", e.message));
+  }, []);
 
   useEffect(() => {
     if (route.params?.selectedCountryCode) {
@@ -40,16 +55,27 @@ export function SignUpScreen({ route, navigation }: Props) {
   }, [route.params?.selectedCountryCode, route.params?.selectedFlag]);
 
   const handleSubmit = async () => {
-    if (!phoneNumber.trim()) return;
+    const cleanPhone = phoneNumber.replace(/\D/g, "");
+    if (!cleanPhone) return;
+
+    if (cleanPhone.length !== 10) {
+      setErrorMsg("Please enter a valid 10-digit phone number.");
+      return;
+    }
+
+    if (!isTermsAccepted) {
+      setErrorMsg("Please accept terms & conditions to continue.");
+      return;
+    }
 
     setErrorMsg("");
     setLoading(true);
     try {
-      const res: any = await api.sendVerificationCode(phoneNumber, countryCode);
+      const res: any = await api.sendVerificationCode(cleanPhone, countryCode);
       const verificationCode = res?.verificationCode ? String(res.verificationCode) : "";
       navigation.navigate("Verification", {
         countryCode,
-        phoneNumber,
+        phoneNumber: cleanPhone,
         code: verificationCode,
         isSignUp: true,
       });
@@ -135,13 +161,43 @@ export function SignUpScreen({ route, navigation }: Props) {
                 {/* Phone Input Field */}
                 <View style={styles.phoneInputFlex}>
                   <TextInput
-                    placeholder="Phone Number"
+                    placeholder="Phone Number (10 digits)"
                     placeholderTextColor="#94A3B8"
                     value={phoneNumber}
-                    onChangeText={setPhoneNumber}
-                    keyboardType="phone-pad"
+                    onChangeText={(text) =>
+                      setPhoneNumber(text.replace(/\D/g, "").slice(0, 10))
+                    }
+                    keyboardType="number-pad"
+                    maxLength={10}
                     style={styles.phoneInputText}
                   />
+                </View>
+              </View>
+
+              {/* Agreement Checkbox & Text */}
+              <View style={styles.agreementRow}>
+                <TouchableOpacity
+                  onPress={() => setIsTermsAccepted(!isTermsAccepted)}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.checkbox,
+                    isTermsAccepted && styles.checkboxActive,
+                  ]}
+                >
+                  {isTermsAccepted && (
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
+                <View style={styles.agreementTextWrapper}>
+                  <Text style={styles.agreementText}>
+                    I've read & agree with{" "}
+                    <Text
+                      style={styles.termsLink}
+                      onPress={() => setTermsModalVisible(true)}
+                    >
+                      Terms & Conditions.
+                    </Text>
+                  </Text>
                 </View>
               </View>
             </View>
@@ -153,7 +209,7 @@ export function SignUpScreen({ route, navigation }: Props) {
               title="Continue to Sign Up"
               onPress={handleSubmit}
               loading={loading}
-              disabled={!phoneNumber.trim()}
+              disabled={phoneNumber.replace(/\D/g, "").length !== 10}
               style={styles.submitButton}
               textStyle={styles.submitButtonText}
             />
@@ -171,6 +227,47 @@ export function SignUpScreen({ route, navigation }: Props) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Terms & Conditions Modal */}
+      <Modal
+        visible={termsModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setTermsModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Terms & Conditions</Text>
+            <TouchableOpacity
+              onPress={() => setTermsModalVisible(false)}
+              style={styles.modalCloseBtn}
+            >
+              <Ionicons name="close" size={24} color={Colors.TitleColor} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            style={styles.modalScroll}
+            contentContainerStyle={styles.modalScrollContent}
+            showsVerticalScrollIndicator={true}
+          >
+            <Text style={styles.modalBodyText}>
+              {termsDescription
+                ? termsDescription.replace(/<[^>]+>/g, "").trim()
+                : "Welcome to Hairlines Pro. By registering and offering services through our platform, you agree to provide professional, safe, and quality salon/barbering services in compliance with all local regulations, maintain valid licensing and certifications, adhere to transparent appointment pricing and cancellation guidelines, and respect client confidentiality and booking agreements. All payouts are processed according to our stated fee structure."}
+            </Text>
+          </ScrollView>
+          <View style={styles.modalFooter}>
+            <Button
+              title="I Understand & Accept"
+              onPress={() => {
+                setIsTermsAccepted(true);
+                setTermsModalVisible(false);
+              }}
+              style={styles.modalAcceptBtn}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -335,5 +432,82 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
     color: Colors.ButtonPrimaryColor,
+  },
+  agreementRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: "#CBD5E1",
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: Spacing.sm,
+  },
+  checkboxActive: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderColor: Colors.ButtonPrimaryColor,
+  },
+  agreementTextWrapper: {
+    flex: 1,
+  },
+  agreementText: {
+    fontSize: FontSizes.sm,
+    color: "#334155",
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: Colors.ButtonPrimaryColor,
+    fontWeight: FontWeights.bold,
+    textDecorationLine: "underline",
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  modalTitle: {
+    fontSize: FontSizes.xl,
+    fontWeight: FontWeights.bold,
+    color: Colors.TitleColor,
+  },
+  modalCloseBtn: {
+    padding: Spacing.xs,
+  },
+  modalScroll: {
+    flex: 1,
+    paddingHorizontal: Spacing.xl,
+  },
+  modalScrollContent: {
+    paddingVertical: Spacing.xl,
+  },
+  modalBodyText: {
+    fontSize: FontSizes.sm,
+    color: "#475569",
+    lineHeight: 24,
+  },
+  modalFooter: {
+    padding: Spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+  },
+  modalAcceptBtn: {
+    width: "100%",
+    minHeight: 52,
   },
 });

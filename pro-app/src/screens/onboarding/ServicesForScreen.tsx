@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "../../theme/colors";
 import { FontSizes, FontWeights } from "../../theme/fonts";
 import { BorderRadius, Spacing } from "../../theme/spacing";
+import { navigationRef } from "../../navigation/navigationRef";
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, "ServicesFor">;
 
@@ -71,10 +72,12 @@ export function ServicesForScreen({ route, navigation }: Props) {
 
       if (isFromSettings) {
         showAlert("Success", "Your customer preference has been updated.");
-        if (navigation.canGoBack()) {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate("Main", { screen: "Settings" } as any);
+        } else if (navigation.canGoBack()) {
           navigation.goBack();
         } else {
-          navigation.navigate("PersonalInfo");
+          (navigation as any).navigate("Settings");
         }
       } else {
         navigation.navigate("Services");
@@ -87,6 +90,16 @@ export function ServicesForScreen({ route, navigation }: Props) {
   };
 
   const handleBack = () => {
+    if (isFromSettings) {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate("Main", { screen: "Settings" } as any);
+      } else if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        (navigation as any).navigate("Settings");
+      }
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {

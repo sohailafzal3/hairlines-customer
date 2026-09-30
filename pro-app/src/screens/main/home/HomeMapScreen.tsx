@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,8 +29,9 @@ import { Avatar } from "../../../components/Avatar";
 import { EmptyState } from "../../../components/EmptyState";
 import { api } from "../../../services/api";
 import { showAlert } from "../../../utils/helpers";
+import { storage } from "../../../utils/storage";
 import { Job } from "../../../types/models";
-import { JobStatus } from "../../../constants";
+import { JobStatus, StorageKeys } from "../../../constants";
 import { Colors } from "../../../theme/colors";
 import { FontSizes, FontWeights } from "../../../theme/fonts";
 import { BorderRadius, Spacing } from "../../../theme/spacing";
@@ -56,7 +58,7 @@ export function HomeMapScreen({ navigation }: Props) {
 
   // Tools & Equipment bottom sheet state
   const [toolsModalVisible, setToolsModalVisible] = useState(false);
-  const [toolsList, setToolsList] = useState<string[]>([]);
+  const [toolsList, setToolsList] = useState<string[]>(user.tools || []);
   const [newToolInput, setNewToolInput] = useState("");
   const [savingTools, setSavingTools] = useState(false);
 
@@ -101,8 +103,20 @@ export function HomeMapScreen({ navigation }: Props) {
       }
 
       const fetchedTools = toolsRes?.tools ?? [];
-      setToolsList(fetchedTools);
-      if (fetchedTools.length === 0) {
+      const resolvedTools =
+        fetchedTools.length > 0
+          ? fetchedTools
+          : user.tools && user.tools.length > 0
+          ? user.tools
+          : [];
+
+      setToolsList(resolvedTools);
+      if (fetchedTools.length > 0) {
+        updateUser({ tools: fetchedTools });
+        storage.set(StorageKeys.userTools, fetchedTools);
+      }
+
+      if (resolvedTools.length === 0) {
         // iOS parity: Prompt tools & equipment if provider has none added
         setToolsModalVisible(true);
       }
@@ -184,6 +198,25 @@ export function HomeMapScreen({ navigation }: Props) {
     })();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (user.tools && user.tools.length > 0) {
+        setToolsList(user.tools);
+      }
+      api
+        .fetchTools()
+        .then((res) => {
+          const fetched = res?.tools ?? [];
+          if (fetched.length > 0) {
+            setToolsList(fetched);
+            updateUser({ tools: fetched });
+            storage.set(StorageKeys.userTools, fetched);
+          }
+        })
+        .catch(() => {});
+    }, [user.tools])
+  );
+
   const handleRecenterLocation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -245,10 +278,21 @@ export function HomeMapScreen({ navigation }: Props) {
     }
   };
 
+  const handleOpenToolsModal = () => {
+    if (user.tools && user.tools.length > 0) {
+      setToolsList(user.tools);
+    }
+    setToolsModalVisible(true);
+  };
+
   const handleAddTool = () => {
     const trimmed = newToolInput.trim();
     if (!trimmed) {
       showAlert("Required", "Please enter a tool or equipment name.");
+      return;
+    }
+    if (toolsList.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
+      showAlert("Duplicate", `"${trimmed}" is already in your tools list.`);
       return;
     }
     setToolsList((prev) => [...prev, trimmed]);
@@ -260,18 +304,27 @@ export function HomeMapScreen({ navigation }: Props) {
   };
 
   const handleSaveTools = async () => {
-    if (toolsList.length === 0) {
+    let finalTools = [...toolsList];
+    const pending = newToolInput.trim();
+    if (pending && !finalTools.some((t) => t.toLowerCase() === pending.toLowerCase())) {
+      finalTools = [...finalTools, pending];
+      setToolsList(finalTools);
+      setNewToolInput("");
+    }
+
+    if (finalTools.length === 0) {
       showAlert("Required", "Please add at least one tool or piece of equipment.");
       return;
     }
     try {
       setSavingTools(true);
-      await api.updateTools(toolsList);
-      await updateUser({ tools: toolsList });
+      await api.updateTools(finalTools);
+      await updateUser({ tools: finalTools });
+      await storage.set(StorageKeys.userTools, finalTools);
       setToolsModalVisible(false);
       showAlert("Success", "Tools & Equipment updated successfully!");
     } catch (e: any) {
-      showAlert("Error", e.message);
+      showAlert("Error", e.message || "Failed to update tools");
     } finally {
       setSavingTools(false);
     }
@@ -420,7 +473,7 @@ export function HomeMapScreen({ navigation }: Props) {
         {/* Floating Tools & Equipment Button */}
         <TouchableOpacity
           style={[styles.floatingToolsFab, { bottom: collapsedHeight + 30 }]}
-          onPress={() => setToolsModalVisible(true)}
+          onPress={handleOpenToolsModal}
           activeOpacity={0.85}
         >
           <Ionicons name="construct" size={15} color={Colors.ButtonPrimaryColor} />

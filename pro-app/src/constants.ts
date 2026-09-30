@@ -40,6 +40,7 @@ export const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY;
 export const DEFAULT_LANGUAGE_CODE = "en/";
 export const PAGE_LIMIT = 10;
 export const API_TIMEOUT = 40000;
+export const DUMMY_DEVICE_TOKEN = "88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9";
 
 // MARK: Storage keys
 export const StorageKeys = {
@@ -59,6 +60,9 @@ export const StorageKeys = {
   socketKey: "socket",
   userData: "kUserData",
   onboardingStep: "kOnboardingStep",
+  userTools: "kUserTools",
+  userServices: "kUserServices",
+  userAvailability: "kUserAvailability",
 } as const;
 
 // MARK: Enums

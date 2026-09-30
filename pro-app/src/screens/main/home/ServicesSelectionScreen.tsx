@@ -48,7 +48,11 @@ export function ServicesSelectionScreen({ route, navigation }: Props) {
       for (const [serviceId, subServices] of entries) {
         await api.addSubServices(jobId, serviceId, subServices);
       }
-      navigation.goBack();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate("HomeMap");
+      }
     } catch (e: any) {
       showAlert("Error", e.message);
     } finally {
@@ -56,9 +60,17 @@ export function ServicesSelectionScreen({ route, navigation }: Props) {
     }
   };
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("HomeMap");
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Header title="Add Services" onBackPress={() => navigation.goBack()} />
+      <Header title="Add Services" onBackPress={handleBack} />
       <ScrollView contentContainerStyle={styles.content}>
         {services.map((service) => (
           <View key={service._id} style={styles.card}>

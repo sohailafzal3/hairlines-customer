@@ -166,10 +166,18 @@ export function JobDetailsScreen({ route, navigation }: Props) {
     if (job?.userPhoneNumber) Linking.openURL(`tel:${job.userPhoneNumber}`);
   };
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("HomeMap");
+    }
+  };
+
   if (!job) {
     return (
       <View style={styles.container}>
-        <Header title={t("job:details")} onBackPress={() => navigation.goBack()} />
+        <Header title={t("job:details")} onBackPress={handleBack} />
         <LoadingOverlay visible={loading} />
       </View>
     );
@@ -182,7 +190,7 @@ export function JobDetailsScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Header title={t("job:details")} onBackPress={() => navigation.goBack()} />
+      <Header title={t("job:details")} onBackPress={handleBack} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Active Service Timer (Only visible when status is started) */}
         {job.spJobStatus === JobStatus.started && (

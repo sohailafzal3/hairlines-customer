@@ -23,10 +23,10 @@ export const defaultUserState: UserState = {
   isBlocked: false,
   email: "",
   isEmailUpdate: false,
-  phoneCode: "",
+  phoneCode: "+1",
   phoneNumber: "",
   country: "",
-  countryCode: "",
+  countryCode: "+1",
   avgRating: 0,
   accountType: 0,
   companyName: "",
@@ -97,58 +97,242 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const setAccount = useCallback(
     async (account: Account, markLoggedIn = true) => {
       let nextState: UserState = defaultUserState;
+      let isDifferentUser = false;
+
       setUser((prev) => {
-        const addr = account.address as any;
+        const raw = (account || {}) as any;
+        const userObj = raw.userData || raw.user || raw;
+        const addr = (userObj.address || raw.address) as any;
+
         const resolvedId =
-          account.id ?? account.userAccountId ?? account._id ?? prev.id;
+          userObj.id ??
+          userObj.userAccountId ??
+          userObj._id ??
+          raw.id ??
+          raw.userAccountId ??
+          raw._id ??
+          "";
+
+        const resolvedPhoneNumber =
+          userObj.phoneNumber ??
+          raw.phoneNumber ??
+          userObj.mobile ??
+          raw.mobile ??
+          "";
+
+        const isSameUser =
+          Boolean(prev.id && resolvedId && prev.id === resolvedId) ||
+          Boolean(
+            prev.phoneNumber &&
+              resolvedPhoneNumber &&
+              prev.phoneNumber === resolvedPhoneNumber
+          );
+
+        isDifferentUser = !isSameUser && Boolean(prev.id || prev.phoneNumber);
+
+        // If it's a different user, start strictly from defaultUserState to prevent data leakage
+        const base = isSameUser ? prev : defaultUserState;
+
         const resolvedPhoneCode =
-          account.phoneCode ?? account.phoneNumberPrefix ?? prev.phoneCode;
-        const resolvedStep =
-          account.stepCompleted ?? prev.signUpStepCompleted;
-        const resolvedSignUpCompleted =
-          account.isSignUpCompleted !== undefined
-            ? account.isSignUpCompleted
-            : prev.isSignUpCompleted;
+          userObj.phoneCode ??
+          userObj.phoneNumberPrefix ??
+          userObj.countryCode ??
+          raw.phoneCode ??
+          raw.countryCode ??
+          base.phoneCode ??
+          "+1";
+
+        const resolvedCountryCode =
+          userObj.countryCode ??
+          userObj.phoneCode ??
+          raw.countryCode ??
+          base.countryCode ??
+          "+1";
+
+        // Extract Step Completed from all possible keys & sources
+        let resolvedStep: number = base.signUpStepCompleted;
+        const rawStep =
+          raw.signUpStepCompleted ??
+          raw.stepCompleted ??
+          userObj.signUpStepCompleted ??
+          userObj.stepCompleted;
+        if (rawStep !== undefined && rawStep !== null) {
+          resolvedStep = Number(rawStep);
+        }
+
+        // Extract isSignUpCompleted from all possible keys & sources
+        const rawCompleted =
+          raw.isSignUpCompleted ??
+          raw.isSignupCompleted ??
+          userObj.isSignUpCompleted ??
+          userObj.isSignupCompleted ??
+          raw.isProfileCompleted ??
+          userObj.isProfileCompleted ??
+          raw.isSpProfileCompleted ??
+          userObj.isSpProfileCompleted;
+
+        let resolvedSignUpCompleted = base.isSignUpCompleted;
+        if (rawCompleted !== undefined && rawCompleted !== null) {
+          resolvedSignUpCompleted =
+            rawCompleted === true ||
+            rawCompleted === "true" ||
+            rawCompleted === 1 ||
+            rawCompleted === "1";
+        } else if (resolvedStep >= 7 || resolvedStep === -1) {
+          // If step 7 (Thank You) was reached or -1, onboarding is completed
+          resolvedSignUpCompleted = true;
+        }
+
+        // If the account has administrative verification / approval, mark signup complete
+        if (
+          userObj.isVerifiedByAdmin ||
+          raw.isVerifiedByAdmin ||
+          userObj.isApproved ||
+          raw.isApproved ||
+          userObj.isSpApproved ||
+          raw.isSpApproved
+        ) {
+          resolvedSignUpCompleted = true;
+        }
+
+        const resolvedFirstName =
+          userObj.firstName ??
+          raw.firstName ??
+          (isSameUser ? base.firstName : "");
+
+        const resolvedLastName =
+          userObj.lastName ??
+          raw.lastName ??
+          (isSameUser ? base.lastName : "");
+
+        const resolvedName =
+          userObj.name ??
+          raw.name ??
+          (resolvedFirstName && resolvedLastName
+            ? `${resolvedFirstName} ${resolvedLastName}`
+            : isSameUser
+            ? base.name
+            : resolvedFirstName || "");
+
+        const resolvedProfileImage =
+          userObj.profileImage ??
+          userObj.profileImageUrl ??
+          raw.profileImage ??
+          raw.profileImageUrl ??
+          raw.imageUrl ??
+          (isSameUser ? base.profileImage : "");
+
+        const resolvedEmail =
+          userObj.email ??
+          raw.email ??
+          (isSameUser ? base.email : "");
+
+        const resolvedAvgRating =
+          userObj.avgRating ??
+          raw.avgRating ??
+          (isSameUser ? base.avgRating : 0);
+
+        const resolvedAccountType =
+          userObj.accountType ??
+          raw.accountType ??
+          (isSameUser ? base.accountType : 0);
+
+        const resolvedCompanyName =
+          userObj.companyName ??
+          raw.companyName ??
+          (isSameUser ? base.companyName : "");
+
+        const resolvedReferralCode =
+          userObj.referralCode ??
+          raw.referralCode ??
+          (isSameUser ? base.referralCode : "");
+
+        const resolvedIsBlocked =
+          userObj.isBlocked ??
+          raw.isBlocked ??
+          (isSameUser ? base.isBlocked : false);
+
+        const resolvedIsCompanyWorker =
+          userObj.isCompanyWorker ??
+          raw.isCompanyWorker ??
+          (isSameUser ? base.isCompanyWorker : false);
+
+        const resolvedProvideInPremises =
+          userObj.provideServiceInPremisis ??
+          raw.provideServiceInPremisis ??
+          userObj.provideServicesinPremisis ??
+          (isSameUser ? base.provideServicesinPremisis : true);
+
+        const resolvedProvideInUserPremises =
+          userObj.provideServiceInUserPremisis ??
+          raw.provideServiceInUserPremisis ??
+          userObj.provideServicesinUserPrimisis ??
+          (isSameUser ? base.provideServicesinUserPrimisis : true);
+
+        const resolvedTools =
+          userObj.tools ??
+          raw.tools ??
+          (isSameUser ? base.tools : []);
+
+        const resolvedServiceFor =
+          userObj.serviceFor ??
+          raw.serviceFor ??
+          (isSameUser ? base.serviceFor : 1);
+
+        const resolvedIsApproved =
+          userObj.isApproved ??
+          raw.isApproved ??
+          userObj.isVerifiedByAdmin ??
+          raw.isVerifiedByAdmin ??
+          (isSameUser ? base.isApproved : false);
 
         nextState = {
-          ...prev,
-          id: resolvedId,
-          firstName: account.firstName ?? prev.firstName,
-          lastName: account.lastName ?? prev.lastName,
-          name:
-            account.name ??
-            (account.firstName && account.lastName
-              ? `${account.firstName} ${account.lastName}`
-              : prev.name),
-          profileImage: account.profileImage ?? prev.profileImage,
-          email: account.email ?? prev.email,
+          ...base,
+          id: resolvedId || base.id,
+          firstName: resolvedFirstName,
+          lastName: resolvedLastName,
+          name: resolvedName,
+          profileImage: resolvedProfileImage,
+          email: resolvedEmail,
           phoneCode: resolvedPhoneCode,
-          phoneNumber: account.phoneNumber ?? prev.phoneNumber,
-          avgRating: account.avgRating ?? prev.avgRating,
-          accountType: account.accountType ?? prev.accountType,
-          companyName: account.companyName ?? prev.companyName,
-          referralCode: account.referralCode ?? prev.referralCode,
-          isBlocked: account.isBlocked ?? prev.isBlocked,
-          isCompanyWorker: account.isCompanyWorker ?? prev.isCompanyWorker,
-          provideServicesinPremisis:
-            account.provideServiceInPremisis ?? prev.provideServicesinPremisis,
-          provideServicesinUserPrimisis:
-            account.provideServiceInUserPremisis ??
-            prev.provideServicesinUserPrimisis,
-          tools: account.tools ?? prev.tools,
-          serviceFor: account.serviceFor ?? prev.serviceFor,
+          countryCode: resolvedCountryCode,
+          phoneNumber: resolvedPhoneNumber || base.phoneNumber,
+          avgRating: resolvedAvgRating,
+          accountType: resolvedAccountType,
+          companyName: resolvedCompanyName,
+          referralCode: resolvedReferralCode,
+          isBlocked: resolvedIsBlocked,
+          isCompanyWorker: resolvedIsCompanyWorker,
+          provideServicesinPremisis: resolvedProvideInPremises,
+          provideServicesinUserPrimisis: resolvedProvideInUserPremises,
+          tools: resolvedTools,
+          serviceFor: resolvedServiceFor,
+          isApproved: resolvedIsApproved,
           signUpStepCompleted: resolvedStep,
           isSignUpCompleted: resolvedSignUpCompleted,
           permanentAddress:
-            addr?.primaryAddress ?? addr?.streetAddressLine1 ?? prev.permanentAddress,
-          city: addr?.city ?? prev.city,
-          state: addr?.state ?? prev.state,
-          postalCode: addr?.postalCode ?? prev.postalCode,
-          country: addr?.country ?? prev.country,
-          isLoggedIn: markLoggedIn ? true : prev.isLoggedIn,
+            addr?.primaryAddress ??
+            addr?.streetAddressLine1 ??
+            userObj.userPrimaryAddress ??
+            userObj.primaryAddress ??
+            (isSameUser ? base.permanentAddress : ""),
+          city: addr?.city ?? userObj.city ?? userObj.userCity ?? (isSameUser ? base.city : ""),
+          state: addr?.state ?? userObj.state ?? userObj.userState ?? (isSameUser ? base.state : ""),
+          postalCode: addr?.postalCode ?? userObj.postalCode ?? (isSameUser ? base.postalCode : ""),
+          country: addr?.country ?? userObj.country ?? userObj.userCountry ?? (isSameUser ? base.country : "United States"),
+          lat: addr?.latitude ?? addr?.lat ?? userObj.latitude ?? userObj.userLat ?? base.lat ?? 0,
+          long: addr?.longitude ?? addr?.long ?? userObj.longitude ?? userObj.userLong ?? base.long ?? 0,
+          isLoggedIn: markLoggedIn ? true : base.isLoggedIn,
         };
         return nextState;
       });
+
+      if (isDifferentUser) {
+        // Purge old user's cached preferences
+        await storage.remove(StorageKeys.userServices);
+        await storage.remove(StorageKeys.userTools);
+        await storage.remove(StorageKeys.userAvailability);
+      }
 
       if (markLoggedIn) {
         await storage.set(StorageKeys.isUserLoggedIn, true);
@@ -203,6 +387,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
     await storage.remove(StorageKeys.isUserLoggedIn);
     await storage.remove(StorageKeys.isSPLoggedIn);
     await storage.remove(StorageKeys.isGuestUserLoggedIn);
+    await storage.remove(StorageKeys.userId);
+    await storage.remove(StorageKeys.userServices);
+    await storage.remove(StorageKeys.userTools);
+    await storage.remove(StorageKeys.userAvailability);
+    await storage.remove(StorageKeys.onboardingStep);
+    await storage.remove(StorageKeys.accountType);
+    await storage.remove(StorageKeys.companyName);
+    await storage.remove(StorageKeys.companyRegistrationNumber);
+    await storage.remove(StorageKeys.referralCode);
+    await storage.remove(StorageKeys.isCompanyWorker);
+    await storage.remove(StorageKeys.savedCookies);
     setUser(defaultUserState);
   }, []);
 

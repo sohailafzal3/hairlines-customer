@@ -69,10 +69,18 @@ export function CostBreakdownScreen({ route, navigation }: Props) {
     }
   };
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("HomeMap");
+    }
+  };
+
   const breakdown = job?.costBreakDown;
   return (
     <View style={styles.container}>
-      <Header title={t("job:costBreakdown")} onBackPress={() => navigation.goBack()} />
+      <Header title={t("job:costBreakdown")} onBackPress={handleBack} />
       <ScrollView contentContainerStyle={styles.content}>
         <Card>
           <Text style={styles.total}>

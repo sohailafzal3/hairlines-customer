@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Linking, TouchableOpacity, ScrollView } from "react-native";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { DrawerScreenProps } from "@react-navigation/drawer";
 import { Ionicons } from "@expo/vector-icons";
 import { MainDrawerParamList } from "../../../navigation/types";
 import { Header } from "../../../components/Header";
@@ -11,7 +11,7 @@ import { Colors } from "../../../theme/colors";
 import { FontSizes, FontWeights } from "../../../theme/fonts";
 import { BorderRadius, Spacing } from "../../../theme/spacing";
 
-type Props = NativeStackScreenProps<MainDrawerParamList, "Support">;
+type Props = DrawerScreenProps<MainDrawerParamList, "Support">;
 
 export function ContactSupportScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
@@ -27,9 +27,29 @@ export function ContactSupportScreen({ navigation }: Props) {
 
   const open = (url?: string) => url && Linking.openURL(url);
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("HomeTab");
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Header title="Contact Support" onBackPress={() => navigation.goBack()} />
+      <Header
+        title="Contact Support"
+        onBackPress={handleBack}
+        right={
+          <TouchableOpacity
+            onPress={() => navigation.openDrawer()}
+            hitSlop={10}
+            style={{ padding: 4 }}
+          >
+            <Ionicons name="menu" size={24} color={Colors.NavigationTitle} />
+          </TouchableOpacity>
+        }
+      />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerBox}>
           <View style={styles.iconCircle}>

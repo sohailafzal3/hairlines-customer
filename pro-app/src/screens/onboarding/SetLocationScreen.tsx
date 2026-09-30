@@ -25,6 +25,87 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, "SetLocation">;
 interface Prediction {
   place_id: string;
   description: string;
+  lat?: number;
+  lng?: number;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+}
+
+const US_STATES: Record<string, string> = {
+  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California",
+  CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia",
+  HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa",
+  KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland",
+  MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri",
+  MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey",
+  NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio",
+  OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina",
+  SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont",
+  VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming",
+  DC: "District of Columbia"
+};
+
+function extractAddressRegexFallback(addressStr: string): {
+  postalCode: string;
+  state: string;
+  city: string;
+} {
+  let postalCode = "";
+  let state = "";
+  let city = "";
+
+  if (!addressStr) return { postalCode, state, city };
+
+  // 1. Postal Code (US 5-digit or 5+4)
+  const zipMatch = addressStr.match(/\b\d{5}(?:-\d{4})?\b/);
+  if (zipMatch) {
+    postalCode = zipMatch[0];
+  }
+
+  // 2. State abbreviation before postal code e.g. "CA 90001" or standalone
+  const stateZipMatch = addressStr.match(/\b([A-Za-z]{2})\s+\d{5}\b/);
+  if (stateZipMatch && US_STATES[stateZipMatch[1].toUpperCase()]) {
+    state = stateZipMatch[1].toUpperCase();
+  } else {
+    const tokens = addressStr.split(",").map((t) => t.trim());
+    for (const token of tokens) {
+      const words = token.split(/\s+/);
+      for (const w of words) {
+        if (US_STATES[w.toUpperCase()]) {
+          state = w.toUpperCase();
+          break;
+        }
+      }
+      if (state) break;
+      for (const [abbr, full] of Object.entries(US_STATES)) {
+        if (token.toLowerCase() === full.toLowerCase()) {
+          state = abbr;
+          break;
+        }
+      }
+      if (state) break;
+    }
+  }
+
+  // 3. City extraction from comma-separated tokens
+  const parts = addressStr.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      if ((state && p.includes(state)) || (postalCode && p.includes(postalCode))) {
+        if (i > 0 && !city) {
+          city = parts[i - 1];
+        }
+      }
+    }
+    if (!city && parts.length >= 3) {
+      city = parts[1];
+    }
+  }
+
+  return { postalCode, state, city };
 }
 
 function loadGooglePlacesScript(): Promise<boolean> {
@@ -66,7 +147,7 @@ export function SetLocationScreen({ route, navigation }: Props) {
 
   const search = async (text: string) => {
     setQuery(text);
-    if (!text.trim() || text.length < 3) {
+    if (!text.trim() || text.length < 2) {
       setPredictions([]);
       return;
     }
@@ -77,13 +158,13 @@ export function SetLocationScreen({ route, navigation }: Props) {
     if (Platform.OS === "web") {
       try {
         await loadGooglePlacesScript();
-        const google = (window as any).google;
+        const google = (typeof window !== "undefined" && (window as any).google);
         if (google?.maps?.places) {
           const service = new google.maps.places.AutocompleteService();
           service.getPlacePredictions(
             {
               input: text,
-              types: ["address"],
+              types: ["geocode", "establishment"],
             },
             (results: any[], status: any) => {
               setLoading(false);
@@ -146,10 +227,22 @@ export function SetLocationScreen({ route, navigation }: Props) {
           });
           const json = await res.json();
           if (Array.isArray(json) && json.length > 0) {
-            foundPredictions = json.map((item: any) => ({
-              place_id: `osm_${item.place_id}`,
-              description: item.display_name,
-            }));
+            foundPredictions = json.map((item: any) => {
+              const addr = item.address || {};
+              const cty = addr.city || addr.town || addr.village || addr.municipality || addr.suburb || addr.county || "";
+              const st = addr.state || "";
+              const pc = addr.postcode || "";
+              return {
+                place_id: `osm_${item.place_id}`,
+                description: item.display_name,
+                lat: parseFloat(item.lat),
+                lng: parseFloat(item.lon),
+                city: cty,
+                state: st,
+                postalCode: pc,
+                country: addr.country || "",
+              };
+            });
           }
         } catch (err) {
           console.warn("OSM search error:", err);
@@ -183,6 +276,11 @@ export function SetLocationScreen({ route, navigation }: Props) {
               {
                 place_id: `geo_${topGeo.latitude}_${topGeo.longitude}`,
                 description: desc || text,
+                lat: topGeo.latitude,
+                lng: topGeo.longitude,
+                city: first?.city || first?.subregion || "",
+                state: first?.region || "",
+                postalCode: first?.postalCode || "",
               },
             ];
           }
@@ -203,43 +301,159 @@ export function SetLocationScreen({ route, navigation }: Props) {
   const select = async (prediction: Prediction) => {
     setLoading(true);
 
-    let lat = 0;
-    let lng = 0;
-    let extractedCity = "";
-    let extractedState = "";
-    let extractedPostalCode = "";
+    let lat = prediction.lat || 0;
+    let lng = prediction.lng || 0;
+    let extractedCity = prediction.city || "";
+    let extractedState = prediction.state || "";
+    let extractedPostalCode = prediction.postalCode || "";
     let fullAddr = prediction.description;
 
+    // 1. Google Places Details (Web via PlacesService, Native via REST)
     if (GOOGLE_API_KEY && prediction.place_id && !prediction.place_id.startsWith("osm_") && !prediction.place_id.startsWith("geo_")) {
-      try {
-        const url =
-          `https://maps.googleapis.com/maps/api/place/details/json` +
-          `?place_id=${prediction.place_id}` +
-          `&key=${GOOGLE_API_KEY}`;
-        const res = await fetch(url);
-        const json = await res.json();
-        const result = json.result;
-        if (result) {
-          const components = result.address_components || [];
-          components.forEach((c: any) => {
-            if (c.types.includes("locality")) extractedCity = c.long_name;
-            if (c.types.includes("administrative_area_level_1"))
-              extractedState = c.short_name || c.long_name;
-            if (c.types.includes("postal_code"))
-              extractedPostalCode = c.long_name;
-          });
-          fullAddr = result.formatted_address || prediction.description;
-          lat = result.geometry?.location?.lat || 0;
-          lng = result.geometry?.location?.lng || 0;
+      if (Platform.OS === "web") {
+        try {
+          await loadGooglePlacesScript();
+          const google = (typeof window !== "undefined" && (window as any).google);
+          if (google?.maps?.places) {
+            const service = new google.maps.places.PlacesService(document.createElement("div"));
+            const placeResult: any = await new Promise((resolve) => {
+              service.getDetails(
+                {
+                  placeId: prediction.place_id,
+                  fields: ["address_components", "formatted_address", "geometry", "name"],
+                },
+                (place: any, status: any) => {
+                  if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+                    resolve(place);
+                  } else {
+                    resolve(null);
+                  }
+                }
+              );
+            });
+
+            if (placeResult) {
+              const components = placeResult.address_components || [];
+              for (const c of components) {
+                const types: string[] = c.types || [];
+                if (types.includes("locality")) {
+                  extractedCity = c.long_name || c.short_name;
+                } else if (
+                  !extractedCity &&
+                  (types.includes("sublocality") ||
+                    types.includes("sublocality_level_1") ||
+                    types.includes("postal_town") ||
+                    types.includes("administrative_area_level_2") ||
+                    types.includes("neighborhood"))
+                ) {
+                  extractedCity = c.long_name || c.short_name;
+                }
+
+                if (types.includes("administrative_area_level_1")) {
+                  extractedState = c.short_name || c.long_name;
+                }
+
+                if (types.includes("postal_code")) {
+                  extractedPostalCode = c.long_name || c.short_name;
+                }
+              }
+
+              fullAddr = placeResult.formatted_address || placeResult.name || prediction.description;
+              if (placeResult.geometry?.location) {
+                if (typeof placeResult.geometry.location.lat === "function") {
+                  lat = placeResult.geometry.location.lat();
+                  lng = placeResult.geometry.location.lng();
+                } else {
+                  lat = placeResult.geometry.location.lat || lat;
+                  lng = placeResult.geometry.location.lng || lng;
+                }
+              }
+            }
+          }
+        } catch (webErr) {
+          console.warn("Google web place details error:", webErr);
         }
-      } catch (e: any) {
-        console.warn("Place details error:", e);
+      } else {
+        // Native REST Fetch
+        try {
+          const url =
+            `https://maps.googleapis.com/maps/api/place/details/json` +
+            `?place_id=${prediction.place_id}` +
+            `&fields=address_components,formatted_address,geometry,name` +
+            `&key=${GOOGLE_API_KEY}`;
+          const res = await fetch(url);
+          const json = await res.json();
+          const result = json.result;
+          if (result) {
+            const components = result.address_components || [];
+            for (const c of components) {
+              const types: string[] = c.types || [];
+              if (types.includes("locality")) {
+                extractedCity = c.long_name || c.short_name;
+              } else if (
+                !extractedCity &&
+                (types.includes("sublocality") ||
+                  types.includes("sublocality_level_1") ||
+                  types.includes("postal_town") ||
+                  types.includes("administrative_area_level_2") ||
+                  types.includes("neighborhood"))
+              ) {
+                extractedCity = c.long_name || c.short_name;
+              }
+
+              if (types.includes("administrative_area_level_1")) {
+                extractedState = c.short_name || c.long_name;
+              }
+
+              if (types.includes("postal_code")) {
+                extractedPostalCode = c.long_name || c.short_name;
+              }
+            }
+
+            fullAddr = result.formatted_address || result.name || prediction.description;
+            lat = result.geometry?.location?.lat || lat;
+            lng = result.geometry?.location?.lng || lng;
+          }
+        } catch (e: any) {
+          console.warn("Place details native error:", e);
+        }
       }
     }
 
+    // 2. Nominatim lookup fallback if lat/lng or address components are missing
+    if (!lat || !lng || !extractedCity || !extractedState || !extractedPostalCode) {
+      try {
+        let nomUrl = "";
+        if (lat && lng) {
+          nomUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+        } else {
+          nomUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            fullAddr || prediction.description
+          )}&addressdetails=1&limit=1`;
+        }
+
+        const res = await fetch(nomUrl, {
+          headers: { "User-Agent": "HairlinesProApp/1.0 (support@hairlines.app)" },
+        });
+        const json = await res.json();
+        const item = Array.isArray(json) ? json[0] : json;
+        if (item && item.address) {
+          const addr = item.address;
+          if (!extractedCity) extractedCity = addr.city || addr.town || addr.village || addr.municipality || addr.suburb || addr.county || "";
+          if (!extractedState) extractedState = addr.state || "";
+          if (!extractedPostalCode) extractedPostalCode = addr.postcode || "";
+          if (!lat && item.lat) lat = parseFloat(item.lat);
+          if (!lng && item.lon) lng = parseFloat(item.lon);
+        }
+      } catch (osmErr) {
+        console.warn("OSM details fallback error:", osmErr);
+      }
+    }
+
+    // 3. Expo Geocoding fallback if lat/lng still missing
     if (!lat || !lng) {
       try {
-        const geo = await Location.geocodeAsync(prediction.description);
+        const geo = await Location.geocodeAsync(fullAddr || prediction.description);
         if (geo && geo.length > 0) {
           lat = geo[0].latitude;
           lng = geo[0].longitude;
@@ -258,6 +472,12 @@ export function SetLocationScreen({ route, navigation }: Props) {
         console.warn("Native geocode fallback error:", err);
       }
     }
+
+    // 4. Regex & heuristic fallback on address string to ensure zip, state, and city are filled
+    const regexFallback = extractAddressRegexFallback(fullAddr || prediction.description);
+    if (!extractedPostalCode && regexFallback.postalCode) extractedPostalCode = regexFallback.postalCode;
+    if (!extractedState && regexFallback.state) extractedState = regexFallback.state;
+    if (!extractedCity && regexFallback.city) extractedCity = regexFallback.city;
 
     setLoading(false);
     navigation.navigate("PersonalInfo", {

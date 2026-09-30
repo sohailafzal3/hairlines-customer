@@ -8,7 +8,8 @@ import {
   cookieHeader,
 } from "./cookies";
 import { storage } from "../utils/storage";
-import { StorageKeys, DEFAULT_LANGUAGE_CODE } from "../constants";
+import { StorageKeys, DEFAULT_LANGUAGE_CODE, DUMMY_DEVICE_TOKEN } from "../constants";
+import { getDeviceToken } from "./notifications";
 import {
   ApiResponse,
   Account,
@@ -117,7 +118,7 @@ class ApiClient {
 
   // MARK: Auth
   async signIn(phoneNumber: string, password: string, countryCode: string) {
-    const deviceToken = (await storage.get<string>(StorageKeys.deviceToken)) || "88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9";
+    const deviceToken = await getDeviceToken();
     const deviceType = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
     return this.request<Account>("POST", "sign-in", {
       phoneNumber,
@@ -143,7 +144,7 @@ class ApiClient {
     code: string,
     isSignUp: boolean
   ) {
-    const deviceToken = (await storage.get<string>(StorageKeys.deviceToken)) || "88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9";
+    const deviceToken = await getDeviceToken();
     const deviceType = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
     const url = isSignUp
       ? "sign-up/verify-verification-code"
@@ -170,7 +171,7 @@ class ApiClient {
   }
 
   async signUpGuest() {
-    const deviceToken = (await storage.get<string>(StorageKeys.deviceToken)) || "88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9";
+    const deviceToken = await getDeviceToken();
     const deviceType = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
     return this.request<Account>("POST", "sign-up/guest", {
       userType: 2,
@@ -180,7 +181,7 @@ class ApiClient {
   }
 
   async appleSignup(payload: any) {
-    const deviceToken = (await storage.get<string>(StorageKeys.deviceToken)) || "88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9";
+    const deviceToken = await getDeviceToken();
     const deviceType = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
     return this.request<Account>("POST", "auth/apple", {
       ...payload,
@@ -191,7 +192,7 @@ class ApiClient {
   }
 
   async facebookSignup(payload: any) {
-    const deviceToken = (await storage.get<string>(StorageKeys.deviceToken)) || "88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9";
+    const deviceToken = await getDeviceToken();
     const deviceType = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
     return this.request<Account>("POST", "auth/facebook", {
       ...payload,
@@ -214,12 +215,54 @@ class ApiClient {
   }
 
   // MARK: Onboarding / Profile
-  addBasicInfo(payload: any) {
-    return this.request<Account>("POST", "sp/basic-info", payload);
+  async addBasicInfo(payload: any) {
+    const deviceToken = await getDeviceToken();
+    const deviceType =
+      Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
+    const savedUser = await storage.get<any>(StorageKeys.userData);
+    const countryCode =
+      payload?.countryCode || savedUser?.countryCode || savedUser?.phoneCode || "+1";
+    const phoneNumber =
+      payload?.phoneNumber || savedUser?.phoneNumber || "";
+    const profileImageUrl =
+      payload?.profileImageUrl || payload?.profileImage || savedUser?.profileImage || "";
+
+    const finalPayload = {
+      countryCode,
+      phoneNumber,
+      userType: 2,
+      deviceToken,
+      deviceType,
+      profileImageUrl,
+      ...payload,
+      ...(profileImageUrl ? { profileImageUrl } : {}),
+    };
+    return this.request<Account>("POST", "sp/basic-info", finalPayload);
   }
 
-  updateBasicInfo(payload: any) {
-    return this.request<Account>("POST", "sp/update-profile", payload);
+  async updateBasicInfo(payload: any) {
+    const deviceToken = await getDeviceToken();
+    const deviceType =
+      Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
+    const savedUser = await storage.get<any>(StorageKeys.userData);
+    const countryCode =
+      payload?.countryCode || savedUser?.countryCode || savedUser?.phoneCode || "+1";
+    const phoneNumber =
+      payload?.phoneNumber || savedUser?.phoneNumber || "";
+    const profileImageUrl =
+      payload?.profileImageUrl || payload?.profileImage || savedUser?.profileImage || "";
+
+    const finalPayload = {
+      countryCode,
+      phoneNumber,
+      userType: 2,
+      deviceToken,
+      deviceType,
+      profileImageUrl,
+      ...payload,
+      ...(profileImageUrl ? { profileImageUrl } : {}),
+    };
+    return this.request<Account>("POST", "sp/update-profile", finalPayload);
   }
 
   getSPProfile() {
@@ -374,11 +417,19 @@ class ApiClient {
     return this.request<JobDetail>("GET", `sp/job/${jobId}/detail`);
   }
 
-  getPastJobs(offset = 0, limit = 10) {
-    return this.request<{ spJobsFound: PastJob[] }>(
-      "GET",
-      `sp/job/listing?listType=2&offset=${offset}&limit=${limit}`
-    );
+  async getPastJobs(offset = 0, limit = 10, weekNumber?: string, weekYear?: string): Promise<{ spJobsFound: PastJob[] }> {
+    let url = `sp/job/listing?listType=2&offset=${offset}&limit=${limit}`;
+    if (weekNumber && weekYear) {
+      url += `&weekNumber=${weekNumber}&weekYear=${weekYear}`;
+    }
+    const res = await this.request<any>("GET", url);
+    const list: PastJob[] =
+      res?.spJobsFound ||
+      res?.jobList ||
+      res?.jobs ||
+      res?.data ||
+      (Array.isArray(res) ? res : []);
+    return { spJobsFound: list };
   }
 
   giveJobOffer(jobId: string, status: number) {
@@ -463,11 +514,17 @@ class ApiClient {
   }
 
   // MARK: Notifications
-  fetchNotifications(offset = 0, limit = 10) {
-    return this.request<{ notificationData: NotificationModel[] }>(
+  async fetchNotifications(offset = 0, limit = 10): Promise<{ notificationData: NotificationModel[] }> {
+    const res = await this.request<any>(
       "GET",
       `sp-notification?limit=${limit}&offset=${offset}`
     );
+    const list: NotificationModel[] =
+      res?.notificationData ||
+      res?.notifications ||
+      res?.data ||
+      (Array.isArray(res) ? res : []);
+    return { notificationData: list };
   }
 
   actionOnNotification(type: string) {
@@ -481,6 +538,19 @@ class ApiClient {
     );
   }
 
+  // MARK: Referral
+  async getReferralInfo(): Promise<any> {
+    try {
+      return await this.request<any>("GET", "user/getReferralInfo");
+    } catch {
+      try {
+        return await this.request<any>("GET", "sp/getReferralInfo");
+      } catch (e) {
+        return null;
+      }
+    }
+  }
+
   // MARK: Earnings / Wallet
   getEarnings(weekNumber: string, weekYear: string) {
     return this.request<WeeklyEarnings>(
@@ -489,11 +559,18 @@ class ApiClient {
     );
   }
 
-  getWeeklyTransactions(weekNumber: string, weekYear: string) {
-    return this.request<{ spJobsFound: WeekTransaction[] }>(
+  async getWeeklyTransactions(weekNumber: string, weekYear: string): Promise<{ spJobsFound: WeekTransaction[] }> {
+    const res = await this.request<any>(
       "GET",
       `sp/job/weekly-earning-detail?weekNumber=${weekNumber}&weekYear=${weekYear}`
     );
+    const list: WeekTransaction[] =
+      res?.spJobsFound ||
+      res?.transactions ||
+      res?.jobs ||
+      res?.data ||
+      (Array.isArray(res) ? res : []);
+    return { spJobsFound: list };
   }
 
   getUserWeeklyTransactions(spProfileId: string, weekNumber: string, weekYear: string) {
@@ -569,12 +646,38 @@ class ApiClient {
   }
 
   // MARK: Tools / Contact
-  fetchTools() {
-    return this.request<{ tools: string[] }>("GET", "sp/tools-equipment");
+  async fetchTools(): Promise<{ tools: string[] }> {
+    try {
+      const response = await this.client.get("sp/tools-equipment");
+      const body = response.data;
+      let tools: string[] = [];
+      if (Array.isArray(body)) {
+        tools = body;
+      } else if (Array.isArray(body?.data)) {
+        tools = body.data;
+      } else if (Array.isArray(body?.data?.tools)) {
+        tools = body.data.tools;
+      } else if (Array.isArray(body?.tools)) {
+        tools = body.tools;
+      } else if (Array.isArray((body?.data as any)?.spTools)) {
+        tools = (body.data as any).spTools;
+      } else if (Array.isArray((body as any)?.spTools)) {
+        tools = (body as any).spTools;
+      }
+      return { tools };
+    } catch (e: any) {
+      console.warn("fetchTools error:", e?.message);
+      return { tools: [] };
+    }
   }
 
-  updateTools(tools: string[]) {
-    return this.request<any>("POST", "sp/tools-equipment", { tools });
+  async updateTools(tools: string[]): Promise<any> {
+    const response = await this.client.post("sp/tools-equipment", { tools });
+    const body = response.data;
+    if (body && body.success === false) {
+      throw new Error(body.message || body.error || "Failed to update tools");
+    }
+    return body?.data ?? body;
   }
 
   getContactInfo() {
@@ -618,7 +721,19 @@ class ApiClient {
     await removeCookies();
     await storage.remove(StorageKeys.isUserLoggedIn);
     await storage.remove(StorageKeys.isSPLoggedIn);
+    await storage.remove(StorageKeys.isGuestUserLoggedIn);
     await storage.remove(StorageKeys.userData);
+    await storage.remove(StorageKeys.userId);
+    await storage.remove(StorageKeys.userServices);
+    await storage.remove(StorageKeys.userTools);
+    await storage.remove(StorageKeys.userAvailability);
+    await storage.remove(StorageKeys.onboardingStep);
+    await storage.remove(StorageKeys.accountType);
+    await storage.remove(StorageKeys.companyName);
+    await storage.remove(StorageKeys.companyRegistrationNumber);
+    await storage.remove(StorageKeys.referralCode);
+    await storage.remove(StorageKeys.isCompanyWorker);
+    await storage.remove(StorageKeys.savedCookies);
   }
 }
 

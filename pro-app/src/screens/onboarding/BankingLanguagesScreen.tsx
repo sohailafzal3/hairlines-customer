@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { OnboardingStackParamList } from "../../navigation/types";
@@ -15,6 +22,7 @@ import { Colors } from "../../theme/colors";
 import { FontSizes, FontWeights } from "../../theme/fonts";
 import { BorderRadius, Spacing } from "../../theme/spacing";
 import { STRIPE_PUBLISHABLE_KEY } from "../../constants";
+import { navigationRef } from "../../navigation/navigationRef";
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, "BankingLanguages">;
 
@@ -30,6 +38,7 @@ export function BankingLanguagesScreen({ route, navigation }: Props) {
 
   const isFromSettings =
     route.params?.isFromSettings || user.isSignUpCompleted;
+  const returnScreen = route.params?.returnScreen || (isFromSettings ? "Settings" : undefined);
 
   useEffect(() => {
     // Load existing bank account details if available
@@ -46,8 +55,6 @@ export function BankingLanguagesScreen({ route, navigation }: Props) {
       .catch(() => null)
       .finally(() => setLoading(false));
   }, []);
-
-
 
   const createStripeBankToken = async (): Promise<string> => {
     const params = new URLSearchParams();
@@ -111,10 +118,22 @@ export function BankingLanguagesScreen({ route, navigation }: Props) {
 
       if (isFromSettings) {
         showAlert("Success", "Bank details are updated successfully!");
-        if (navigation.canGoBack()) {
-          navigation.goBack();
+        if (returnScreen === "Wallet") {
+          if (navigationRef.isReady()) {
+            navigationRef.navigate("Main", { screen: "Wallet" } as any);
+          } else if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            (navigation as any).navigate("Wallet");
+          }
         } else {
-          navigation.navigate("IdentityDocuments");
+          if (navigationRef.isReady()) {
+            navigationRef.navigate("Main", { screen: "Settings" } as any);
+          } else if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            (navigation as any).navigate("Settings");
+          }
         }
       } else {
         navigation.navigate("Availability");
@@ -127,6 +146,26 @@ export function BankingLanguagesScreen({ route, navigation }: Props) {
   };
 
   const handleBack = () => {
+    if (isFromSettings) {
+      if (returnScreen === "Wallet") {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate("Main", { screen: "Wallet" } as any);
+        } else if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          (navigation as any).navigate("Wallet");
+        }
+        return;
+      }
+      if (navigationRef.isReady()) {
+        navigationRef.navigate("Main", { screen: "Settings" } as any);
+      } else if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        (navigation as any).navigate("Settings");
+      }
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
@@ -139,66 +178,75 @@ export function BankingLanguagesScreen({ route, navigation }: Props) {
   return (
     <View style={styles.container}>
       <Header title={screenTitle} onBackPress={handleBack} />
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: Math.max(insets.bottom + 32, 48) },
-        ]}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        <LoadingOverlay visible={loading || submitting} />
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: Spacing.xl },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="none"
+          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+        >
+          <LoadingOverlay visible={loading || submitting} />
 
-        <Text style={styles.headerTitle}>{screenTitle}</Text>
-        <Text style={styles.headerSubtitle}>
-          Provide your bank account details for direct payouts.
-        </Text>
+          <Text style={styles.headerTitle}>{screenTitle}</Text>
+          <Text style={styles.headerSubtitle}>
+            Provide your bank account details for direct payouts.
+          </Text>
 
-        <View style={styles.cardSection}>
-          {/* 1. Routing Number */}
-          <Input
-            label="Routing Number"
-            placeholder="e.g 110000000"
-            value={routingNumber}
-            onChangeText={setRoutingNumber}
-            keyboardType="number-pad"
-            maxLength={9}
-          />
+          <View style={styles.cardSection}>
+            {/* 1. Routing Number */}
+            <Input
+              label="Routing Number"
+              placeholder="e.g 110000000"
+              value={routingNumber}
+              onChangeText={setRoutingNumber}
+              keyboardType="number-pad"
+              maxLength={9}
+            />
 
-          {/* 2. Account Number */}
-          <Input
-            label="Account Number"
-            placeholder="e.g 000123456789"
-            value={accountNumber}
-            onChangeText={setAccountNumber}
-            keyboardType="number-pad"
-          />
+            {/* 2. Account Number */}
+            <Input
+              label="Account Number"
+              placeholder="e.g 000123456789"
+              value={accountNumber}
+              onChangeText={setAccountNumber}
+              keyboardType="number-pad"
+            />
 
-          {/* 3. SSN */}
-          <Input
-            label="SSN"
-            placeholder="e.g 123456789"
-            value={ssn}
-            onChangeText={setSsn}
-            keyboardType="number-pad"
-            maxLength={9}
+            {/* 3. SSN */}
+            <Input
+              label="SSN"
+              placeholder="e.g 123456789"
+              value={ssn}
+              onChangeText={setSsn}
+              keyboardType="number-pad"
+              maxLength={9}
+            />
+          </View>
+
+          <View style={{ height: Spacing.xl }} />
+        </ScrollView>
+
+        {/* Action Button */}
+        <View
+          style={[
+            styles.footerWrap,
+            { paddingBottom: Math.max(insets.bottom, 16) },
+          ]}
+        >
+          <Button
+            title={isFromSettings ? "UPDATE" : "SUBMIT"}
+            onPress={submit}
           />
         </View>
-
-        <View style={{ height: Spacing.xl }} />
-      </ScrollView>
-
-      {/* Pinned Bottom Action Button */}
-      <View
-        style={[
-          styles.footerWrap,
-          { paddingBottom: Math.max(insets.bottom, 16) },
-        ]}
-      >
-        <Button
-          title={isFromSettings ? "UPDATE" : "SUBMIT"}
-          onPress={submit}
-        />
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -232,10 +280,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   footerWrap: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
     borderTopColor: "#E2E8F0",

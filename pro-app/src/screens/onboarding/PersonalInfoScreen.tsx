@@ -37,7 +37,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, "PersonalInfo">;
 
 export function PersonalInfoScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
-  const { user, clearUser } = useUser();
+  const { user, updateUser, clearUser } = useUser();
   const [loading, setLoading] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName || user?.name?.split(" ")[0] || "");
   const [lastName, setLastName] = useState(user?.lastName || user?.name?.split(" ").slice(1).join(" ") || "");
@@ -237,8 +237,30 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
         longitude: finalLng,
         referralCode: referralCode.trim(),
         profileImage,
+        profileImageUrl: profileImage,
+        countryCode: user.countryCode || user.phoneCode || "+1",
+        phoneNumber: user.phoneNumber || "",
         userType: 2,
       });
+
+      await updateUser({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+        email: email.trim(),
+        gender,
+        dob: formattedDob,
+        permanentAddress: address,
+        city,
+        state,
+        postalCode: postalCode.trim(),
+        lat: finalLat,
+        long: finalLng,
+        referralCode: referralCode.trim(),
+        profileImage: profileImage || user.profileImage,
+        signUpStepCompleted: Math.max(user.signUpStepCompleted, 1),
+      });
+
       navigation.navigate("ServicesFor");
     } catch (e: any) {
       showAlert("Error", e.message);

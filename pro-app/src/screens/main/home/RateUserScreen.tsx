@@ -35,9 +35,17 @@ export function RateUserScreen({ route, navigation }: Props) {
     }
   };
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("HomeMap");
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Header title="Rate Customer" onBackPress={() => navigation.goBack()} />
+      <Header title="Rate Customer" onBackPress={handleBack} />
       <View style={styles.content}>
         <Avatar uri={image} name={name} size={100} />
         <Text style={styles.name}>{name || "Customer"}</Text>

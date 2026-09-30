@@ -29,6 +29,7 @@ export interface Account {
   name?: string;
   profileImage?: string;
   email?: string;
+  countryCode?: string;
   phoneCode?: string;
   phoneNumberPrefix?: string;
   phoneNumber?: string;
@@ -163,12 +164,23 @@ export interface TermsCondition {
 
 export interface PastJob {
   id?: string;
+  _id?: string;
+  jobId?: string;
   spEarnedAmount?: number;
+  totalAmount?: number;
   jobEndTime?: number;
+  jobStartTime?: number;
   serviceName?: string;
+  serviceImage?: string;
   userName?: string;
   userProfileImage?: string;
   currency?: string;
+  address?: string;
+  primaryAddress?: string;
+  spJobStatus?: number;
+  status?: number;
+  gratuity?: number;
+  tips?: number;
 }
 
 export interface UnHandledJob {
@@ -397,9 +409,17 @@ export interface Week {
 }
 
 export interface WeekTransaction {
+  id?: string;
+  _id?: string;
+  jobId?: string;
+  serviceName?: string;
+  userName?: string;
+  userProfileImage?: string;
   spEarnings?: number;
+  spEarnedAmount?: number;
   packageId?: number;
   endTime?: number;
+  jobEndTime?: number;
   currency?: string;
   distanceUnit?: string;
   estimatedDistance?: number;

@@ -41,6 +41,14 @@ const RootNavigator = () => {
   }, [setLoggedIn]);
 
   useEffect(() => {
+    registerForPushNotificationsAsync().then((token) => {
+      if (token && user) {
+        setUser({ ...user, deviceToken: token });
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     if (!isLoggedIn) return;
 
     registerForPushNotificationsAsync().then((token) => {
