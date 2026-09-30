@@ -33,7 +33,7 @@ const ShareReferralScreen: React.FC<Props> = ({ navigation }) => {
   const [referralInfo, setReferralInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const referralCode = user?.referralCode || 'HAIRLINES';
+  const referralCode = referralInfo?.referralCode || user?.referralCode || 'HAIRLINES';
 
   useEffect(() => {
     loadReferralInfo();

@@ -68,9 +68,34 @@ const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
       setLoading(true);
       const listType = activeTab === 'scheduled' ? 1 : 2;
       const res: any = await JobsApi.fetchJobListing(listType, 0);
-      const list = res?.jobs || res?.data || (Array.isArray(res) ? res : []);
+      const list =
+        res?.jobList ||
+        res?.jobs ||
+        res?.data ||
+        (Array.isArray(res) ? res : []);
       if (Array.isArray(list)) {
-        setJobs(list);
+        const mapped: Job[] = list.map((job: any) => ({
+          id: job._id || job.id || job.jobId,
+          _id: job._id || job.id || job.jobId,
+          serviceName: job.serviceName || 'Grooming Service',
+          subServiceName: job.subServiceName || '',
+          serviceImage: job.serviceImage || '',
+          status: job.spJobStatus !== undefined ? job.spJobStatus : (job.status !== undefined ? job.status : 1),
+          spJobStatus: job.spJobStatus !== undefined ? job.spJobStatus : (job.status !== undefined ? job.status : 1),
+          jobStartTime: job.jobStartTime ? (typeof job.jobStartTime === 'number' ? new Date(job.jobStartTime * 1000).toISOString() : String(job.jobStartTime)) : '',
+          createdDate: job.createdDate || job.createdAt || '',
+          primaryAddress: job.primaryAddress || job.address || '',
+          totalAmount: Number(job.totalAmount) || Number(job.jobAmount?.totalAmount) || Number(job.costBreakDown?.totalAmount) || 0,
+          currency: job.currency || '$',
+          worker: job.worker || {
+            id: job.spProfileId,
+            name: job.name || job.spName || 'Hairlines Pro',
+            profileImage: job.profileImage || '',
+            avgRating: Number(job.avgRating) || 5.0,
+          },
+          costBreakDown: job.costBreakDown || job.jobAmount,
+        }));
+        setJobs(mapped);
       } else {
         setJobs([]);
       }

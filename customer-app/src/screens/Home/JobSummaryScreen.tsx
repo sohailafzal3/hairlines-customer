@@ -71,9 +71,10 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
       if (selectedPromoCode?.code) {
         params.promoCode = selectedPromoCode.code;
       }
-      const result = await JobsApi.estimateBreakdown(params);
-      if (result) {
-        setCostBreakdown(result);
+      const result: any = await JobsApi.estimateBreakdown(params);
+      const breakdown = result?.costBreakDown || result?.data || result;
+      if (breakdown) {
+        setCostBreakdown(breakdown);
       }
     } catch (e) {
       console.warn('Estimate fetch failed:', e);

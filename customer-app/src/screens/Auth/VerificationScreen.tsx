@@ -127,7 +127,24 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
       const deviceToken = await getDeviceToken();
       const deviceType = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
 
-      if (isSignUp) {
+      if (isForgotPassword) {
+        const account = await AuthApi.verifySignInCode({
+          countryCode,
+          phoneNumber,
+          code: fullCode,
+          deviceToken,
+          deviceType,
+        });
+        if (account) {
+          setAccount(account);
+          Toast.show({
+            type: 'success',
+            text1: 'Verified',
+            text2: 'Please set your new password',
+          });
+          navigation.navigate('NewPassword', { isFromProfile: false });
+        }
+      } else if (isSignUp) {
         const account = await AuthApi.verifyCode({
           countryCode,
           phoneNumber,

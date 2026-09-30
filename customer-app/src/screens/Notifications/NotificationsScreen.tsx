@@ -42,10 +42,25 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
     try {
       setLoading(true);
       const res: any = await NotificationsApi.fetchNotifications(0);
-      const list = res?.notifications || res?.data || (Array.isArray(res) ? res : []);
+      const list =
+        res?.notificationData ||
+        res?.notifications ||
+        res?.data ||
+        (Array.isArray(res) ? res : []);
       if (Array.isArray(list)) {
-        setNotifications(list);
-        const unread = list.filter((n: any) => !n.isRead).length;
+        const mapped: NotificationModel[] = list.map((item: any) => ({
+          notificationId: item._id || item.notificationId || item.id || '',
+          notificationType: item.notificationType || 0,
+          jobId: item.jobId || item.resource?.packageId || '',
+          isRead: item.isRead ?? false,
+          name: item.name || 'Hairlines',
+          message: typeof item.message === 'string' ? item.message.replace(/<[^>]*>?/gm, '') : item.alert || '',
+          timePassed: item.timeAgo || item.timePassed || '',
+          image: item.profileImage || item.image || '',
+          shouldNavigate: item.shouldNavigate ?? true,
+        }));
+        setNotifications(mapped);
+        const unread = mapped.filter((n) => !n.isRead).length;
         setNotificationBadge(unread);
       }
     } catch (e) {

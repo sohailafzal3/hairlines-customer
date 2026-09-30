@@ -46,9 +46,25 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
     try {
       setLoading(true);
       const res: any = await ProfileApi.fetchPromoCodes(0);
-      const list = res?.promoCodes || res?.data || (Array.isArray(res) ? res : []);
+      const list =
+        res?.fetchPromoCodes ||
+        res?.promoCodes ||
+        res?.data ||
+        (Array.isArray(res) ? res : []);
       if (Array.isArray(list)) {
-        setPromoCodes(list);
+        const mapped: PromoCode[] = list.map((item: any) => ({
+          id: item._id || item.id || 1,
+          code: item.code || '',
+          title: item.name || item.title || item.code || 'Discount Voucher',
+          description: item.promoText || item.description || '',
+          discountType: item.type || item.promoType || 1,
+          discountPercentage: item.percentage || 10,
+          amount: item.maxDiscount || item.amount || 10,
+          expiryDate: item.expiryDate ? String(item.expiryDate) : undefined,
+          isExpired: item.isExpired ?? false,
+          canUse: item.canUse ?? true,
+        }));
+        setPromoCodes(mapped);
       }
     } catch (e) {
       console.log('Promo code error:', e);

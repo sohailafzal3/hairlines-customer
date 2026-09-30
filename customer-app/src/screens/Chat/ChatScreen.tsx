@@ -79,9 +79,28 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       setLoading(true);
       const res: any = await ChatApi.fetchThread(jobId, 0);
-      const list: Message[] = res?.messages || res?.data || (Array.isArray(res) ? res : []);
+      const list =
+        res?.messages ||
+        res?.messageList ||
+        res?.data ||
+        (Array.isArray(res) ? res : []);
       if (Array.isArray(list)) {
-        setMessages(list.reverse());
+        const mapped: Message[] = list.map((item: any) => ({
+          id: item._id || item.id || `msg-${Date.now()}-${Math.random()}`,
+          body: item.message || item.body || '',
+          senderId: item.senderId || item.spAccountId || item.driverAccountId || '',
+          senderType: item.senderType ?? (item.senderUserType === 'sp' ? SenderType.sp : SenderType.user),
+          receiverType: item.receiverType ?? SenderType.sp,
+          jobId: item.jobId || jobId,
+          senderName: item.senderName || (item.senderType === SenderType.user ? 'You' : spName || 'Stylist'),
+          senderImageUrl: item.senderImage || item.senderImageUrl || '',
+          isRead: item.isRead ?? false,
+          createdAt: item.createdAt ? String(item.createdAt) : new Date().toISOString(),
+          updatedAt: item.updatedAt ? String(item.updatedAt) : new Date().toISOString(),
+          createdAtString: item.createdAtString || item.timePassed || 'Now',
+          userId: item.userId || item.driverAccountId || '',
+        }));
+        setMessages(mapped.reverse());
       }
     } catch (e) {
       console.log('Error loading messages:', e);

@@ -36,7 +36,7 @@ const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
       const deviceType = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
       const account = await AuthApi.signUpGuest({
         countryCode: '+1',
-        phoneNumber: '',
+        phoneNumber: deviceToken,
         deviceToken,
         deviceType,
       });

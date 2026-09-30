@@ -73,8 +73,48 @@ const WorkerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
       setLoading(true);
       const res = await JobsApi.fetchSPProfile(spProfileId);
       const data = (res as any)?.spProfile || (res as any)?.data || res;
-      if (data && (data.id || data._id || data.name)) {
-        setProfile(data);
+      if (data && (data.id || data._id || data.name || data.firstName)) {
+        const mapped: SPProfile = {
+          id: data._id || data.id || spProfileId,
+          name: data.name || `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Hair Stylist Pro',
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          phonePreFix: data.phonePreFix || '',
+          phoneNumber: data.phoneNumber || '',
+          email: data.email || '',
+          profileImage: data.profileImage || '',
+          avgRating: Number(data.avgRating) || 5.0,
+          jobCount: Number(data.jobsDone) || Number(data.jobCount) || 0,
+          about: data.about || data.bio || 'Licensed beauty & hair professional.',
+          companyName: data.companyName || '',
+          services: Array.isArray(data.services)
+            ? data.services.map((s: any) => ({
+                id: s._id || s.id,
+                serviceName: s.serviceName || s.name || '',
+                serviceDescription: s.serviceDescription || s.description || '',
+              }))
+            : [],
+          languages: Array.isArray(data.languages)
+            ? data.languages.map((l: any) => ({
+                id: l._id || l.id || l.label,
+                name: l.label || l.languageName || l.name || 'English',
+              }))
+            : [{ id: '1', name: 'English' }],
+          tools: Array.isArray(data.tools) ? data.tools : ['Pro Clippers', 'Shears', 'Sanitizer'],
+          referenceImages: Array.isArray(data.referenceImages) ? data.referenceImages : [],
+          ratingAndReview: Array.isArray(data.ratingAndReview)
+            ? data.ratingAndReview.map((r: any) => ({
+                id: r._id || r.id,
+                rating: Number(r.rating) || 5,
+                review: r.review || '',
+                userName: r.name || r.userName || 'Client',
+                userImage: r.profileImage || r.userImage || '',
+                createdAt: r.createdAt || 'Recently',
+              }))
+            : [],
+          currency: data.currency || '$',
+        };
+        setProfile(mapped);
       } else {
         setProfile(FALLBACK_PROFILE);
       }

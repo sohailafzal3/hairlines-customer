@@ -111,7 +111,7 @@ const SuggestedMoversScreen: React.FC<Props> = ({ navigation }) => {
 
   useEffect(() => {
     loadSPs();
-  }, [createJob.isFilterApplied]);
+  }, [createJob.isFilterApplied, activeTab]);
 
   const loadSPs = async () => {
     try {
@@ -132,10 +132,38 @@ const SuggestedMoversScreen: React.FC<Props> = ({ navigation }) => {
         distance: createJob.distance,
         gender: createJob.barberGender,
       };
-      const result: any = await JobsApi.fetchSPList(params);
-      const list = (result as any)?.spList || (result as any)?.data || (Array.isArray(result) ? result : []);
+      const result: any = await JobsApi.fetchSPList(params, activeTab === 'freelancer' ? '1' : '2');
+      const list =
+        (result as any)?.spResultArray ||
+        (result as any)?.spList ||
+        (result as any)?.data ||
+        (Array.isArray(result) ? result : []);
       if (Array.isArray(list) && list.length > 0) {
-        setSps(list);
+        const mapped: SP[] = list.map((item: any) => ({
+          id: item._id || item.id,
+          userId: item.userId || '',
+          name: item.name || 'Hair Stylist Pro',
+          profileImage: item.profileImage || '',
+          avgRating: Number(item.avgRating) || 5.0,
+          ratingCount: Number(item.totalReviews) || Number(item.ratingCount) || 24,
+          distanceAway: item.distanceAway || '1.0 mi',
+          jobsDone: Number(item.jobsDone) || Number(item.spJobCompletedCount) || 12,
+          servicePrice: Number(item.subServiceTypeRate) || Number(item.servicePrice) || 35,
+          hourlyRate: Number(item.subServiceTypeRate) || Number(item.hourlyRate) || 40,
+          isHourly: item.isHourly ?? false,
+          about: item.about || item.bio || 'Licensed beauty & hair professional.',
+          isCompany: item.isCompany ?? (Number(item.numberOfWorkers) > 1),
+          numberOfEmployees: Number(item.numberOfWorkers) || 1,
+          spPrimaryAddress: item.primaryAddress || '',
+          spCity: item.city || '',
+          spState: item.state || '',
+          spCountry: item.country || '',
+          provideServiceInPremisis: item.provideServiceInPremises ?? true,
+          provideServiceInUserPremises: item.provideServiceInUserPremises ?? true,
+          permanentAddressLat: item.permanentAddressLat || item.latitude || 0,
+          permanentAddressLong: item.permanentAddressLong || item.longitude || 0,
+        }));
+        setSps(mapped);
       } else {
         setSps(MOCK_FREELANCERS);
       }

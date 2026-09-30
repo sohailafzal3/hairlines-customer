@@ -105,10 +105,48 @@ const SubServicesScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       setLoading(true);
       const res: any = await JobsApi.fetchSubServices(serviceId);
-      const list = res?.subServices || res?.data || (Array.isArray(res) ? res : []);
+      const list =
+        res?.subServices ||
+        res?.subServicesList ||
+        res?.data ||
+        (Array.isArray(res) ? res : []);
       if (Array.isArray(list) && list.length > 0) {
-        setSubServices(list);
-        setSelectedSubService(list[0]);
+        const mapped: SubService[] = list.map((item: any) => {
+          const rawInfos = item.subServiceInfo || item.subServicesTypes || [];
+          const serviceInfo: SubServiceInfo[] =
+            Array.isArray(rawInfos) && rawInfos.length > 0
+              ? rawInfos.map((info: any) => ({
+                  id: info._id || info.id,
+                  name: info.name || 'Standard Treatment',
+                  description: info.description || '',
+                  duration: info.duration || 30,
+                  hasDuration: info.hasDuration ?? true,
+                  durationUnit: info.durationUnit || 'min',
+                  subServiceId: info.subServiceId || item._id || item.id,
+                }))
+              : [
+                  {
+                    id: `${item._id || item.id}_std`,
+                    name: 'Standard Treatment (30 mins)',
+                    description: item.subServiceDescription || 'Precision cut and styling.',
+                    duration: 30,
+                    hasDuration: true,
+                    durationUnit: 'min',
+                    subServiceId: item._id || item.id,
+                  },
+                ];
+
+          return {
+            id: item._id || item.id,
+            subServiceName: item.subServiceName || item.name || 'Grooming Style',
+            subServiceDescription: item.subServiceDescription || item.description || '',
+            subServiceImage: item.subServiceImage || item.image || '',
+            serviceId: item.serviceId || serviceId,
+            serviceInfo,
+          };
+        });
+        setSubServices(mapped);
+        setSelectedSubService(mapped[0]);
       } else {
         setSubServices(FALLBACK_SUBSERVICES);
         setSelectedSubService(FALLBACK_SUBSERVICES[0]);

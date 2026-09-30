@@ -106,9 +106,25 @@ const ServicesScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       setLoading(true);
       const res: any = await JobsApi.fetchServices(serviceTypeId || '');
-      const list = res?.services || res?.data || (Array.isArray(res) ? res : []);
+      const list =
+        res?.servicesList ||
+        res?.services ||
+        res?.data ||
+        (Array.isArray(res) ? res : []);
       if (Array.isArray(list) && list.length > 0) {
-        setServices(list);
+        const mapped: Service[] = list.map((item: any) => ({
+          id: item._id || item.id,
+          serviceName: item.serviceName || item.name || 'Service',
+          serviceDescription: item.serviceDescription || item.description || '',
+          serviceHourlyRate: item.serviceHourlyRate || item.serviceFixedRate || item.subServiceTypeRate || 35,
+          serviceFixedRate: item.serviceFixedRate || item.serviceHourlyRate || 35,
+          isHourly: item.isHourly ?? false,
+          serviceDuration: item.serviceDuration || item.duration || 30,
+          serviceImage: item.serviceImage || item.image || '',
+          subServices: item.subServices || [],
+          tags: item.tags || ['popular'],
+        }));
+        setServices(mapped);
       } else {
         setServices(FALLBACK_SERVICES);
       }

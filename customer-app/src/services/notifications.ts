@@ -44,12 +44,7 @@ export async function registerForPushNotificationsAsync(): Promise<string> {
           await Notification.requestPermission();
         }
       }
-      let webToken = await AsyncStorage.getItem(LOCAL_DEVICE_TOKEN_KEY);
-      if (!webToken) {
-        webToken = `web_cust_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-        await AsyncStorage.setItem(LOCAL_DEVICE_TOKEN_KEY, webToken);
-      }
-      token = webToken;
+      token = DUMMY_DEVICE_TOKEN;
     } else {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -78,18 +73,16 @@ export async function registerForPushNotificationsAsync(): Promise<string> {
               token = expoPush.data.trim();
             }
           } catch (expoErr) {
-            let simToken = await AsyncStorage.getItem(LOCAL_DEVICE_TOKEN_KEY);
-            if (!simToken) {
-              simToken = `sim_cust_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-              await AsyncStorage.setItem(LOCAL_DEVICE_TOKEN_KEY, simToken);
-            }
-            token = simToken;
+            token = DUMMY_DEVICE_TOKEN;
           }
         }
+      } else {
+        token = DUMMY_DEVICE_TOKEN;
       }
     }
   } catch (error) {
     console.warn('Customer push token registration error:', error);
+    token = DUMMY_DEVICE_TOKEN;
   }
 
   const resolvedToken =

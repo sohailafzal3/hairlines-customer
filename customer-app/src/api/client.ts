@@ -2,14 +2,30 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { kBaseUrl } from '../constants';
 import { Storage } from '../utils/storage';
 
-// Standard API Response Envelope
+import { Platform } from 'react-native';
+import {
+  loadCookies,
+  saveCookiesFromResponse,
+  cookieHeader,
+} from '../utils/cookies';
+
 export interface ApiResponse<T = any> {
   response: number;
-  success: boolean;
+  success: boolean | number;
   message: string;
   data: T;
   error: string;
 }
+
+const authCookieEndpoints = [
+  'sign-in/verify-verification-code',
+  'sign-up/verify-verification-code',
+  'user/basic-info',
+  'sign-in',
+  'sign-up/guest',
+  'auth/facebook',
+  'auth/apple',
+];
 
 class ApiClient {
   private client: AxiosInstance;
@@ -28,32 +44,60 @@ class ApiClient {
 
     this.client.interceptors.request.use(
       async (config) => {
-        // Load any stored cookies or headers if needed
+        if (Platform.OS !== 'web') {
+          const cookies = await loadCookies();
+          if (cookies.length > 0) {
+            config.headers = config.headers ?? {};
+            config.headers.Cookie = cookieHeader(cookies);
+          }
+        }
         return config;
       },
       (error) => Promise.reject(error)
     );
 
     this.client.interceptors.response.use(
-      (response: AxiosResponse<ApiResponse>) => {
+      async (response: AxiosResponse<ApiResponse>) => {
+        // Automatically save cookies from ANY response with set-cookie
+        const setCookie = response.headers['set-cookie'];
+        if (setCookie) {
+          await saveCookiesFromResponse(setCookie);
+        }
+
         const { data } = response;
-        if (
-          data &&
-          (data.success === true ||
+        if (data) {
+          // Explicit business logic failure from backend
+          if (data.success === 0 || data.success === false || (data as any).status === false) {
+            const errorMsg = data.message || data.error || 'Request failed';
+            return Promise.reject(new Error(errorMsg));
+          }
+
+          // Explicit business logic success
+          if (
+            data.success === true ||
             (data as any).success === 1 ||
             (data as any).success === '1' ||
-            (data as any).response === 1 ||
-            (data as any).response === 200)
-        ) {
-          return { ...response, data: data.data !== undefined ? data.data : data };
+            (data as any).response === 1
+          ) {
+            return { ...response, data: data.data !== undefined ? data.data : data };
+          }
+
+          // Direct data payload without standard envelope
+          if (data.data !== undefined) {
+            return { ...response, data: data.data };
+          }
+
+          return response;
         }
-        // Business logic error
-        if (data?.message) {
-          return Promise.reject(new Error(data.message));
-        }
-        return Promise.reject(new Error(data?.error || 'Unknown error'));
+
+        return response;
       },
       (error) => {
+        const setCookie = error.response?.headers?.['set-cookie'];
+        if (setCookie) {
+          saveCookiesFromResponse(setCookie);
+        }
+
         if (error.response?.data?.message) {
           return Promise.reject(new Error(error.response.data.message));
         }

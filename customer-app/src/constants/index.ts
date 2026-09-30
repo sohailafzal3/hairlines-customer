@@ -1,18 +1,17 @@
 // Constants matching iOS Constants.swift
-export const kSocketUrl_live = 'https://api.hairlines.app';
-export const kBaseUrl_live = 'https://api.hairlines.app/api/v1/en/';
-
-export const kSocketUrl = "https://stagingapi.hairlines.app";
-export const kBaseUrl = "https://stagingapi.hairlines.app/api/v1/en/";
-
+export const kSocketUrl = process.env.EXPO_PUBLIC_SOCKET_URL || 'https://api.hairlines.app';
+export const kBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.hairlines.app/api/v1/en/';
+export const kSocketUrl_staging = 'https://stagingapi.hairlines.app';
+export const kBaseUrl_staging = 'https://stagingapi.hairlines.app/api/v1/en/';
 
 // Third-party Keys
-// TODO: Move these to .env / EAS Secrets (see AGENTS.md Security Considerations)
 export const kGoogleApiKey =
   process.env.EXPO_PUBLIC_GOOGLE_API_KEY ||
   process.env.GOOGLE_API_KEY ||
   'AIzaSyBRO8-9PkS3p4ZTay5BjR53QJUOQoFvg6M';
-export const kStripeKey = process.env.EXPO_PUBLIC_STRIPE_KEY || '';
+export const kStripeKey =
+  process.env.EXPO_PUBLIC_STRIPE_KEY ||
+  'pk_live_51HIRdrAFQrnBnGI3txfyzgfPjfXJaOKO3NZJ2OeF0uYQg2s9AKYU2EpRrU1NkrjkP6s93xPeOAunrqwhUDUHX5gf006xTFYGmc';
 
 // S3 / AWS
 export const kS3Prefix = 'https://hairlines-lives.s3.us-west-2.amazonaws.com/';

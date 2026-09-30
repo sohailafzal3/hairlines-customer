@@ -77,7 +77,7 @@ const DEFAULT_CATEGORIES: ServiceCategory[] = [
 const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
-  const { setCreateJobField } = useJobStore();
+  const { createJob, setCreateJobField } = useJobStore();
   const { notificationBadge } = useUserStore();
 
   const [categories, setCategories] = useState<ServiceCategory[]>(DEFAULT_CATEGORIES);
@@ -101,9 +101,24 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
     try {
       setLoading(true);
       const res: any = await JobsApi.fetchServiceTypes();
-      const list = res?.serviceTypes || res?.data || (Array.isArray(res) ? res : []);
+      const list =
+        res?.serviceTypes ||
+        res?.servicesList ||
+        res?.serviceType ||
+        res?.data ||
+        (Array.isArray(res) ? res : []);
       if (Array.isArray(list) && list.length > 0) {
-        setCategories(list);
+        const mapped = list.map((item: any) => ({
+          _id: item._id || item.id,
+          id: item._id || item.id,
+          serviceTypeName: item.serviceTypeName || item.name,
+          name: item.serviceTypeName || item.name,
+          serviceTypeDescription: item.serviceTypeDescription || item.serviceDescription || item.description,
+          description: item.serviceTypeDescription || item.serviceDescription || item.description,
+          serviceTypeImage: item.serviceTypeImage || item.serviceImage || item.image,
+          image: item.serviceTypeImage || item.serviceImage || item.image,
+        }));
+        setCategories(mapped);
       } else {
         setCategories(DEFAULT_CATEGORIES);
       }
@@ -139,6 +154,24 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
     const serviceTypeName = item.serviceTypeName || item.name || '';
     setCreateJobField('serviceTypeId', serviceTypeId);
     setCreateJobField('serviceTypeName', serviceTypeName);
+
+    // Match iOS CategoriesViewController.swift:463-471 - populate default address if not set
+    if (!createJob.primaryAddress && user) {
+      const addr = typeof user.permanentAddress === 'string'
+        ? user.permanentAddress
+        : user.permanentAddress?.primaryAddress || user.address || '';
+      if (addr) {
+        setCreateJobField('primaryAddress', addr);
+        setCreateJobField('city', user.city || (typeof user.permanentAddress === 'object' ? user.permanentAddress?.city : '') || '');
+        setCreateJobField('state', user.state || (typeof user.permanentAddress === 'object' ? user.permanentAddress?.state : '') || '');
+        setCreateJobField('country', user.country || (typeof user.permanentAddress === 'object' ? user.permanentAddress?.country : '') || 'USA');
+        setCreateJobField('latitude', user.lastLocation?.latitude || user.latitude || 37.7749);
+        setCreateJobField('longitude', user.lastLocation?.longitude || user.longitude || -122.4194);
+        setCreateJobField('streetAddressLine1', user.streetAddressLine1 || '');
+        setCreateJobField('streetAddressLine2', user.streetAddressLine2 || '');
+      }
+    }
+
     navigation.navigate('Services', {
       serviceTypeId,
       serviceTypeName,
@@ -230,7 +263,7 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
           <View style={{ marginHorizontal: 6, flex: 1 }}>
             <Text style={styles.locationLabel}>Service Location</Text>
             <Text style={styles.locationText} numberOfLines={1}>
-              {user?.address || 'Select address'}
+              {createJob.primaryAddress || user?.address || (typeof user?.permanentAddress === 'string' ? user.permanentAddress : user?.permanentAddress?.primaryAddress) || 'Select location'}
             </Text>
           </View>
           <Ionicons name="chevron-down" size={14} color="#64748B" />

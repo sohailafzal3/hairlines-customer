@@ -5,6 +5,8 @@ import { Account, User } from '../models';
 import { Storage } from '../utils/storage';
 import { STORAGE_KEYS } from '../constants';
 
+import { removeCookies } from '../utils/cookies';
+
 interface AuthState {
   isLoggedIn: boolean;
   isGuest: boolean;
@@ -66,6 +68,7 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         await Storage.removeItem(STORAGE_KEYS.kIsUserLoggedIn);
         await Storage.removeItem(STORAGE_KEYS.kIsGuestUserLoggedIn);
+        await removeCookies();
         set({
           isLoggedIn: false,
           isGuest: false,
