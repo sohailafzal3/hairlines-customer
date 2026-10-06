@@ -1,7 +1,6 @@
 import React from "react";
 import { Image, View, Text, StyleSheet } from "react-native";
 import { Colors } from "../theme/colors";
-import { FontWeights } from "../theme/fonts";
 
 interface Props {
   uri?: string;
@@ -38,11 +37,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
     borderWidth: 1.5,
-    borderColor: Colors.BorderColor,
+    borderColor: '#E2E8F0',
   },
   initial: {
     color: Colors.ButtonTextColor,
-    fontWeight: FontWeights.bold,
+    fontWeight: '700',
   },
 });
 

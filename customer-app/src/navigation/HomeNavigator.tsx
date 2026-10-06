@@ -23,8 +23,15 @@ export type HomeStackParamList = {
   SuggestedMovers: undefined;
   WorkerProfile: { spProfileId: string };
   JobSummary: undefined;
-  SetLocation: undefined;
-  Map: undefined;
+  SetLocation: {
+    selectedArea?: string;
+    selectedCity?: string;
+    selectedState?: string;
+    selectedCountry?: string;
+    latitude?: number;
+    longitude?: number;
+  } | undefined;
+  Map: { initialLat?: number; initialLng?: number } | undefined;
   Calendar: undefined;
   Filters: undefined;
   Chat: { jobId: string; spName?: string };

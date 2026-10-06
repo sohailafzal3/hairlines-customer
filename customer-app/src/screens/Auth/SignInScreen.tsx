@@ -9,20 +9,19 @@ import {
   Platform,
   ScrollView,
   StatusBar,
-  TextInput,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { Button, Input, LoadingOverlay } from '../../components';
+import { VTButton, VTTextField } from '../../components/common';
 import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
-import { getDeviceToken } from '../../services/notifications';
-import Toast from 'react-native-toast-message';
+import { Storage } from '../../utils/storage';
+import { STORAGE_KEYS } from '../../constants';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'SignIn'>;
@@ -30,83 +29,72 @@ type Props = {
 };
 
 const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { login } = useAuthStore();
+  const { isSignUp: initialIsSignUp, selectedCountryCode, selectedFlag } = route.params || { isSignUp: false };
+  const { setAccount, setLoggedIn } = useAuthStore();
 
-  const [isSignUp, setIsSignUp] = useState(!!route.params?.isSignUp);
+  const [isSignUp, setIsSignUp] = useState(initialIsSignUp);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
-  const [countryCode, setCountryCode] = useState(route.params?.countryCode || '+1');
-  const [flagEmoji, setFlagEmoji] = useState('🇺🇸');
+  const [countryCode, setCountryCode] = useState(selectedCountryCode || '+1');
+  const [flagEmoji, setFlagEmoji] = useState(selectedFlag || '🇺🇸');
   const [loading, setLoading] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    if (route.params?.isSignUp !== undefined) {
-      setIsSignUp(route.params.isSignUp);
+    if (route.params?.selectedCountryCode) {
+      setCountryCode(route.params.selectedCountryCode);
     }
-    if (route.params?.countryCode) {
-      setCountryCode(route.params.countryCode);
+    if (route.params?.selectedFlag) {
+      setFlagEmoji(route.params.selectedFlag);
     }
-  }, [route.params]);
+  }, [route.params?.selectedCountryCode, route.params?.selectedFlag]);
 
   const handleSubmit = async () => {
-    const cleanPhone = phoneNumber.replace(/\D/g, '');
-    if (!cleanPhone) {
-      setErrorMsg('Please enter your mobile phone number');
-      return;
-    }
-
-    if (cleanPhone.length !== 10) {
-      const msg = 'Phone number must be exactly 10 digits';
-      setErrorMsg(msg);
-      Toast.show({
-        type: 'error',
-        text1: 'Invalid Phone Number',
-        text2: msg,
-      });
-      return;
-    }
+    if (!phoneNumber.trim()) return;
 
     setErrorMsg('');
     setLoading(true);
     try {
-      const deviceToken = await getDeviceToken();
-      const deviceType = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
+      const deviceToken = '0000000000000000000000000000000000000000000000000000000000000000';
 
       if (isForgotPassword) {
         const res: any = await AuthApi.forgotPassword({
           countryCode,
           phoneNumber,
           deviceToken,
-          deviceType,
+          deviceType: 'ios',
         });
-        const verificationCode = res?.verificationCode ? String(res?.verificationCode) : '';
-        Toast.show({
-          type: 'success',
-          text1: 'Code Sent',
-          text2: 'Verification code sent to your phone',
-        });
+        // Backend may return the OTP code for dev/test environments
+        const otpCode = res?.code
+          ? String(res.code)
+          : res?.verificationCode
+          ? String(res.verificationCode)
+          : res?.otp
+          ? String(res.otp)
+          : undefined;
         navigation.navigate('Verification', {
           countryCode,
           phoneNumber,
-          code: verificationCode,
           isSignUp: false,
           isForgotPassword: true,
+          otpCode,
         });
       } else if (isSignUp) {
         const res: any = await AuthApi.sendVerificationCode(countryCode, phoneNumber);
-        const verificationCode = res?.verificationCode ? String(res?.verificationCode) : '';
-        Toast.show({
-          type: 'success',
-          text1: 'Code Sent',
-          text2: 'Verification code sent to your phone',
-        });
+        // Backend returns OTP code in response (dev/staging environments)
+        const otpCode = res?.code
+          ? String(res.code)
+          : res?.verificationCode
+          ? String(res.verificationCode)
+          : res?.otp
+          ? String(res.otp)
+          : undefined;
         navigation.navigate('Verification', {
           countryCode,
           phoneNumber,
-          code: verificationCode,
           isSignUp: true,
+          otpCode,
         });
       } else {
         const account = await AuthApi.signIn({
@@ -114,25 +102,17 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
           phoneNumber,
           password,
           deviceToken,
-          deviceType,
+          deviceType: 'ios',
         });
         if (account) {
-          Toast.show({
-            type: 'success',
-            text1: 'Signed In',
-            text2: 'Welcome back to Hairlines!',
-          });
-          await login(account);
+          setAccount(account);
+          setLoggedIn(true);
+          await Storage.setItem(STORAGE_KEYS.kIsUserLoggedIn, 'true');
         }
       }
     } catch (error: any) {
-      const msg = error?.message || 'Please check your credentials and try again';
-      setErrorMsg(msg);
-      Toast.show({
-        type: 'error',
-        text1: 'Authentication Failed',
-        text2: msg,
-      });
+      console.log('Auth error:', error);
+      setErrorMsg(error.message || 'An error occurred during authentication.');
     } finally {
       setLoading(false);
     }
@@ -140,20 +120,19 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const getTitle = () => {
     if (isForgotPassword) return 'Retrieve Password';
-    if (isSignUp) return 'Create Account';
+    if (isSignUp) return 'Create Your Account';
     return 'Welcome Back';
   };
 
   const getSubtitle = () => {
     if (isForgotPassword) return 'Enter your phone number to receive a verification code';
-    if (isSignUp) return 'Enter your mobile number to get started';
+    if (isSignUp) return 'Enter your phone number to get started';
     return 'Enter your mobile number and password to sign in';
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.ScreenBG} />
-      <LoadingOverlay visible={loading} />
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -170,10 +149,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
             {/* Top Bar - Back Button */}
             <View style={styles.topBar}>
               <TouchableOpacity
-                onPress={() => {
-                  if (navigation.canGoBack()) navigation.goBack();
-                  else navigation.navigate('LoginSignUp');
-                }}
+                onPress={() => navigation.goBack()}
                 style={styles.backButton}
                 activeOpacity={0.8}
               >
@@ -190,12 +166,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
             {/* Inline Error Banner */}
             {!!errorMsg && (
               <View style={styles.errorContainer}>
-                <Ionicons
-                  name="alert-circle-outline"
-                  size={18}
-                  color={Colors.errorViewColor}
-                  style={{ marginRight: 6 }}
-                />
+                <Ionicons name="alert-circle-outline" size={18} color={Colors.errorViewColor} style={{ marginRight: 6 }} />
                 <Text style={styles.errorBannerText}>{errorMsg}</Text>
               </View>
             )}
@@ -209,12 +180,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
                 <TouchableOpacity
                   style={styles.countryCodePill}
                   activeOpacity={0.8}
-                  onPress={() =>
-                    navigation.navigate('SelectCountry', {
-                      isSignUp,
-                      isForgotPassword,
-                    })
-                  }
+                  onPress={() => navigation.navigate('SelectCountry', { selectedCode: countryCode })}
                 >
                   <Text style={styles.flagEmoji}>{flagEmoji}</Text>
                   <Text style={styles.countryCodeText}>{countryCode}</Text>
@@ -222,23 +188,21 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
                 </TouchableOpacity>
 
                 {/* Phone Input Field */}
-                <View style={styles.phoneInputFlex}>
-                  <TextInput
-                    placeholder="10-digit number"
-                    placeholderTextColor={Colors.placeholderGray}
-                    value={phoneNumber}
-                    onChangeText={(text) => setPhoneNumber(text.replace(/[^0-9]/g, '').slice(0, 10))}
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                    style={styles.phoneInputText}
-                  />
-                </View>
+                <VTTextField
+                  placeholder="Phone Number"
+                  value={phoneNumber}
+                  onChangeText={(text) => setPhoneNumber(text.replace(/\D/g, '').slice(0, 10))}
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  style={styles.phoneInputFlex}
+                  inputStyle={styles.phoneInputText}
+                />
               </View>
 
               {/* Password Input (Sign In mode only) */}
               {!isSignUp && !isForgotPassword && (
                 <View style={styles.passwordWrapper}>
-                  <Input
+                  <VTTextField
                     label="Password"
                     placeholder="Enter your password"
                     value={password}
@@ -269,43 +233,28 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
                   style={styles.forgotButtonLeft}
                   activeOpacity={0.7}
                 >
-                  <Ionicons
-                    name="arrow-back-circle-outline"
-                    size={16}
-                    color={Colors.ButtonPrimaryColor}
-                    style={{ marginRight: 4 }}
-                  />
+                  <Ionicons name="arrow-back-circle-outline" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
                   <Text style={styles.forgotText}>Back to Sign In</Text>
                 </TouchableOpacity>
               )}
             </View>
           </View>
 
-          {/* Bottom Section - Submit Button & Footer Link */}
+          {/* Bottom Section - Submit Button & Footer Link aligned to bottom */}
           <View style={styles.bottomSection}>
-            <Button
-              title={
-                isForgotPassword
-                  ? 'Send Verification Code'
-                  : isSignUp
-                  ? 'Continue to Sign Up'
-                  : 'Sign In'
-              }
+            <VTButton
+              title={isForgotPassword ? 'Send Verification Code' : isSignUp ? 'Continue to Sign Up' : 'Sign In'}
               onPress={handleSubmit}
               loading={loading}
-              disabled={
-                !phoneNumber.trim() ||
-                (!isSignUp && !isForgotPassword && !password.trim())
-              }
+              disabled={!phoneNumber.trim() || (!isSignUp && !isForgotPassword && !password.trim())}
               style={styles.submitButton}
+              textStyle={styles.submitButtonText}
             />
 
             {!isForgotPassword && (
               <View style={styles.footerRow}>
                 <Text style={styles.footerText}>
-                  {isSignUp
-                    ? 'Already have an account? '
-                    : "Don't have an account? "}
+                  {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
@@ -331,7 +280,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.ScreenBG,
+    backgroundColor: '#F8FAFC',
   },
   keyboardView: {
     flex: 1,
@@ -357,7 +306,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.BorderColor,
+    borderColor: '#E2E8F0',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -369,12 +318,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: FontSizes['3xl'],
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
     color: '#0F172A',
     marginBottom: Spacing.xs,
   },
   subtitle: {
     fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
     lineHeight: 22,
   },
@@ -391,7 +341,7 @@ const styles = StyleSheet.create({
   errorBannerText: {
     flex: 1,
     fontSize: FontSizes.sm,
-    fontWeight: FontWeights.medium,
+    fontFamily: Fonts.uberMoveMedium,
     color: Colors.errorViewColor,
   },
   formCard: {
@@ -399,7 +349,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: FontSizes.sm,
-    fontWeight: FontWeights.medium,
+    fontFamily: Fonts.uberMoveMedium,
     color: '#334155',
     marginBottom: Spacing.xs,
   },
@@ -417,7 +367,7 @@ const styles = StyleSheet.create({
     height: 52,
     marginRight: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.BorderColor,
+    borderColor: '#E2E8F0',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -430,29 +380,16 @@ const styles = StyleSheet.create({
   },
   countryCodeText: {
     fontSize: FontSizes.base,
-    fontWeight: FontWeights.medium,
+    fontFamily: Fonts.uberMoveMedium,
     color: '#0F172A',
     marginRight: 6,
   },
   phoneInputFlex: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1.5,
-    borderColor: Colors.BorderColor,
-    height: 52,
-    paddingHorizontal: Spacing.md,
-    justifyContent: 'center',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    marginBottom: 0,
   },
   phoneInputText: {
     fontSize: FontSizes.base,
-    color: '#0F172A',
-    padding: 0,
   },
   passwordWrapper: {
     marginBottom: Spacing.base,
@@ -471,7 +408,7 @@ const styles = StyleSheet.create({
   },
   forgotText: {
     fontSize: FontSizes.sm,
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
   },
   bottomSection: {
@@ -479,7 +416,19 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
   },
   submitButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
     minHeight: 54,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submitButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
   footerRow: {
     flexDirection: 'row',
@@ -490,14 +439,14 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
   },
   footerLinkText: {
     fontSize: FontSizes.md,
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
   },
 });
 
 export default SignInScreen;
-

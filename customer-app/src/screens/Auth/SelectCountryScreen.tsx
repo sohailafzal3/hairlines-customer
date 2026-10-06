@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -8,12 +9,12 @@ import {
   TextInput,
   StatusBar,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
 
 export interface CountryItem {
@@ -52,13 +53,13 @@ export const COUNTRIES_DATA: CountryItem[] = [
   { id: 'NZ', name: 'New Zealand', phoneCode: '+64', countryCode: 'NZ', flag: '🇳🇿' },
 ];
 
-type Props = NativeStackScreenProps<AuthStackParamList, 'SelectCountry'>;
+type Props = {
+  navigation: NativeStackNavigationProp<AuthStackParamList, 'SelectCountry'>;
+  route: RouteProp<AuthStackParamList, 'SelectCountry'>;
+};
 
-export const SelectCountryScreen: React.FC<Props> = ({ navigation, route }) => {
-  const insets = useSafeAreaInsets();
-  const selectedCode = (route.params as any)?.selectedCode || '+1';
-  const isSignUp = (route.params as any)?.isSignUp ?? false;
-  const isForgotPassword = (route.params as any)?.isForgotPassword ?? false;
+const SelectCountryScreen: React.FC<Props> = ({ navigation, route }) => {
+  const selectedCode = route.params?.selectedCode || '+1';
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredCountries = COUNTRIES_DATA.filter((country) => {
@@ -72,17 +73,18 @@ export const SelectCountryScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleSelectCountry = (country: CountryItem) => {
     navigation.navigate('SignIn', {
-      countryCode: country.phoneCode,
-      isSignUp,
+      isSignUp: false,
+      selectedCountryCode: country.phoneCode,
+      selectedFlag: country.flag,
     });
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.ScreenBG} />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
       {/* Top Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
@@ -100,26 +102,18 @@ export const SelectCountryScreen: React.FC<Props> = ({ navigation, route }) => {
       {/* Search Input Bar */}
       <View style={styles.searchSection}>
         <View style={styles.searchContainer}>
-          <Ionicons
-            name="search-outline"
-            size={20}
-            color="#64748B"
-            style={styles.searchIcon}
-          />
+          <Ionicons name="search-outline" size={20} color="#64748B" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search country or code (e.g. +1, UK)"
-            placeholderTextColor={Colors.placeholderGray}
+            placeholder="Search country or code (e.g. +92, USA)"
+            placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCapitalize="none"
             clearButtonMode="while-editing"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              style={styles.clearButton}
-            >
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
               <Ionicons name="close-circle" size={18} color="#94A3B8" />
             </TouchableOpacity>
           )}
@@ -130,20 +124,14 @@ export const SelectCountryScreen: React.FC<Props> = ({ navigation, route }) => {
       <FlatList
         data={filteredCountries}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: Math.max(insets.bottom, 16) + 20 }
-        ]}
+        contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
           const isSelected = selectedCode === item.phoneCode;
           return (
             <TouchableOpacity
-              style={[
-                styles.countryItem,
-                isSelected && styles.countryItemActive,
-              ]}
+              style={[styles.countryItem, isSelected && styles.countryItemActive]}
               onPress={() => handleSelectCountry(item)}
               activeOpacity={0.7}
             >
@@ -159,12 +147,7 @@ export const SelectCountryScreen: React.FC<Props> = ({ navigation, route }) => {
                   <Text style={styles.phoneCodeText}>{item.phoneCode}</Text>
                 </View>
                 {isSelected && (
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={20}
-                    color={Colors.ButtonPrimaryColor}
-                    style={{ marginLeft: 8 }}
-                  />
+                  <Ionicons name="checkmark-circle" size={20} color={Colors.ButtonPrimaryColor} style={{ marginLeft: 8 }} />
                 )}
               </View>
             </TouchableOpacity>
@@ -174,20 +157,18 @@ export const SelectCountryScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={styles.emptyContainer}>
             <Ionicons name="earth-outline" size={48} color="#CBD5E1" />
             <Text style={styles.emptyTitle}>No country found</Text>
-            <Text style={styles.emptySub}>
-              Try searching with another name or code
-            </Text>
+            <Text style={styles.emptySub}>Try searching with another name or code</Text>
           </View>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.ScreenBG,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     paddingHorizontal: Spacing.xl,
@@ -202,7 +183,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.BorderColor,
+    borderColor: '#E2E8F0',
     marginBottom: Spacing.md,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
@@ -215,12 +196,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: FontSizes['3xl'],
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
     color: '#0F172A',
     marginBottom: 4,
   },
   subtitle: {
     fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
   },
   searchSection: {
@@ -236,7 +218,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     height: 50,
     borderWidth: 1,
-    borderColor: Colors.BorderColor,
+    borderColor: '#E2E8F0',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -249,6 +231,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#0F172A',
   },
   clearButton: {
@@ -282,11 +265,12 @@ const styles = StyleSheet.create({
   },
   countryName: {
     fontSize: FontSizes.md,
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
     color: '#0F172A',
   },
   countryIsoCode: {
     fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
     marginTop: 2,
   },
@@ -302,7 +286,7 @@ const styles = StyleSheet.create({
   },
   phoneCodeText: {
     fontSize: FontSizes.sm,
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
   },
   emptyContainer: {
@@ -312,16 +296,16 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: FontSizes.lg,
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
     color: '#334155',
     marginTop: Spacing.md,
   },
   emptySub: {
     fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#94A3B8',
     marginTop: 4,
   },
 });
 
 export default SelectCountryScreen;
-

@@ -1,17 +1,12 @@
 // Constants matching iOS Constants.swift
-export const kSocketUrl = process.env.EXPO_PUBLIC_SOCKET_URL || 'https://api.hairlines.app';
-export const kBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.hairlines.app/api/v1/en/';
-export const kSocketUrl_staging = 'https://stagingapi.hairlines.app';
-export const kBaseUrl_staging = 'https://stagingapi.hairlines.app/api/v1/en/';
+export const kSocketUrl = 'https://api.hairlines.app';
+export const kBaseUrl = 'https://api.hairlines.app/api/v1/en/';
+// export const kBaseUrl = 'https://stagingapi.hairlines.app/api/v1/en/';
 
 // Third-party Keys
-export const kGoogleApiKey =
-  process.env.EXPO_PUBLIC_GOOGLE_API_KEY ||
-  process.env.GOOGLE_API_KEY ||
-  'AIzaSyBRO8-9PkS3p4ZTay5BjR53QJUOQoFvg6M';
-export const kStripeKey =
-  process.env.EXPO_PUBLIC_STRIPE_KEY ||
-  'pk_live_51HIRdrAFQrnBnGI3txfyzgfPjfXJaOKO3NZJ2OeF0uYQg2s9AKYU2EpRrU1NkrjkP6s93xPeOAunrqwhUDUHX5gf006xTFYGmc';
+// TODO: Move these to .env / EAS Secrets (see AGENTS.md Security Considerations)
+export const kGoogleApiKey = process.env.EXPO_PUBLIC_GOOGLE_API_KEY || '';
+export const kStripeKey = process.env.EXPO_PUBLIC_STRIPE_KEY || '';
 
 // S3 / AWS
 export const kS3Prefix = 'https://hairlines-lives.s3.us-west-2.amazonaws.com/';
@@ -27,7 +22,6 @@ export const kPrivicyPolicyLink = 'https://www.hairlines.app/privacyPolicy.html'
 
 // Pagination
 export const kOffSet = 10;
-export const DUMMY_DEVICE_TOKEN = '88E37531007D7BDEDA50CC55BA49098A37D81C83FAC37F73F554883C5B8151D9';
 
 // Enums
 export enum JobStatus {
@@ -118,3 +112,6 @@ export const STORAGE_KEYS = {
   kLanguageCode: 'kLanguageCode',
   kLastLanguageUpdatedTime: 'kLastLanguageUpdatedTime',
 } as const;
+
+// Fallback device token used when push notifications are unavailable
+export const DUMMY_DEVICE_TOKEN = '0000000000000000000000000000000000000000000000000000000000000000';

@@ -7,10 +7,6 @@ import { useAuthStore } from '../store';
 import { Storage } from '../utils/storage';
 import { STORAGE_KEYS } from '../constants';
 
-import { registerForPushNotificationsAsync, addNotificationReceivedListener, addNotificationResponseReceivedListener } from '../services/notifications';
-
-import { SplashScreen } from '../screens/SplashScreen';
-
 export type RootStackParamList = {
   Auth: undefined;
   App: undefined;
@@ -19,17 +15,14 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
-  const { isLoggedIn, hasHydrated, setLoggedIn, setUser, user } = useAuthStore();
+  const { isLoggedIn, setLoggedIn } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
-  const [isSplashDone, setIsSplashDone] = useState(false);
 
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
         const loggedIn = await Storage.getItem(STORAGE_KEYS.kIsUserLoggedIn);
-        if (loggedIn === 'true') {
-          setLoggedIn(true);
-        }
+        setLoggedIn(loggedIn === 'true');
       } catch (error) {
         console.error('Auth check error:', error);
       } finally {
@@ -40,39 +33,8 @@ const RootNavigator = () => {
     checkAuthStatus();
   }, [setLoggedIn]);
 
-  useEffect(() => {
-    registerForPushNotificationsAsync().then((token) => {
-      if (token && user) {
-        setUser({ ...user, deviceToken: token });
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!isLoggedIn) return;
-
-    registerForPushNotificationsAsync().then((token) => {
-      if (token && user) {
-        setUser({ ...user, deviceToken: token });
-      }
-    });
-
-    const sub1 = addNotificationReceivedListener((notification) => {
-      console.log('Customer notification received:', notification.request.content);
-    });
-
-    const sub2 = addNotificationResponseReceivedListener((response) => {
-      console.log('Customer notification opened:', response.notification.request.content);
-    });
-
-    return () => {
-      sub1.remove();
-      sub2.remove();
-    };
-  }, [isLoggedIn]);
-
-  if (!isSplashDone || isLoading || !hasHydrated) {
-    return <SplashScreen onFinish={() => setIsSplashDone(true)} minDuration={2200} />;
+  if (isLoading) {
+    return null; // Or a splash screen
   }
 
   return (

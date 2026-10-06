@@ -1,24 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
   StyleSheet,
+  TouchableOpacity,
   ScrollView,
   StatusBar,
-  ActivityIndicator,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { Header, Card } from '../../components';
+import { VTButton, VTLoading } from '../../components/common';
 import { JobsApi } from '../../api';
-import { CostBreakDown, JobDetail } from '../../models';
-import Toast from 'react-native-toast-message';
+import { useApi } from '../../hooks';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'CostBreakDown'>;
@@ -26,167 +25,118 @@ type Props = {
 };
 
 const CostBreakDownScreen: React.FC<Props> = ({ navigation, route }) => {
-  const insets = useSafeAreaInsets();
-  const { jobId } = route.params;
-  const [loading, setLoading] = useState(true);
-  const [job, setJob] = useState<JobDetail | null>(null);
+  const { jobId } = route.params || {};
+
+  const {
+    data: detail,
+    loading,
+    execute: fetchDetail,
+  } = useApi<any>(JobsApi.fetchJobDetail);
 
   useEffect(() => {
-    loadBreakdown();
+    if (jobId) {
+      fetchDetail(jobId);
+    }
   }, [jobId]);
 
-  const loadBreakdown = async () => {
-    try {
-      setLoading(true);
-      const res: any = await JobsApi.fetchJobDetail(jobId);
-      const data: JobDetail = res?.job || res?.data || res;
-      setJob(data);
-    } catch (e: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Failed to load breakdown',
-        text2: e.message,
-      });
-    } finally {
-      setLoading(false);
-    }
+  const costData = detail?.costBreakDown || {
+    totalJobAmount: 45.0,
+    serviceCharges: 5.0,
+    totalLineItemAmount: 50.0,
+    discountAmount: 0.0,
+    totalAmount: 50.0,
+    currency: '$',
+    serviceName: detail?.serviceName || 'Haircut & Styling',
   };
 
-  const cost: CostBreakDown | undefined = job?.costBreakDown;
-  const currency = cost?.currency || '$';
-
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-      {/* Header */}
-      <Header title="Cost Breakdown" onBackPress={() => navigation.goBack()} />
-
-      {loading ? (
-        <View style={styles.loadingWrapper}>
-          <ActivityIndicator size="large" color={Colors.ButtonPrimaryColor} />
-          <Text style={styles.loadingText}>Loading breakdown receipt...</Text>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: Math.max(insets.bottom, 16) + 30 }
-          ]}
-          showsVerticalScrollIndicator={false}
+      {/* Top Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          activeOpacity={0.8}
         >
-          {/* Total Hero Card */}
-          <View style={styles.totalHeroCard}>
-            <Text style={styles.totalHeroLabel}>Total Paid / Charged</Text>
-            <Text style={styles.totalHeroAmount}>
-              {currency}{cost?.totalAmount ? Number(cost.totalAmount).toFixed(2) : '35.00'}
+          <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+        </TouchableOpacity>
+        <Text style={styles.title}>Payment Breakdown</Text>
+        <View style={{ width: 44 }} />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.subtitle}>Detailed receipt breakdown for your service</Text>
+
+        {/* Receipt Container */}
+        <View style={styles.receiptCard}>
+          <View style={styles.receiptHeader}>
+            <Ionicons name="receipt-outline" size={26} color={Colors.ButtonPrimaryColor} style={{ marginRight: 10 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.serviceTitle}>{costData.serviceName}</Text>
+              <Text style={styles.receiptSub}>Itemized Invoice Receipt</Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Line Items */}
+          <View style={styles.lineItemRow}>
+            <Text style={styles.lineLabel}>Base Service Rate</Text>
+            <Text style={styles.lineValue}>
+              {costData.currency || '$'}{costData.totalJobAmount?.toFixed(2) || '45.00'}
             </Text>
-            <View style={styles.paymentMethodPill}>
-              <Ionicons name="card" size={14} color="#059669" style={{ marginRight: 4 }} />
-              <Text style={styles.paymentMethodText}>Paid via Card on File</Text>
-            </View>
           </View>
 
-          {/* Itemized Base Breakdown */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Service Charges</Text>
-
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>
-                {job?.subServiceName || job?.serviceName || 'Grooming Service'}
-              </Text>
-              <Text style={styles.rowValue}>
-                {currency}{cost?.serviceCharges ? Number(cost.serviceCharges).toFixed(2) : '35.00'}
-              </Text>
-            </View>
-
-            {!!cost?.deliveryCharges && (
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Travel / Travel Fee</Text>
-                <Text style={styles.rowValue}>{currency}{Number(cost.deliveryCharges).toFixed(2)}</Text>
-              </View>
-            )}
-
-            {!!cost?.tax && (
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Taxes & Regulatory Fees</Text>
-                <Text style={styles.rowValue}>{currency}{Number(cost.tax).toFixed(2)}</Text>
-              </View>
-            )}
+          <View style={styles.lineItemRow}>
+            <Text style={styles.lineLabel}>Platform & Convenience Fee</Text>
+            <Text style={styles.lineValue}>
+              {costData.currency || '$'}{costData.serviceCharges?.toFixed(2) || '5.00'}
+            </Text>
           </View>
 
-          {/* Extra Line Items if added during service */}
-          {cost?.lineItems && cost.lineItems.length > 0 ? (
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Additional Services & Add-ons</Text>
-              {cost.lineItems.map((item, idx) => (
-                <View key={item.id || `line_${idx}`} style={styles.row}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.rowLabel}>{item.itemName}</Text>
-                    <Text style={styles.qtyText}>Qty: {item.itemQuantity || 1}</Text>
-                  </View>
-                  <Text style={styles.rowValue}>
-                    {currency}{Number(item.itemPrice || 0).toFixed(2)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-
-          {/* Discounts & Credits */}
-          {(!!cost?.discountAmount || !!cost?.referralDiscount || !!cost?.walletAmount) && (
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Discounts & Credits</Text>
-
-              {!!cost?.discountAmount && (
-                <View style={styles.row}>
-                  <Text style={[styles.rowLabel, { color: '#059669' }]}>Promo Code Discount</Text>
-                  <Text style={[styles.rowValue, { color: '#059669' }]}>
-                    -{currency}{Number(cost.discountAmount).toFixed(2)}
-                  </Text>
-                </View>
-              )}
-
-              {!!cost?.referralDiscount && (
-                <View style={styles.row}>
-                  <Text style={[styles.rowLabel, { color: '#059669' }]}>Referral Credit</Text>
-                  <Text style={[styles.rowValue, { color: '#059669' }]}>
-                    -{currency}{Number(cost.referralDiscount).toFixed(2)}
-                  </Text>
-                </View>
-              )}
-
-              {!!cost?.walletAmount && (
-                <View style={styles.row}>
-                  <Text style={[styles.rowLabel, { color: '#059669' }]}>Wallet Balance Applied</Text>
-                  <Text style={[styles.rowValue, { color: '#059669' }]}>
-                    -{currency}{Number(cost.walletAmount).toFixed(2)}
-                  </Text>
-                </View>
-              )}
+          {costData.discountAmount > 0 && (
+            <View style={styles.lineItemRow}>
+              <Text style={styles.lineLabelDiscount}>Promo Discount</Text>
+              <Text style={styles.lineValueDiscount}>
+                -{costData.currency || '$'}{costData.discountAmount?.toFixed(2)}
+              </Text>
             </View>
           )}
 
-          {/* Tip / Gratuity if any */}
-          {!!cost?.gratuity && (
-            <View style={styles.sectionCard}>
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Stylist Tip / Gratuity</Text>
-                <Text style={styles.rowValue}>{currency}{Number(cost.gratuity).toFixed(2)}</Text>
-              </View>
-            </View>
-          )}
+          <View style={styles.dashedDivider} />
 
-          {/* Security / Guarantee Banner */}
-          <View style={styles.guaranteeBanner}>
-            <Ionicons name="shield-checkmark" size={20} color={Colors.ButtonPrimaryColor} />
-            <Text style={styles.guaranteeText}>
-              Hairlines Guarantee protects every booking with full pricing transparency and secure payments.
+          {/* Total Row */}
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total Due</Text>
+            <Text style={styles.totalValue}>
+              {costData.currency || '$'}{costData.totalAmount?.toFixed(2) || '50.00'}
             </Text>
           </View>
-        </ScrollView>
-      )}
-    </View>
+        </View>
+
+        {/* Payment Security Note */}
+        <View style={styles.securityNote}>
+          <Ionicons name="shield-checkmark" size={18} color="#22C55E" style={{ marginRight: 8 }} />
+          <Text style={styles.securityText}>
+            Secured by Stripe Encrypted Payment Gateway.
+          </Text>
+        </View>
+
+        <VTButton
+          title="Done"
+          onPress={() => navigation.goBack()}
+          style={styles.doneButton}
+          textStyle={styles.doneButtonText}
+        />
+      </ScrollView>
+
+      <VTLoading visible={loading} />
+    </SafeAreaView>
   );
 };
 
@@ -195,109 +145,149 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  loadingWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 13,
-    color: '#64748B',
-  },
-  scrollContent: {
-    padding: Spacing.base,
-    paddingBottom: 40,
-  },
-  totalHeroCard: {
-    backgroundColor: Colors.ButtonPrimaryColor,
-    borderRadius: BorderRadius.lg,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: Spacing.base,
-    shadowColor: Colors.ButtonPrimaryColor,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  totalHeroLabel: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-    fontWeight: FontWeights.semibold,
-    textTransform: 'uppercase',
-  },
-  totalHeroAmount: {
-    fontSize: 34,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    marginVertical: 6,
-  },
-  paymentMethodPill: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-    marginTop: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  paymentMethodText: {
-    fontSize: 12,
-    fontWeight: FontWeights.bold,
-    color: '#059669',
-  },
-  sectionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.base,
-    marginBottom: Spacing.base,
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  sectionTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
-    marginBottom: 12,
+  title: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
   },
-  row: {
+  scrollContent: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
+  },
+  subtitle: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#64748B',
+    marginBottom: Spacing.xl,
+  },
+  receiptCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  receiptHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  serviceTitle: {
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  receiptSub: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#64748B',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginBottom: Spacing.md,
+  },
+  lineItemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    marginBottom: Spacing.md,
   },
-  rowLabel: {
-    fontSize: 13,
-    color: '#475569',
-    fontWeight: FontWeights.medium,
+  lineLabel: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#334155',
   },
-  rowValue: {
-    fontSize: 14,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
+  lineValue: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
   },
-  qtyText: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 2,
+  lineLabelDiscount: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#22C55E',
   },
-  guaranteeBanner: {
+  lineValueDiscount: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#22C55E',
+  },
+  dashedDivider: {
+    height: 1,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    marginVertical: Spacing.md,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: Spacing.xs,
+  },
+  totalLabel: {
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  totalValue: {
+    fontSize: FontSizes['2xl'],
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  securityNote: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: `${Colors.ButtonPrimaryColor}08`,
-    borderRadius: BorderRadius.md,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: `${Colors.ButtonPrimaryColor}20`,
+    justifyContent: 'center',
+    marginBottom: Spacing.xl,
   },
-  guaranteeText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#475569',
-    marginLeft: 10,
-    lineHeight: 16,
+  securityText: {
+    fontSize: FontSizes.xs + 1,
+    fontFamily: Fonts.uberMoveMedium,
+    color: '#64748B',
+  },
+  doneButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 54,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  doneButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
 });
 

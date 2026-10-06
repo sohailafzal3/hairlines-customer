@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -8,65 +9,54 @@ import {
   RefreshControl,
   StatusBar,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { DrawerActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { Header } from '../../components';
+import { VTLoading } from '../../components/common';
 import { NotificationsApi } from '../../api';
+import { useApi } from '../../hooks';
 import { useUserStore } from '../../store';
 import { NotificationModel } from '../../models';
-import { VTLoading } from '../../components/common';
-import Toast from 'react-native-toast-message';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'Notifications'>;
 };
 
 const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { setNotificationBadge } = useUserStore();
-  const [notifications, setNotifications] = useState<NotificationModel[]>([]);
-  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const {
+    data: rawNotifications,
+    loading,
+    error,
+    execute: fetchNotifications,
+  } = useApi<any>(NotificationsApi.fetchNotifications);
 
   useEffect(() => {
     loadNotifications();
   }, []);
 
+  const getNotificationsList = (): NotificationModel[] => {
+    if (Array.isArray(rawNotifications)) return rawNotifications;
+    if (rawNotifications && typeof rawNotifications === 'object') {
+      const obj = rawNotifications as any;
+      if (Array.isArray(obj.notifications)) return obj.notifications;
+      if (Array.isArray(obj.data)) return obj.data;
+    }
+    return [];
+  };
+
+  const notificationsList = getNotificationsList();
+
   const loadNotifications = async () => {
-    try {
-      setLoading(true);
-      const res: any = await NotificationsApi.fetchNotifications(0);
-      const list =
-        res?.notificationData ||
-        res?.notifications ||
-        res?.data ||
-        (Array.isArray(res) ? res : []);
-      if (Array.isArray(list)) {
-        const mapped: NotificationModel[] = list.map((item: any) => ({
-          notificationId: item._id || item.notificationId || item.id || '',
-          notificationType: item.notificationType || 0,
-          jobId: item.jobId || item.resource?.packageId || '',
-          isRead: item.isRead ?? false,
-          name: item.name || 'Hairlines',
-          message: typeof item.message === 'string' ? item.message.replace(/<[^>]*>?/gm, '') : item.alert || '',
-          timePassed: item.timeAgo || item.timePassed || '',
-          image: item.profileImage || item.image || '',
-          shouldNavigate: item.shouldNavigate ?? true,
-        }));
-        setNotifications(mapped);
-        const unread = mapped.filter((n) => !n.isRead).length;
-        setNotificationBadge(unread);
-      }
-    } catch (e) {
-      console.log('Notifications error:', e);
-    } finally {
-      setLoading(false);
+    const result = await fetchNotifications(0);
+    if (result && Array.isArray(result)) {
+      const unreadCount = result.filter((n) => !n.isRead).length;
+      setNotificationBadge(unreadCount);
     }
   };
 
@@ -79,109 +69,81 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
   const handleMarkAllRead = async () => {
     try {
       await NotificationsApi.actionNotifications('read');
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setNotificationBadge(0);
-      Toast.show({ type: 'success', text1: 'All notifications marked as read' });
-    } catch (error) {
-      console.error('Mark read error:', error);
+      await loadNotifications();
+    } catch (err) {
+      console.error('Mark read error:', err);
     }
   };
 
-  const handleClearAll = async () => {
-    try {
-      await NotificationsApi.actionNotifications('delete');
-      setNotifications([]);
-      setNotificationBadge(0);
-      Toast.show({ type: 'success', text1: 'Notifications cleared' });
-    } catch (error) {
-      console.error('Clear notifications error:', error);
-    }
-  };
-
-  const renderItem = ({ item }: { item: NotificationModel }) => {
-    const isUnread = !item.isRead;
-
-    return (
-      <View style={[styles.notificationCard, isUnread && styles.notificationCardUnread]}>
-        <View style={styles.iconCircle}>
-          <Ionicons
-            name={isUnread ? 'notifications' : 'notifications-outline'}
-            size={20}
-            color={Colors.ButtonPrimaryColor}
-          />
-        </View>
-
-        <View style={styles.cardContent}>
-          <View style={styles.titleRow}>
-            <Text style={[styles.cardTitle, isUnread && styles.cardTitleUnread]} numberOfLines={1}>
-              {item.name || item.title || 'Hairlines Update'}
-            </Text>
-            {isUnread && <View style={styles.unreadDot} />}
-          </View>
-
-          <Text style={styles.cardMessage}>{item.message || item.body || ''}</Text>
-
-          {item.timePassed ? (
-            <Text style={styles.cardTime}>{item.timePassed}</Text>
-          ) : null}
-        </View>
+  const renderItem = ({ item }: { item: NotificationModel }) => (
+    <TouchableOpacity
+      style={[styles.card, !item.isRead && styles.cardUnread]}
+      activeOpacity={0.85}
+    >
+      <View style={[styles.iconCircle, !item.isRead && styles.iconCircleUnread]}>
+        <Ionicons
+          name={!item.isRead ? 'notifications' : 'notifications-outline'}
+          size={20}
+          color={!item.isRead ? Colors.ButtonPrimaryColor : '#64748B'}
+        />
       </View>
-    );
-  };
+
+      <View style={styles.cardContent}>
+        <View style={styles.titleRow}>
+          <Text style={styles.notificationTitle}>{item.name || 'Notification'}</Text>
+          <Text style={styles.notificationTime}>{item.timePassed}</Text>
+        </View>
+        <Text style={styles.notificationMessage} numberOfLines={2}>
+          {item.message}
+        </Text>
+      </View>
+
+      {!item.isRead && <View style={styles.unreadDot} />}
+    </TouchableOpacity>
+  );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-      {/* Header */}
-      <Header
-        title="Notifications"
-        left={
-          <TouchableOpacity
-            style={styles.headerBtn}
-            onPress={() => {
-              if ((navigation as any).openDrawer) {
-                (navigation as any).openDrawer();
-              } else if ((navigation.getParent() as any)?.openDrawer) {
-                (navigation.getParent() as any).openDrawer();
-              } else {
-                navigation.dispatch(DrawerActions.openDrawer());
-              }
-            }}
-          >
-            <Ionicons name="menu" size={26} color={Colors.TitleColor} />
-          </TouchableOpacity>
-        }
-        right={
-          notifications.length > 0 ? (
-            <TouchableOpacity onPress={handleMarkAllRead} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={styles.markReadText}>Mark read</Text>
-            </TouchableOpacity>
-          ) : null
-        }
-      />
+      {/* Top Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => (navigation as any).openDrawer?.()}
+          style={styles.menuButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="menu" size={24} color="#0F172A" />
+        </TouchableOpacity>
+
+        <Text style={styles.headerTitle}>Notifications</Text>
+
+        <TouchableOpacity onPress={handleMarkAllRead} activeOpacity={0.7} style={styles.markReadTouch}>
+          <Text style={styles.markReadText}>Mark Read</Text>
+        </TouchableOpacity>
+      </View>
 
       <FlatList
-        data={notifications}
-        keyExtractor={(item, index) => item.notificationId || `notif_${index}`}
+        data={notificationsList}
+        keyExtractor={(item) => item.notificationId || Math.random().toString()}
         renderItem={renderItem}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: Math.max(insets.bottom, 16) + 30 }
-        ]}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.ButtonPrimaryColor]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.ButtonPrimaryColor]}
+            tintColor={Colors.ButtonPrimaryColor}
+          />
         }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="notifications-off-outline" size={40} color="#94A3B8" />
-              </View>
-              <Text style={styles.emptyTitle}>No Notifications</Text>
+              <Ionicons name="notifications-off-outline" size={48} color="#CBD5E1" />
+              <Text style={styles.emptyTitle}>No notifications yet</Text>
               <Text style={styles.emptySubtitle}>
-                You're all caught up! Updates regarding your bookings and promotions will appear here.
+                We'll notify you here about booking updates, promos, and service status.
               </Text>
             </View>
           ) : null
@@ -189,7 +151,7 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
       />
 
       <VTLoading visible={loading && !refreshing} />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -198,105 +160,125 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markReadText: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.bold,
-    color: Colors.ButtonPrimaryColor,
-  },
-  listContent: {
-    padding: Spacing.base,
-    paddingBottom: 40,
-  },
-  notificationCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  notificationCardUnread: {
-    borderColor: Colors.ButtonPrimaryColor,
-    backgroundColor: `${Colors.ButtonPrimaryColor}04`,
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  cardContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  titleRow: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: FontWeights.semibold,
-    color: '#475569',
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  cardTitleUnread: {
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
+  headerTitle: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  markReadTouch: {
+    padding: 6,
+  },
+  markReadText: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  listContent: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
+  },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md + 2,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  cardUnread: {
+    backgroundColor: '#EEF4FF',
+    borderColor: 'rgba(34, 45, 99, 0.2)',
+  },
+  iconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+  iconCircleUnread: {
+    backgroundColor: '#FFFFFF',
+  },
+  cardContent: {
+    flex: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  notificationTitle: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  notificationTime: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#94A3B8',
+  },
+  notificationMessage: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#64748B',
+    lineHeight: 18,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.ButtonPrimaryColor,
-  },
-  cardMessage: {
-    fontSize: 13,
-    color: '#64748B',
-    lineHeight: 18,
-  },
-  cardTime: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 6,
+    backgroundColor: '#EF4444',
+    marginLeft: Spacing.sm,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: 24,
-  },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    paddingVertical: Spacing['3xl'],
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.TitleColor,
-    marginBottom: 6,
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginTop: Spacing.md,
   },
   emptySubtitle: {
-    fontSize: 13,
-    color: '#64748B',
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#94A3B8',
     textAlign: 'center',
-    lineHeight: 18,
+    marginTop: 4,
+    paddingHorizontal: Spacing.xl,
   },
 });
 

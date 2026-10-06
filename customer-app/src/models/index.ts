@@ -23,20 +23,11 @@ export interface Account {
   isPhoneNumberRequired: boolean;
 }
 
-export interface CountryCode {
-  id?: string;
-  name: string;
-  phoneCode: string;
-  countryCode: string;
-}
-
 export interface User {
   languageCode: string;
   lastLanguageUpdatedTime: string;
   isLoggedIn: boolean;
   lastLocation?: { latitude: number; longitude: number };
-  latitude?: number;
-  longitude?: number;
   address?: string;
   city?: string;
   state?: string;
@@ -127,11 +118,11 @@ export interface CreateJobData {
   subServiceTypeId?: string;
   memberId?: string;
   serviceFor?: string;
-  bookingType?: string | number;
+  bookingType?: string;
   weekDay?: string;
   timeZone?: string;
-  isJobOfferedFor?: boolean | number;
-  barberGender?: string | number;
+  isJobOfferedFor?: boolean;
+  barberGender?: string;
   isFilterApplied?: boolean;
   minRating?: number;
   maxRating?: number;
@@ -146,7 +137,6 @@ export interface CreateJobData {
   jobStartTime?: string;
   jobEndTime?: string;
   selectedSp?: SP;
-  spProfileId?: string;
   specialInstruction?: string;
   promoCode?: string;
   jobId?: string;
@@ -159,46 +149,37 @@ export interface CreateJobData {
 
 export interface SP {
   id: string;
-  userId?: string;
+  userId: string;
   name: string;
   profileImage?: string;
   avgRating: number;
-  currency?: string;
-  latitude?: number;
-  longitude?: number;
-  distanceAway?: string;
-  spJobCompletedCount?: number;
+  currency: string;
+  latitude: number;
+  longitude: number;
+  distanceAway: string;
+  spJobCompletedCount: number;
   serviceHourRate?: number;
-  servicePrice?: number;
-  hourlyRate?: number;
-  isHourly?: boolean;
-  isCompany?: boolean;
-  about?: string;
-  ratingCount?: number;
   numberOfEmployees?: number;
-  jobsDone?: number;
-  totalJobDone?: number;
-  totalReviews?: number;
-  bio?: string;
-  spPrimaryAddress?: string;
-  spCity?: string;
-  spState?: string;
-  spCountry?: string;
-  provideServiceInPremisis?: boolean;
-  provideServiceInUserPremisis?: boolean;
-  permanentAddressLat?: number;
-  permanentAddressLong?: number;
+  jobsDone: number;
+  spPrimaryAddress: string;
+  spCity: string;
+  spState: string;
+  spCountry: string;
+  provideServiceInPremisis: boolean;
+  provideServiceInUserPremisis: boolean;
+  permanentAddressLat: number;
+  permanentAddressLong: number;
 }
 
 export interface SPProfile {
   id: string;
   about: string;
   name: string;
-  firstName?: string;
-  lastName?: string;
-  phonePreFix?: string;
-  phoneNumber?: string;
-  email?: string;
+  firstName: string;
+  lastName: string;
+  phonePreFix: string;
+  phoneNumber: string;
+  email: string;
   profileImage?: string;
   avgRating: number;
   ratingAndReview: Rating[];
@@ -209,7 +190,7 @@ export interface SPProfile {
   jobCount: number;
   tools: string[];
   referenceImages: string[];
-  gender?: string;
+  gender: string;
 }
 
 export interface Rating {
@@ -232,11 +213,7 @@ export interface Service {
   serviceDescription: string;
   serviceName: string;
   serviceHourlyRate?: number;
-  serviceFixedRate?: number;
-  isHourly?: boolean;
-  serviceDuration?: number;
-  tags?: string[];
-  subServices?: SubService[];
+  subServices: SubService[];
   serviceTypeName?: string;
   serviceTypeDescription?: string;
   serviceTypeImage?: string;
@@ -246,11 +223,10 @@ export interface SubService {
   id: string;
   subServiceName: string;
   subServiceImage?: string;
-  serviceDescription?: string;
-  subServiceDescription?: string;
-  serviceName?: string;
-  serviceId?: string;
-  serviceInfo?: SubServiceInfo[];
+  serviceDescription: string;
+  serviceName: string;
+  serviceId: string;
+  serviceInfo: SubServiceInfo[];
 }
 
 export interface SubServiceInfo {
@@ -260,117 +236,82 @@ export interface SubServiceInfo {
   hasDuration: boolean;
   durationUnit: string;
   name: string;
-  subServiceId?: string;
+  subServiceId: string;
 }
 
 export interface Job {
-  id?: string;
-  _id?: string;
-  userId?: string;
-  spJobStatus?: number;
-  status?: number;
-  jobStartTime?: string;
-  createdDate?: string;
-  createdAt?: string;
-  currency?: string;
-  primaryAddress?: string;
-  address?: string;
-  serviceName?: string;
-  subServiceName?: string;
+  id: string;
+  userId: string;
+  spJobStatus: number;
+  jobStartTime: string;
+  currency: string;
+  primaryAddress: string;
+  serviceName: string;
   serviceImage?: string;
-  spProfileId?: string;
-  spName?: string;
-  companyName?: string;
-  worker?: {
-    id?: string;
-    name?: string;
-    profileImage?: string;
-    avgRating?: number;
-    phoneNumber?: string;
-  };
-  avgRating?: number;
-  name?: string;
-  serviceHourlyRate?: number;
-  serviceCharges?: number;
+  spProfileId: string;
+  avgRating: number;
+  name: string;
+  serviceHourlyRate: number;
   JobIdIdentifier?: string;
-  provideServiceInPremises?: boolean;
-  provideServiceInUserPremises?: boolean;
-  atSpLocation?: boolean;
-  atUserLocation?: boolean;
-  totalAmount?: number;
-  subServiceTypeRate?: number;
+  provideServiceInPremises: boolean;
+  provideServiceInUserPremises: boolean;
+  totalAmount: number;
+  subServiceTypeRate: number;
   costBreakDown?: CostBreakDown;
 }
 
 export interface JobDetail {
-  subServiceId?: string;
-  subServiceName?: string;
-  jobId?: string;
-  _id?: string;
-  id?: string;
-  serviceName?: string;
+  subServiceId: string;
+  jobId: string;
+  serviceName: string;
   serviceImage?: string;
-  serviceId?: string;
-  subserviceTypeId?: string;
-  serviceDescription?: string;
+  serviceId: string;
+  subserviceTypeId: string;
+  serviceDescription: string;
   specialInstruction?: string;
   workDescription?: string;
   expectedJobStartTime?: string;
-  spProfileId?: string;
-  spName?: string;
-  spPhoneNumber?: string;
-  companyName?: string;
-  worker?: {
-    id?: string;
-    name?: string;
-    profileImage?: string;
-    avgRating?: number;
-    phoneNumber?: string;
-  };
-  name?: string;
-  phoneNumber?: string;
+  spProfileId: string;
+  name: string;
+  phoneNumber: string;
   profileImage?: string;
-  avgRating?: number;
-  currency?: string;
-  spJobStatus?: number;
-  status?: number;
-  primaryAddress?: string;
-  address?: string;
+  avgRating: number;
+  currency: string;
+  spJobStatus: number;
+  primaryAddress: string;
   streetAddressLine1?: string;
   streetAddressLine2?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  destinationLat?: number;
-  destinationLong?: number;
+  city: string;
+  state: string;
+  country: string;
+  destinationLat: number;
+  destinationLong: number;
   workerLat?: number;
   workerLong?: number;
-  isUserRatingScreenShown?: boolean;
-  isUserRated?: boolean;
+  isUserRatingScreenShown: boolean;
+  isUserRated: boolean;
   costBreakDown?: CostBreakDown;
-  totalAmount?: number;
-  messageCount?: number;
-  statusArray?: StatusModel[];
-  routeLocation?: RouteLocation[];
-  isJobStart?: boolean;
+  totalAmount: number;
+  messageCount: number;
+  statusArray: StatusModel[];
+  routeLocation: RouteLocation[];
+  isJobStart: boolean;
   jobStartTime?: string;
   jobScheduleTime?: string;
   jobPauseStartTiming?: string;
   jobElapsedTime?: number;
-  gratuities?: number[];
-  provideServiceInPremises?: boolean;
-  provideServiceInUserPremises?: boolean;
-  atSpLocation?: boolean;
-  atUserLocation?: boolean;
+  gratuities: number[];
+  provideServiceInPremises: boolean;
+  provideServiceInUserPremises: boolean;
   stylePreferenceImage?: string;
   referenceImages?: string[];
   spTwilioUserId?: string;
-  serviceHourlyRate?: number;
-  subServiceTypeRate?: number;
-  bookingType?: string | number;
+  serviceHourlyRate: number;
+  subServiceTypeRate: number;
+  bookingType?: string;
   memberId?: string;
-  isJobConsultant?: boolean;
-  isJobOfferedFor?: boolean;
+  isJobConsultant: boolean;
+  isJobOfferedFor: boolean;
 }
 
 export interface StatusModel {
@@ -385,20 +326,18 @@ export interface RouteLocation {
 }
 
 export interface CostBreakDown {
-  totalAmount?: number;
-  totalJobAmount?: number;
-  serviceCharges?: number;
-  deliveryCharges?: number;
-  tax?: number;
-  totalLineItemAmount?: number;
-  discountAmount?: number;
-  referralDiscount?: number;
-  serviceName?: string;
-  currency?: string;
-  totalHoursSpent?: number;
-  totalMinutesSpent?: number;
-  serviceHourlyRate?: number;
-  lineItems?: Item[];
+  totalAmount: number;
+  totalJobAmount: number;
+  serviceCharges: number;
+  totalLineItemAmount: number;
+  discountAmount: number;
+  referralDiscount: number;
+  serviceName: string;
+  currency: string;
+  totalHoursSpent: number;
+  totalMinutesSpent: number;
+  serviceHourlyRate: number;
+  lineItems: Item[];
   cenclationCharges?: number;
   gratuity?: number;
   walletAmount?: number;
@@ -445,9 +384,7 @@ export interface NotificationModel {
   jobId?: string;
   isRead: boolean;
   name?: string;
-  title?: string;
   message: string;
-  body?: string;
   timePassed: string;
   image?: string;
   shouldNavigate: boolean;
@@ -468,35 +405,29 @@ export interface CreditCards {
   brand: string;
   expMonth: number;
   expYear: number;
-  lastFour?: string;
-  last4?: string;
-  id?: string;
-  isDefaultCard?: boolean;
-  isDefault?: boolean;
+  lastFour: string;
+  id: string;
+  isDefaultCard: boolean;
 }
 
 export interface PromoCode {
-  id: string | number;
+  id: string;
   code: string;
-  title?: string;
-  startDate?: string;
-  expiryDate?: string;
-  percentage?: number;
-  discountPercentage?: number;
-  discountType?: number;
-  amount?: number;
-  maxDiscount?: number;
-  promoType?: string;
-  name?: string;
-  totalCount?: number;
-  promoText?: string;
+  startDate: string;
+  expiryDate: string;
+  percentage: number;
+  maxDiscount: number;
+  promoType: string;
+  name: string;
+  totalCount: number;
+  promoText: string;
   promoImage?: string;
-  isAdded?: boolean;
-  canUse?: boolean;
-  applicantType?: string;
-  isPromoApplied?: boolean;
-  isExpired?: boolean;
-  promoCodeName?: string;
+  isAdded: boolean;
+  canUse: boolean;
+  applicantType: string;
+  isPromoApplied: boolean;
+  isExpired: boolean;
+  promoCodeName: string;
 }
 
 export interface Member {
@@ -521,4 +452,51 @@ export interface Filter {
   maxAge?: number;
   distance?: number;
   communities?: string[];
+}
+
+export interface TermsCondition {
+  isPrivacyPolicyUpdated: boolean;
+  isTermAndConditionUpdated: boolean;
+  privacyPolicyId: string;
+  privacyPolicyDescription: string;
+  privacyPolicyVersion: string;
+  termAndConditionId: string;
+  termAndConditionDescription: string;
+  termAndConditionVersion: string;
+}
+
+export interface UserPushNotification {
+  appTitle?: string;
+  message: string;
+  jobId?: string;
+  type: string;
+  latitude?: number;
+  longitude?: number;
+  bearing?: number;
+  name?: string;
+  avgRating?: number;
+  profileImage?: string;
+  spProfileId?: string;
+  image?: string;
+  spName?: string;
+  gratuities?: number[];
+  completeJobName?: string;
+  completeJobAvgRating?: number;
+  completeJobProfileImage?: string;
+}
+
+export interface SocketMessagePayload {
+  body: string;
+  jobId: string;
+  senderUserType: string;
+  receiverUserType: string;
+  senderUserId: string;
+}
+
+export interface CountryCode {
+  id: string;
+  name: string;
+  phoneCode: string;
+  countryCode: string;
+  flag?: string;
 }

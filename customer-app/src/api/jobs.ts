@@ -5,15 +5,8 @@ import { kOffSet } from '../constants';
 export const JobsApi = {
   fetchServiceTypes: () => apiClient.get('user/fetch-service-types'),
 
-  fetchServices: (serviceTypeIdOrLat?: any, longitude?: number) => {
-    if (typeof serviceTypeIdOrLat === 'number' && typeof longitude === 'number') {
-      return apiClient.get<Service[]>('services', { params: { latitude: serviceTypeIdOrLat, longitude } });
-    }
-    if (typeof serviceTypeIdOrLat === 'string' && serviceTypeIdOrLat) {
-      return apiClient.get<Service[]>(`services?serviceTypeId=${serviceTypeIdOrLat}`);
-    }
-    return apiClient.get<Service[]>('services');
-  },
+  fetchServices: (latitude: number, longitude: number) =>
+    apiClient.get<Service[]>('services', { params: { latitude, longitude } }),
 
   fetchSubServices: (serviceId: string) =>
     apiClient.get<SubService[]>(`sub/services/${serviceId}`),
@@ -29,10 +22,8 @@ export const JobsApi = {
 
   postJob: (params: any) => apiClient.post('user/job/post-job', params),
 
-  fetchJobListing: (listType: number | string, offset: number = 0) => {
-    const type = typeof listType === 'number' ? listType : listType === 'upcoming' || listType === 'scheduled' ? 1 : 2;
-    return apiClient.get<Job[]>(`user/job/listing?listType=${type}&offset=${offset}&limit=${kOffSet}`);
-  },
+  fetchJobListing: (listType: string, offset: number = 0) =>
+    apiClient.get<Job[]>(`user/job/listing?listType=${listType}&offset=${offset}&limit=${kOffSet}`),
 
   fetchJobDetail: (jobId: string) =>
     apiClient.get<JobDetail>(`user/job/${jobId}/detail`),
@@ -40,30 +31,6 @@ export const JobsApi = {
   deleteJob: (jobId: string) =>
     apiClient.get(`user/job/delete/job/${jobId}`),
 
-  // MARK: Members
-  getAllNewMembers: () => apiClient.get<any>('user/fetch-member'),
-
-  addNewMember: (params: {
-    firstName: string;
-    lastName: string;
-    health: number;
-    age: number;
-    relation: string;
-  }) => apiClient.post('user/add-new-member', params),
-
-  updateNewMember: (params: {
-    memberId: string;
-    firstName: string;
-    lastName: string;
-    health: number;
-    age: number;
-    relation: string;
-  }) => apiClient.post('user/update-member', params),
-
-  deleteMember: (memberId: string) =>
-    apiClient.get(`user/delete-member/${memberId}`),
-
-  // MARK: Ratings
   rateSP: (params: {
     review: string;
     rating: number;
@@ -72,8 +39,7 @@ export const JobsApi = {
     gratuity: number;
   }) => apiClient.put('user/job/rate-sp', params),
 
-  lastUnratedJob: () => apiClient.get<any>('last-unrated-job?userType=user'),
-  fetchUnratedJobs: () => apiClient.get<any>('last-unrated-job?userType=user'),
+  lastUnratedJob: () => apiClient.get('last-unrated-job?userType=user'),
 
   checkAllowedLocations: (lat: number, long: number) =>
     apiClient.post('user/check/allowed/locations', { lat, long }),
@@ -82,7 +48,7 @@ export const JobsApi = {
     apiClient.put('user/job/confirm/cancellation', { jobId }),
 
   fetchCancellationReasons: () =>
-    apiClient.get<any>('cancellation-reasons?userType=1'),
+    apiClient.get('cancellation-reasons?userType=1'),
 
   cancelJob: (jobId: string, reasonId: string, reasonText: string) =>
     apiClient.put('user/job/cancel', { jobId, reasonId, reasonText }),

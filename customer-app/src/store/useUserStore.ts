@@ -20,6 +20,12 @@ interface UserState {
   setWalletAmount: (amount: number) => void;
 }
 
+const zustandStorage = {
+  getItem: (name: string) => AsyncStorage.getItem(name),
+  setItem: (name: string, value: string) => AsyncStorage.setItem(name, value),
+  removeItem: (name: string) => AsyncStorage.removeItem(name),
+};
+
 export const useUserStore = create<UserState>()(
   persist(
     (set) => ({
@@ -43,7 +49,7 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: 'user-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => zustandStorage),
     }
   )
 );

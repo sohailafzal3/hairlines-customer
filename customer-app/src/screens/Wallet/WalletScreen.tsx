@@ -1,140 +1,107 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  RefreshControl,
   StatusBar,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { DrawerActions } from '@react-navigation/native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { Header, Card } from '../../components';
-import { ProfileApi } from '../../api';
-import { useUserStore } from '../../store';
 import { VTLoading } from '../../components/common';
+import { ProfileApi } from '../../api';
+import { useApi } from '../../hooks';
+import { useUserStore } from '../../store';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'Wallet'>;
 };
 
 const WalletScreen: React.FC<Props> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { walletAmount, setWalletAmount } = useUserStore();
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+
+  const {
+    data: walletData,
+    loading,
+    execute: fetchWallet,
+  } = useApi<any>(ProfileApi.fetchWallet);
 
   useEffect(() => {
     loadWallet();
   }, []);
 
   const loadWallet = async () => {
-    try {
-      setLoading(true);
-      const res: any = await ProfileApi.fetchWallet();
-      if (res?.walletAmount !== undefined) {
-        setWalletAmount(res.walletAmount);
-      }
-    } catch (e) {
-      console.log('Error fetching wallet:', e);
-    } finally {
-      setLoading(false);
+    const result = await fetchWallet();
+    if (result?.walletAmount !== undefined) {
+      setWalletAmount(result.walletAmount);
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadWallet();
-    setRefreshing(false);
-  };
-
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-      {/* Header */}
-      <Header
-        title="My Wallet"
-        left={
-          <TouchableOpacity
-            style={styles.headerBtn}
-            onPress={() => {
-              if ((navigation as any).openDrawer) {
-                (navigation as any).openDrawer();
-              } else if ((navigation.getParent() as any)?.openDrawer) {
-                (navigation.getParent() as any).openDrawer();
-              } else {
-                navigation.dispatch(DrawerActions.openDrawer());
-              }
-            }}
-          >
-            <Ionicons name="menu" size={26} color={Colors.TitleColor} />
-          </TouchableOpacity>
-        }
-      />
+      {/* Header Bar */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => (navigation as any).openDrawer?.()}
+          style={styles.menuButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="menu" size={24} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>My Wallet</Text>
+        <View style={{ width: 44 }} />
+      </View>
 
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: Math.max(insets.bottom, 16) + 30 }
-        ]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[Colors.ButtonPrimaryColor]}
-          />
-        }
       >
-        {/* Wallet Balance Hero Card */}
-        <View style={styles.balanceHeroCard}>
-          <View style={styles.balanceTopRow}>
+        {/* Luxury Balance Card */}
+        <View style={styles.balanceCard}>
+          <View style={styles.cardHeaderRow}>
             <View style={styles.walletIconCircle}>
-              <Ionicons name="wallet" size={24} color="#E5B652" />
+              <Ionicons name="wallet" size={22} color="#FFFFFF" />
             </View>
-            <View style={styles.activeTag}>
-              <Ionicons name="checkmark-circle" size={13} color="#10B981" style={{ marginRight: 4 }} />
-              <Text style={styles.activeTagText}>Ready to use</Text>
-            </View>
+            <Text style={styles.cardBrandText}>HAIRLINES PAY</Text>
           </View>
 
           <Text style={styles.balanceLabel}>Available Balance</Text>
           <Text style={styles.balanceAmount}>
-            ${walletAmount ? Number(walletAmount).toFixed(2) : '0.00'}
+            ${walletAmount?.toFixed(2) || '0.00'}
           </Text>
 
-          <View style={styles.balanceDivider} />
+          <View style={styles.cardDivider} />
 
-          <View style={styles.balanceFooterRow}>
-            <Ionicons name="information-circle-outline" size={16} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.balanceFooterText}>
-              Credits are automatically applied towards your appointment total at checkout.
+          <View style={styles.cardFooterRow}>
+            <Ionicons name="shield-checkmark-outline" size={14} color="rgba(255, 255, 255, 0.8)" style={{ marginRight: 6 }} />
+            <Text style={styles.cardFooterText}>
+              Automatically applied to your next service booking
             </Text>
           </View>
         </View>
 
-        {/* Quick Actions Grid */}
-        <Text style={styles.sectionHeading}>Earn & Save</Text>
+        {/* Quick Features Section */}
+        <Text style={styles.sectionTitle}>WAYS TO EARN & SAVE</Text>
 
         <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => navigation.navigate('ShareReferral')}
+          style={styles.featureCard}
+          onPress={() => navigation.navigate('ShareReferral' as any)}
           activeOpacity={0.85}
         >
-          <View style={[styles.actionIconBadge, { backgroundColor: '#FEF3C7' }]}>
-            <Ionicons name="gift" size={22} color="#D97706" />
+          <View style={styles.featureIconContainer}>
+            <Ionicons name="gift-outline" size={24} color={Colors.ButtonPrimaryColor} />
           </View>
-          <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={styles.actionTitle}>Invite Friends & Earn Credits</Text>
-            <Text style={styles.actionSubtitle}>
+          <View style={styles.featureTextWrapper}>
+            <Text style={styles.featureTitle}>Invite Friends & Earn Credits</Text>
+            <Text style={styles.featureDesc}>
               Share your referral link with friends and get credits when they book.
             </Text>
           </View>
@@ -142,42 +109,25 @@ const WalletScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => navigation.navigate('PromoCodes')}
+          style={styles.featureCard}
+          onPress={() => navigation.navigate('PromoCodes' as any)}
           activeOpacity={0.85}
         >
-          <View style={[styles.actionIconBadge, { backgroundColor: '#EFF6FF' }]}>
-            <Ionicons name="pricetag" size={22} color="#2563EB" />
+          <View style={styles.featureIconContainer}>
+            <Ionicons name="pricetag-outline" size={24} color={Colors.ButtonPrimaryColor} />
           </View>
-          <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={styles.actionTitle}>Promo Codes & Discounts</Text>
-            <Text style={styles.actionSubtitle}>
-              View active voucher codes or redeem special seasonal promotions.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => navigation.navigate('Payments')}
-          activeOpacity={0.85}
-        >
-          <View style={[styles.actionIconBadge, { backgroundColor: '#ECFDF5' }]}>
-            <Ionicons name="card" size={22} color="#059669" />
-          </View>
-          <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={styles.actionTitle}>Payment Methods</Text>
-            <Text style={styles.actionSubtitle}>
-              Manage your saved credit / debit cards for seamless billing.
+          <View style={styles.featureTextWrapper}>
+            <Text style={styles.featureTitle}>Apply Promo Codes</Text>
+            <Text style={styles.featureDesc}>
+              Redeem exclusive discount codes for instant savings at checkout.
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
         </TouchableOpacity>
       </ScrollView>
 
-      <VTLoading visible={loading && !refreshing} />
-    </View>
+      <VTLoading visible={loading} />
+    </SafeAreaView>
   );
 };
 
@@ -186,123 +136,140 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollContent: {
-    padding: Spacing.base,
-    paddingBottom: 40,
-  },
-  balanceHeroCard: {
-    backgroundColor: Colors.ButtonPrimaryColor,
-    borderRadius: 20,
-    padding: 22,
-    marginBottom: Spacing.base,
-    shadowColor: Colors.ButtonPrimaryColor,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  balanceTopRow: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  walletIconCircle: {
+  menuButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
     justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  activeTag: {
+  headerTitle: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
+  },
+  balanceCard: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    marginBottom: Spacing.xl,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    marginBottom: Spacing.lg,
   },
-  activeTagText: {
-    fontSize: 11,
-    fontWeight: FontWeights.bold,
-    color: '#34D399',
+  walletIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.sm,
+  },
+  cardBrandText: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: 'rgba(255, 255, 255, 0.9)',
+    letterSpacing: 2,
   },
   balanceLabel: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontWeight: FontWeights.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveMedium,
+    color: 'rgba(255, 255, 255, 0.75)',
+    marginBottom: 4,
   },
   balanceAmount: {
-    fontSize: 36,
-    fontWeight: '900',
+    fontSize: FontSizes['3xl'] + 4,
+    fontFamily: Fonts.uberMoveBold,
     color: '#FFFFFF',
-    marginTop: 4,
+    marginBottom: Spacing.lg,
   },
-  balanceDivider: {
+  cardDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    marginVertical: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    marginBottom: Spacing.md,
   },
-  balanceFooterRow: {
+  cardFooterRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  balanceFooterText: {
+  cardFooterText: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
+    color: 'rgba(255, 255, 255, 0.85)',
     flex: 1,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-    marginLeft: 8,
-    lineHeight: 16,
   },
-  sectionHeading: {
-    fontSize: FontSizes.base,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
-    marginTop: 10,
-    marginBottom: 12,
+  sectionTitle: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginBottom: Spacing.md,
+    letterSpacing: 0.5,
   },
-  actionCard: {
+  featureCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 2,
   },
-  actionIconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
+  featureIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EEF4FF',
     justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
   },
-  actionTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
+  featureTextWrapper: {
+    flex: 1,
+    marginRight: Spacing.xs,
   },
-  actionSubtitle: {
-    fontSize: 12,
+  featureTitle: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  featureDesc: {
+    fontSize: FontSizes.xs + 1,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
-    marginTop: 2,
-    lineHeight: 16,
+    lineHeight: 18,
   },
 });
 

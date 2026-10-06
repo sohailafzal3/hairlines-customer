@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
-import { FontSizes, FontWeights } from "../theme/fonts";
+import { FontSizes } from "../theme/fonts";
 import { Spacing } from "../theme/spacing";
 
 interface Props {
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: FontSizes.lg,
-    fontWeight: FontWeights.bold,
+    fontWeight: '700',
     color: Colors.TitleColor,
     marginBottom: Spacing.xs,
     textAlign: "center",

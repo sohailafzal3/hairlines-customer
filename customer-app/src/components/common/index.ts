@@ -3,3 +3,5 @@ export { default as VTButton } from './VTButton';
 export { default as VTTextField } from './VTTextField';
 export { default as VTLoading } from './VTLoading';
 export { default as VTCard } from './VTCard';
+export { default as LocationPickerModal } from './LocationPickerModal';
+export type { SelectedLocationData } from './LocationPickerModal';

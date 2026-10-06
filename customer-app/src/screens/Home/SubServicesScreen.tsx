@@ -1,471 +1,368 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Dimensions,
   Image,
+  Dimensions,
   StatusBar,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { Header, EmptyState, LoadingOverlay } from '../../components';
+import { VTButton, VTLoading } from '../../components/common';
 import { JobsApi } from '../../api';
+import { useApi } from '../../hooks';
 import { SubService, SubServiceInfo } from '../../models';
 import { useJobStore } from '../../store';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'SubServices'>;
   route: RouteProp<HomeStackParamList, 'SubServices'>;
 };
 
-const FALLBACK_SUBSERVICES: SubService[] = [
+interface HaircutStyleSlide {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  duration: number;
+  durationUnit: string;
+  price: number;
+  image: string;
+}
+
+// Full screen haircut style options with high quality images and detailed paragraphs
+const defaultHaircutStyles: HaircutStyleSlide[] = [
   {
-    id: 'sub_classic',
-    subServiceName: 'Classic Cut',
-    subServiceDescription: 'Standard precision cut with warm towel neck shave',
-    subServiceImage: '',
-    serviceInfo: [
-      {
-        id: 'info_std',
-        name: 'Standard Treatment (30 mins)',
-        description: 'Includes consultation, hair wash, cut, and light styling.',
-        hasDuration: true,
-        duration: 30,
-        durationUnit: 'min',
-      },
-      {
-        id: 'info_deluxe',
-        name: 'Deluxe Treatment (45 mins)',
-        description: 'Includes hot towel steam, scalp massage, precision cut, and premium pomade styling.',
-        hasDuration: true,
-        duration: 45,
-        durationUnit: 'min',
-      },
-    ],
+    id: 'style-1',
+    name: 'Classic Taper Fade',
+    category: 'Haircuts',
+    description: 'A timeless haircut featuring smooth gradual fading along the sides and back, leaving natural length on top. Blends seamlessly into all beard lengths for a sharp, executive look.',
+    duration: 30,
+    durationUnit: 'mins',
+    price: 35,
+    image: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=800&q=80',
   },
   {
-    id: 'sub_fade',
-    subServiceName: 'Skin Fade & Taper',
-    subServiceDescription: 'High/low/mid fade blended to perfection',
-    subServiceImage: '',
-    serviceInfo: [
-      {
-        id: 'info_fade',
-        name: 'Full Skin Fade (45 mins)',
-        description: 'Zero foil razor blend with crisp perimeter shape-up.',
-        hasDuration: true,
-        duration: 45,
-        durationUnit: 'min',
-      },
-    ],
+    id: 'style-2',
+    name: 'Textured Modern Crop',
+    category: 'Styled Haircuts',
+    description: 'A contemporary textured top cut with a skin drop fade and razor edge blunt fringe. Styled with matte clay for volume and natural movement.',
+    duration: 40,
+    durationUnit: 'mins',
+    price: 45,
+    image: 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=800&q=80',
   },
   {
-    id: 'sub_beard',
-    subServiceName: 'Beard Sculpt & Treatment',
-    subServiceDescription: 'Hot steam towel, razor edging and beard oils',
-    subServiceImage: '',
-    serviceInfo: [
-      {
-        id: 'info_beard',
-        name: 'Beard Sculpt Session (30 mins)',
-        description: 'Conditioning steam treatment and razor edge line-up.',
-        hasDuration: true,
-        duration: 30,
-        durationUnit: 'min',
-      },
-    ],
+    id: 'style-3',
+    name: 'Executive Pompadour',
+    category: 'Styled Haircuts',
+    description: 'High-volume swept back style paired with clean medium skin fade. Perfect for professional business environments and formal occasions.',
+    duration: 45,
+    durationUnit: 'mins',
+    price: 50,
+    image: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    id: 'style-4',
+    name: 'Buzz Cut & Sharp Lineup',
+    category: 'Haircuts',
+    description: 'Ultra-clean uniform short buzz cut finished with razor-sharp hairline lineup and temple tape. Low maintenance and always fresh.',
+    duration: 25,
+    durationUnit: 'mins',
+    price: 30,
+    image: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    id: 'style-5',
+    name: 'Beard Sculpt & Razor Shave',
+    category: 'Add-On Services',
+    description: 'Full hot towel treatment with precision beard shaping, straight razor edge detailing, and organic beard oil hydration.',
+    duration: 30,
+    durationUnit: 'mins',
+    price: 30,
+    image: 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=800&q=80',
   },
 ];
 
 const SubServicesScreen: React.FC<Props> = ({ navigation, route }) => {
-  const insets = useSafeAreaInsets();
-  const { serviceId, serviceName } = route.params;
+  const { serviceId, serviceName } = route.params || {};
   const { setCreateJobField } = useJobStore();
+  const [activeIndex, setActiveIndex] = useState(0);
 
-  const [subServices, setSubServices] = useState<SubService[]>([]);
-  const [selectedSubService, setSelectedSubService] = useState<SubService | null>(null);
-  const [loading, setLoading] = useState(false);
+  const {
+    data: rawSubServices,
+    loading,
+    execute: fetchSubServices,
+  } = useApi<any>(JobsApi.fetchSubServices);
 
   useEffect(() => {
-    loadSubServices();
+    if (serviceId) {
+      fetchSubServices(serviceId);
+    }
   }, [serviceId]);
 
-  const loadSubServices = async () => {
-    try {
-      setLoading(true);
-      const res: any = await JobsApi.fetchSubServices(serviceId);
-      const list =
-        res?.subServices ||
-        res?.subServicesList ||
-        res?.data ||
-        (Array.isArray(res) ? res : []);
-      if (Array.isArray(list) && list.length > 0) {
-        const mapped: SubService[] = list.map((item: any) => {
-          const rawInfos = item.subServiceInfo || item.subServicesTypes || [];
-          const serviceInfo: SubServiceInfo[] =
-            Array.isArray(rawInfos) && rawInfos.length > 0
-              ? rawInfos.map((info: any) => ({
-                  id: info._id || info.id,
-                  name: info.name || 'Standard Treatment',
-                  description: info.description || '',
-                  duration: info.duration || 30,
-                  hasDuration: info.hasDuration ?? true,
-                  durationUnit: info.durationUnit || 'min',
-                  subServiceId: info.subServiceId || item._id || item.id,
-                }))
-              : [
-                  {
-                    id: `${item._id || item.id}_std`,
-                    name: 'Standard Treatment (30 mins)',
-                    description: item.subServiceDescription || 'Precision cut and styling.',
-                    duration: 30,
-                    hasDuration: true,
-                    durationUnit: 'min',
-                    subServiceId: item._id || item.id,
-                  },
-                ];
+  const handleSelectStyle = (style: HaircutStyleSlide) => {
+    setCreateJobField('serviceId', serviceId || '1');
+    setCreateJobField('serviceName', serviceName || style.category);
+    setCreateJobField('subServiceId', style.id);
+    setCreateJobField('subServiceName', style.name);
+    setCreateJobField('subServiceTypeId', style.id);
+    setCreateJobField('jobDuration', style.duration);
 
-          return {
-            id: item._id || item.id,
-            subServiceName: item.subServiceName || item.name || 'Grooming Style',
-            subServiceDescription: item.subServiceDescription || item.description || '',
-            subServiceImage: item.subServiceImage || item.image || '',
-            serviceId: item.serviceId || serviceId,
-            serviceInfo,
-          };
-        });
-        setSubServices(mapped);
-        setSelectedSubService(mapped[0]);
-      } else {
-        setSubServices(FALLBACK_SUBSERVICES);
-        setSelectedSubService(FALLBACK_SUBSERVICES[0]);
-      }
-    } catch (e) {
-      console.log('Error fetching sub services:', e);
-      setSubServices(FALLBACK_SUBSERVICES);
-      setSelectedSubService(FALLBACK_SUBSERVICES[0]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSelectSubService = (item: SubService) => {
-    setSelectedSubService(item);
-  };
-
-  const handleSelectPackage = (info: SubServiceInfo) => {
-    if (!selectedSubService) return;
-
-    setCreateJobField('subServiceId', selectedSubService.id);
-    setCreateJobField('subServiceName', selectedSubService.subServiceName);
-    setCreateJobField('subServiceTypeId', info.id);
-    setCreateJobField('serviceTypeName', info.name);
-    setCreateJobField('serviceTypeDescription', info.description);
-    setCreateJobField('jobDuration', info.duration || 30);
+    const info: SubServiceInfo = {
+      id: style.id,
+      name: style.name,
+      description: style.description,
+      duration: style.duration,
+      durationUnit: style.durationUnit,
+      hasDuration: true,
+      subServiceId: style.id,
+    };
 
     navigation.navigate('UserJobDetail', {
-      subServiceId: selectedSubService.id,
-      subServiceName: selectedSubService.subServiceName,
+      subServiceId: style.id,
+      subServiceName: style.name,
       serviceInfo: info,
     });
   };
 
-  const renderCarouselItem = ({ item }: { item: SubService }) => {
-    const isSelected = selectedSubService?.id === item.id;
-    return (
-      <TouchableOpacity
-        style={[styles.carouselCard, isSelected && styles.carouselCardSelected]}
-        onPress={() => handleSelectSubService(item)}
-        activeOpacity={0.85}
-      >
-        <View style={[styles.cardIconWrapper, isSelected && styles.cardIconWrapperSelected]}>
-          <Ionicons
-            name="cut"
-            size={24}
-            color={isSelected ? '#FFFFFF' : Colors.ButtonPrimaryColor}
-          />
+  const renderStyleSlide = ({ item, index }: { item: HaircutStyleSlide; index: number }) => (
+    <View style={styles.slideCard}>
+      {/* Large High Quality Style Image */}
+      <View style={styles.imageWrapper}>
+        <Image source={{ uri: item.image }} style={styles.slideImage} resizeMode="cover" />
+        <View style={styles.priceBadge}>
+          <Text style={styles.priceBadgeText}>${item.price}</Text>
         </View>
-
-        <Text
-          style={[styles.carouselTitle, isSelected && styles.carouselTitleSelected]}
-          numberOfLines={1}
-        >
-          {item.subServiceName}
-        </Text>
-
-        <Text
-          style={[styles.carouselDesc, isSelected && styles.carouselDescSelected]}
-          numberOfLines={2}
-        >
-          {item.subServiceDescription || item.serviceDescription || 'Precision styling and finish'}
-        </Text>
-
-        {isSelected && (
-          <View style={styles.selectedBadge}>
-            <Ionicons name="checkmark-circle" size={14} color={Colors.ButtonPrimaryColor} />
-            <Text style={styles.selectedBadgeText}>Selected</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  const renderServiceInfoItem = ({ item }: { item: SubServiceInfo }) => (
-    <TouchableOpacity
-      style={styles.packageCard}
-      onPress={() => handleSelectPackage(item)}
-      activeOpacity={0.85}
-    >
-      <View style={styles.packageHeader}>
-        <View style={styles.packageTitleRow}>
-          <Text style={styles.packageName}>{item.name}</Text>
-        </View>
-        {item.duration ? (
-          <View style={styles.durationPill}>
-            <Ionicons name="time-outline" size={13} color="#059669" style={{ marginRight: 4 }} />
-            <Text style={styles.durationPillText}>
-              {item.duration} {item.durationUnit || 'mins'}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-
-      <Text style={styles.packageDescription}>{item.description}</Text>
-
-      <View style={styles.packageFooter}>
-        <View style={styles.priceRow}>
-          <Text style={styles.startingAtText}>Package includes custom consultation</Text>
-        </View>
-        <View style={styles.arrowCircle}>
-          <Ionicons name="arrow-forward" size={16} color={Colors.ButtonPrimaryColor} />
+        <View style={styles.durationBadge}>
+          <Ionicons name="time-outline" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
+          <Text style={styles.durationBadgeText}>{item.duration} {item.durationUnit}</Text>
         </View>
       </View>
-    </TouchableOpacity>
+
+      {/* Content Section */}
+      <View style={styles.slideDetails}>
+        <Text style={styles.slideHeaderTitle}>{item.name}</Text>
+        <Text style={styles.slideCategory}>{item.category.toUpperCase()}</Text>
+
+        <Text style={styles.slideParagraph}>{item.description}</Text>
+
+        <VTButton
+          title="Select This Style →"
+          onPress={() => handleSelectStyle(item)}
+          style={styles.selectButton}
+          textStyle={styles.selectButtonText}
+        />
+      </View>
+    </View>
   );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <Header title={serviceName} onBackPress={() => navigation.goBack()} />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
+      {/* Header Bar */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{serviceName || 'Choose Haircut Style'}</Text>
+        <View style={{ width: 44 }} />
+      </View>
+
+      {/* Full Screen Carousel Slider */}
       <FlatList
-        data={selectedSubService?.serviceInfo || []}
-        keyExtractor={(item, index) => item.id || `plan_${index}`}
-        renderItem={renderServiceInfoItem}
-        contentContainerStyle={[styles.infoListContent, { paddingBottom: Math.max(insets.bottom, 16) + 30 }]}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <>
-            {/* Carousel Section */}
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>1. Select Style / Sub-Service</Text>
-            </View>
-            <FlatList
-              data={subServices}
-              keyExtractor={(item, index) => item.id || `sub_${index}`}
-              renderItem={renderCarouselItem}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.carouselContent}
-            />
-
-            {/* Plans Section Header */}
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>2. Choose Treatment Plan</Text>
-              <Text style={styles.sectionSubtitle}>Select package duration and specific service details</Text>
-            </View>
-          </>
-        }
-        ListEmptyComponent={
-          !loading ? (
-            <EmptyState
-              icon="calendar-outline"
-              title="No packages found"
-              description="Please select a different sub-service above."
-            />
-          ) : null
-        }
+        data={defaultHaircutStyles}
+        keyExtractor={(item) => item.id}
+        renderItem={renderStyleSlide}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => {
+          const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
+          setActiveIndex(newIndex);
+        }}
       />
 
-      <LoadingOverlay visible={loading} />
-    </View>
+      {/* Slider Indicators */}
+      <View style={styles.indicatorRow}>
+        {defaultHaircutStyles.map((_, idx) => (
+          <View
+            key={idx}
+            style={[
+              styles.indicatorDot,
+              idx === activeIndex && styles.indicatorDotActive,
+            ]}
+          />
+        ))}
+      </View>
+
+      <VTLoading visible={loading} />
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.ScreenBG,
+    backgroundColor: '#F8FAFC',
   },
-  sectionHeaderRow: {
-    paddingHorizontal: Spacing.base,
-    paddingTop: Spacing.base,
-    paddingBottom: Spacing.xs,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  sectionTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
+  headerTitle: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  slideCard: {
+    width: width,
+    flex: 1,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xl,
+    justifyContent: 'space-between',
+  },
+  imageWrapper: {
+    width: '100%',
+    height: height * 0.42,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#0F172A',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  slideImage: {
+    width: '100%',
+    height: '100%',
+  },
+  priceBadge: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    backgroundColor: Colors.ButtonPrimaryColor,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+  },
+  priceBadgeText: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
+  },
+  durationBadge: {
+    position: 'absolute',
+    bottom: Spacing.md,
+    left: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+  },
+  durationBadgeText: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
+  },
+  slideDetails: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    marginTop: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  slideHeaderTitle: {
+    fontSize: FontSizes['2xl'],
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  slideCategory: {
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+    letterSpacing: 1,
     marginTop: 2,
     marginBottom: Spacing.sm,
   },
-  carouselContent: {
-    paddingHorizontal: Spacing.base,
-    paddingBottom: Spacing.base,
-    paddingTop: Spacing.xs,
-  },
-  carouselCard: {
-    width: width * 0.58,
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.base,
-    marginRight: 14,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  carouselCardSelected: {
-    borderColor: Colors.ButtonPrimaryColor,
-    backgroundColor: '#F8FAFC',
-  },
-  cardIconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: `${Colors.ButtonPrimaryColor}12`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  cardIconWrapperSelected: {
-    backgroundColor: Colors.ButtonPrimaryColor,
-  },
-  carouselTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
-    marginBottom: 4,
-  },
-  carouselTitleSelected: {
-    color: Colors.ButtonPrimaryColor,
-  },
-  carouselDesc: {
-    fontSize: 12,
-    color: '#64748B',
-    lineHeight: 16,
-    marginBottom: 8,
-  },
-  carouselDescSelected: {
+  slideParagraph: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#475569',
+    lineHeight: 22,
+    marginBottom: Spacing.md,
   },
-  selectedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: `${Colors.ButtonPrimaryColor}14`,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginTop: 4,
+  selectButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 52,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  selectedBadgeText: {
-    fontSize: 11,
-    fontWeight: FontWeights.bold,
-    color: Colors.ButtonPrimaryColor,
-    marginLeft: 4,
-  },
-  infoListContent: {
-    paddingHorizontal: Spacing.base,
-  },
-  packageCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.base,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  packageHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  packageTitleRow: {
-    flex: 1,
-    marginRight: 8,
-  },
-  packageName: {
+  selectButtonText: {
     fontSize: FontSizes.base,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
-  durationPill: {
+  indicatorRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  durationPillText: {
-    fontSize: 11,
-    fontWeight: FontWeights.bold,
-    color: '#059669',
-  },
-  packageDescription: {
-    fontSize: 13,
-    color: '#64748B',
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  packageFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 10,
-  },
-  priceRow: {
-    flex: 1,
-  },
-  startingAtText: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontWeight: FontWeights.medium,
-  },
-  arrowCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    gap: 8,
+  },
+  indicatorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#CBD5E1',
+  },
+  indicatorDotActive: {
+    width: 24,
+    backgroundColor: Colors.ButtonPrimaryColor,
   },
 });
 

@@ -7,11 +7,10 @@ import {
   ViewStyle,
   TextStyle,
   TouchableOpacity,
-  KeyboardTypeOptions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../theme/colors';
-import { Fonts, FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
 
 interface VTTextFieldProps {
@@ -20,7 +19,7 @@ interface VTTextFieldProps {
   value: string;
   onChangeText: (text: string) => void;
   secureTextEntry?: boolean;
-  keyboardType?: KeyboardTypeOptions;
+  keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'number-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   error?: string;
   style?: ViewStyle;
@@ -29,6 +28,7 @@ interface VTTextFieldProps {
   editable?: boolean;
   multiline?: boolean;
   numberOfLines?: number;
+  leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   onRightIconPress?: () => void;
 }
@@ -48,6 +48,7 @@ const VTTextField: React.FC<VTTextFieldProps> = ({
   editable = true,
   multiline = false,
   numberOfLines = 1,
+  leftIcon,
   rightIcon,
   onRightIconPress,
 }) => {
@@ -69,6 +70,8 @@ const VTTextField: React.FC<VTTextFieldProps> = ({
           !editable && styles.inputDisabled,
         ]}
       >
+        {leftIcon && <View style={styles.leftIconWrapper}>{leftIcon}</View>}
+
         <TextInput
           style={[
             styles.input,
@@ -76,7 +79,7 @@ const VTTextField: React.FC<VTTextFieldProps> = ({
             inputStyle,
           ]}
           placeholder={placeholder}
-          placeholderTextColor={Colors.placeholderGray}
+          placeholderTextColor="#94A3B8"
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={isSecure}
@@ -89,10 +92,12 @@ const VTTextField: React.FC<VTTextFieldProps> = ({
           multiline={multiline}
           numberOfLines={multiline ? numberOfLines : 1}
         />
+
         {secureTextEntry && (
           <TouchableOpacity
             onPress={() => setIsSecure(!isSecure)}
             style={styles.iconButton}
+            activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons
@@ -102,20 +107,22 @@ const VTTextField: React.FC<VTTextFieldProps> = ({
             />
           </TouchableOpacity>
         )}
+
         {rightIcon && (
-          <TouchableOpacity onPress={onRightIconPress} style={styles.iconButton}>
+          <TouchableOpacity
+            onPress={onRightIconPress}
+            style={styles.iconButton}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             {rightIcon}
           </TouchableOpacity>
         )}
       </View>
+
       {!!error && (
         <View style={styles.errorRow}>
-          <Ionicons
-            name="alert-circle"
-            size={13}
-            color={Colors.errorViewColor}
-            style={{ marginRight: 4 }}
-          />
+          <Ionicons name="alert-circle" size={14} color={Colors.errorViewColor} style={{ marginRight: 4 }} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
@@ -129,13 +136,13 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: FontSizes.sm,
-    fontWeight: FontWeights.medium,
+    fontFamily: Fonts.uberMoveMedium,
     color: '#334155',
     marginBottom: Spacing.xs,
   },
   labelFocused: {
     color: Colors.ButtonPrimaryColor,
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
   },
   labelError: {
     color: Colors.errorViewColor,
@@ -146,7 +153,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.lg,
     borderWidth: 1.5,
-    borderColor: Colors.BorderColor,
+    borderColor: '#E2E8F0',
     paddingHorizontal: Spacing.md,
     minHeight: 52,
     shadowColor: '#0F172A',
@@ -157,6 +164,7 @@ const styles = StyleSheet.create({
   },
   inputFocused: {
     borderColor: Colors.ButtonPrimaryColor,
+    backgroundColor: '#FFFFFF',
     shadowColor: Colors.ButtonPrimaryColor,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -168,11 +176,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
   },
   inputDisabled: {
-    backgroundColor: Colors.disabledGray,
+    backgroundColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
+  },
+  leftIconWrapper: {
+    marginRight: Spacing.sm,
   },
   input: {
     flex: 1,
     fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveMedium,
     color: '#0F172A',
     paddingVertical: Spacing.sm,
   },
@@ -187,9 +200,9 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
     color: Colors.errorViewColor,
   },
 });
 
 export default VTTextField;
-

@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Colors } from "../theme/colors";
 import { BorderRadius, Spacing } from "../theme/spacing";
-import { FontSizes, FontWeights } from "../theme/fonts";
+import { FontSizes } from "../theme/fonts";
 
 export interface ButtonProps {
   title: string;
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   secondary: {
     backgroundColor: "#F1F5F9",
     borderWidth: 1,
-    borderColor: Colors.BorderColor,
+    borderColor: '#E2E8F0',
   },
   danger: {
     backgroundColor: Colors.errorViewColor,
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: FontSizes.base,
-    fontWeight: FontWeights.semibold,
+    fontWeight: '600' as const,
   },
   primaryText: { color: Colors.ButtonTextColor },
   secondaryText: { color: Colors.TitleColor },

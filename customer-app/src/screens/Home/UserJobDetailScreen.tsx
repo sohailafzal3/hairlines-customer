@@ -1,588 +1,280 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Switch,
   KeyboardAvoidingView,
   Platform,
-  Modal,
+  StatusBar,
   Image,
-  ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { HomeStackParamList } from '../../navigation/HomeNavigator';
-import { Colors } from '../../theme/colors';
-import { Fonts, FontSizes } from '../../theme/fonts';
-import { Spacing, BorderRadius } from '../../theme/spacing';
-import { Header } from '../../components';
-import { VTButton, VTTextField } from '../../components/common';
-import { useJobStore, useAuthStore } from '../../store';
-import { JobsApi, UploadApi } from '../../api';
+import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { HomeStackParamList } from '../../navigation/HomeNavigator';
+import { Colors, Fonts, FontSizes, Spacing, BorderRadius } from '../../theme';
+import { VTButton, VTTextField } from '../../components/common';
+import { useJobStore } from '../../store';
+import { formatJobDate, parseDate } from '../../utils/helpers';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'UserJobDetail'>;
   route: RouteProp<HomeStackParamList, 'UserJobDetail'>;
 };
 
-interface Member {
-  _id?: string;
-  id?: string;
-  firstName: string;
-  lastName: string;
-  relation: string;
-  age?: number;
-  health?: number;
-}
-
 const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
-  const insets = useSafeAreaInsets();
-  const { serviceInfo } = route.params;
+  const { serviceInfo } = route.params || {};
   const { createJob, setCreateJobField } = useJobStore();
-  const { user } = useAuthStore();
 
-  const [date, setDate] = useState(new Date(Date.now() + 3600 * 1000));
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [date] = useState(new Date());
   const [description, setDescription] = useState(createJob.descriptionText || '');
   const [specialInstructions, setSpecialInstructions] = useState(createJob.specialInstruction || '');
-  const [atUserLocation, setAtUserLocation] = useState(createJob.atUserLocation ?? true);
-  const [atSpLocation, setAtSpLocation] = useState(createJob.atSpLocation ?? false);
-  const [barberGender, setBarberGender] = useState<'any' | 'male' | 'female'>('any');
-
-  // Members
-  const [members, setMembers] = useState<Member[]>([]);
-  const [selectedMemberId, setSelectedMemberId] = useState<string>('');
-  const [loadingMembers, setLoadingMembers] = useState(false);
-  const [isAddMemberModalVisible, setIsAddMemberModalVisible] = useState(false);
-  const [newMemberFirstName, setNewMemberFirstName] = useState('');
-  const [newMemberLastName, setNewMemberLastName] = useState('');
-  const [newMemberRelation, setNewMemberRelation] = useState('Family');
-  const [newMemberAge, setNewMemberAge] = useState('');
-  const [newMemberNeedsAssistance, setNewMemberNeedsAssistance] = useState(false);
-  const [savingMember, setSavingMember] = useState(false);
-
-  // Style Image Upload
-  const [styleImageUri, setStyleImageUri] = useState<string>('');
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [locationMode, setLocationMode] = useState<'user' | 'sp'>(createJob.atSpLocation ? 'sp' : 'user');
+  const [styleImage, setStyleImage] = useState(createJob.stylePreferenceImage || '');
 
   useEffect(() => {
-    loadMembers();
+    // Sanitize any stale invalid date string stored in Zustand / AsyncStorage
+    if (createJob.jobStartTime && !parseDate(createJob.jobStartTime)) {
+      setCreateJobField('jobStartTime', '');
+    }
   }, []);
 
-  const loadMembers = async () => {
-    try {
-      setLoadingMembers(true);
-      const res = await JobsApi.getAllNewMembers();
-      const list = res?.members || res?.data || (Array.isArray(res) ? res : []);
-      if (Array.isArray(list)) {
-        setMembers(list);
-      }
-    } catch (e) {
-      console.log('Error loading members:', e);
-    } finally {
-      setLoadingMembers(false);
-    }
-  };
-
-  const handleSaveMember = async () => {
-    if (!newMemberFirstName.trim()) {
-      Alert.alert('Required', 'Please enter first name');
-      return;
-    }
-    try {
-      setSavingMember(true);
-      await JobsApi.addNewMember({
-        firstName: newMemberFirstName.trim(),
-        lastName: newMemberLastName.trim(),
-        relation: newMemberRelation,
-        age: parseInt(newMemberAge, 10) || 18,
-        health: newMemberNeedsAssistance ? 1 : 0,
-      });
-      setIsAddMemberModalVisible(false);
-      setNewMemberFirstName('');
-      setNewMemberLastName('');
-      setNewMemberAge('');
-      setNewMemberNeedsAssistance(false);
-      await loadMembers();
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to add member');
-    } finally {
-      setSavingMember(false);
-    }
-  };
-
-  const handleDeleteMember = async (memberId: string) => {
-    Alert.alert('Delete Member', 'Are you sure you want to remove this member?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await JobsApi.deleteMember(memberId);
-            if (selectedMemberId === memberId) setSelectedMemberId('');
-            await loadMembers();
-          } catch (e: any) {
-            Alert.alert('Error', e.message);
-          }
-        },
-      },
-    ]);
-  };
-
-  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setDate(selectedDate);
-      setCreateJobField('jobStartTime', selectedDate.toISOString());
-      // Match iOS: weekDay = getDayOfWeekFC() - 1 (0-based, Sunday=0)
-      setCreateJobField('weekDay', selectedDate.getDay());
-      // Match iOS: TimeZone.current string e.g. "America/New_York"
-      setCreateJobField('timeZone', Intl.DateTimeFormat().resolvedOptions().timeZone);
-    }
+  const handleOpenDatePicker = () => {
+    navigation.navigate('Calendar');
   };
 
   const handleImagePick = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Please grant photo library access to upload a reference photo.');
+      Toast.show({
+        type: 'error',
+        text1: 'Permission Required',
+        text2: 'Please allow access to your photo library.',
+      });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      quality: 0.7,
+      aspect: [1, 1],
+      quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      setStyleImageUri(asset.uri);
-
-      try {
-        setUploadingImage(true);
-        const formData = new FormData();
-        const filename = asset.uri.split('/').pop() || 'style_reference.jpg';
-        formData.append('image', {
-          uri: asset.uri,
-          name: filename,
-          type: 'image/jpeg',
-        } as any);
-
-        const uploadRes: any = await UploadApi.uploadStylePreference(formData);
-        const uploadedUrl = uploadRes?.imageUrl || uploadRes?.data?.imageUrl || uploadRes?.url || asset.uri;
-        setCreateJobField('stylePreferenceImage', uploadedUrl);
-      } catch (err) {
-        console.warn('Style preference upload failed, using local URI:', err);
-        setCreateJobField('stylePreferenceImage', asset.uri);
-      } finally {
-        setUploadingImage(false);
-      }
+      setStyleImage(result.assets[0].uri);
+      setCreateJobField('stylePreferenceImage', result.assets[0].uri);
     }
   };
 
+  const handleRemoveImage = () => {
+    setStyleImage('');
+    setCreateJobField('stylePreferenceImage', '');
+  };
+
   const handleContinue = () => {
-    setCreateJobField('jobStartTime', date.toISOString());
-    setCreateJobField('weekDay', date.getDay());
-    setCreateJobField('timeZone', Intl.DateTimeFormat().resolvedOptions().timeZone);
     setCreateJobField('descriptionText', description);
     setCreateJobField('specialInstruction', specialInstructions);
-    setCreateJobField('atUserLocation', atUserLocation);
-    setCreateJobField('atSpLocation', atSpLocation);
-    setCreateJobField('barberGender', barberGender);
-    setCreateJobField('memberId', selectedMemberId);
-
+    setCreateJobField('atUserLocation', locationMode === 'user');
+    setCreateJobField('atSpLocation', locationMode === 'sp');
     navigation.navigate('SuggestedMovers');
   };
 
-  const formatDate = (d: Date) => {
-    return d.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const getDisplayDateText = () => {
+    if (createJob.jobStartTime && parseDate(createJob.jobStartTime)) {
+      return formatJobDate(createJob.jobStartTime);
+    }
+    return formatJobDate(date);
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        {/* Header */}
-        <Header title="Appointment Details" onBackPress={() => navigation.goBack()} />
-
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: Math.max(insets.bottom + 90, 110) },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Service Info Summary */}
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryLeft}>
-              <View style={styles.summaryIconBadge}>
-                <MaterialCommunityIcons name="content-cut" size={22} color="#FFFFFF" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.summaryLabel}>Selected Service</Text>
-                <Text style={styles.summaryValue}>{createJob.subServiceName || 'Haircut & Styling'}</Text>
-                {serviceInfo?.subServiceCharges && (
-                  <Text style={styles.summaryPrice}>${serviceInfo.subServiceCharges.toFixed(2)}</Text>
-                )}
-              </View>
-            </View>
+        {/* Top Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={22} color="#0F172A" />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Booking Specifications</Text>
+            <Text style={styles.headerSubtitle}>Step 2 of 4 • Custom Options</Text>
           </View>
-
-          {/* Section: Who is this service for? */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={styles.sectionTitleRow}>
-                <Ionicons name="person-outline" size={18} color={Colors.ButtonPrimaryColor} />
-                <Text style={styles.sectionCardTitle}>Service Recipient</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.addMemberBtn}
-                onPress={() => setIsAddMemberModalVisible(true)}
-              >
-                <Ionicons name="add" size={16} color={Colors.ButtonPrimaryColor} />
-                <Text style={styles.addMemberBtnText}>Add Member</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Self Option */}
-            <TouchableOpacity
-              style={[
-                styles.memberOption,
-                selectedMemberId === '' && styles.memberOptionActive,
-              ]}
-              onPress={() => setSelectedMemberId('')}
-            >
-              <Ionicons
-                name={selectedMemberId === '' ? 'radio-button-on' : 'radio-button-off'}
-                size={20}
-                color={selectedMemberId === '' ? Colors.ButtonPrimaryColor : Colors.DescriptionTextLight}
-              />
-              <View style={styles.memberInfo}>
-                <Text style={styles.memberName}>{user?.firstName ? `${user.firstName} ${user.lastName || ''}` : 'Myself'}</Text>
-                <Text style={styles.memberSub}>Primary Account Holder</Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Additional Members */}
-            {loadingMembers ? (
-              <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} style={{ marginVertical: 12 }} />
-            ) : (
-              members.map((m) => {
-                const mId = m._id || m.id || '';
-                const isSelected = selectedMemberId === mId;
-                return (
-                  <View key={mId} style={[styles.memberOption, isSelected && styles.memberOptionActive]}>
-                    <TouchableOpacity
-                      style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
-                      onPress={() => setSelectedMemberId(mId)}
-                    >
-                      <Ionicons
-                        name={isSelected ? 'radio-button-on' : 'radio-button-off'}
-                        size={20}
-                        color={isSelected ? Colors.ButtonPrimaryColor : Colors.DescriptionTextLight}
-                      />
-                      <View style={styles.memberInfo}>
-                        <Text style={styles.memberName}>{m.firstName} {m.lastName}</Text>
-                        <Text style={styles.memberSub}>
-                          {m.relation} {m.age ? `• ${m.age} yrs` : ''} {m.health === 1 ? '• Special Assistance' : ''}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => handleDeleteMember(mId)}
-                      style={styles.deleteMemberBtn}
-                    >
-                      <Ionicons name="trash-outline" size={18} color={Colors.errorViewColor} />
-                    </TouchableOpacity>
-                  </View>
-                );
-              })
-            )}
-          </View>
-
-          {/* Section: Date & Time */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionTitleRow}>
-              <Ionicons name="calendar-outline" size={18} color={Colors.ButtonPrimaryColor} />
-              <Text style={styles.sectionCardTitle}>Date & Time Schedule</Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowDatePicker(true)}
-              activeOpacity={0.8}
-            >
-              <View>
-                <Text style={styles.dateFieldLabel}>Scheduled Start Time</Text>
-                <Text style={styles.dateButtonText}>{formatDate(date)}</Text>
-              </View>
-              <Ionicons name="calendar" size={22} color={Colors.ButtonPrimaryColor} />
-            </TouchableOpacity>
-
-            {showDatePicker && (
-              <DateTimePicker
-                value={date}
-                mode="datetime"
-                minimumDate={new Date()}
-                onChange={handleDateChange}
-              />
-            )}
-          </View>
-
-          {/* Section: Service Location */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionTitleRow}>
-              <Ionicons name="location-outline" size={18} color={Colors.ButtonPrimaryColor} />
-              <Text style={styles.sectionCardTitle}>Service Location</Text>
-            </View>
-
-            <View style={styles.locationToggleRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.locationTitle}>At My Location / Home</Text>
-                <Text style={styles.locationSub}>Stylist travels to your address</Text>
-              </View>
-              <Switch
-                value={atUserLocation}
-                onValueChange={(val) => {
-                  setAtUserLocation(val);
-                  setAtSpLocation(!val);
-                }}
-                trackColor={{ false: '#E2E8F0', true: '#222D63' }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-
-            <View style={[styles.locationToggleRow, { borderBottomWidth: 0 }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.locationTitle}>At Stylist Salon / Premise</Text>
-                <Text style={styles.locationSub}>You visit the professional's studio</Text>
-              </View>
-              <Switch
-                value={atSpLocation}
-                onValueChange={(val) => {
-                  setAtSpLocation(val);
-                  setAtUserLocation(!val);
-                }}
-                trackColor={{ false: '#E2E8F0', true: '#222D63' }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-
-            {atUserLocation && (
-              <TouchableOpacity
-                style={styles.addressBox}
-                onPress={() => navigation.navigate('SetLocation')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="map-outline" size={20} color={Colors.ButtonPrimaryColor} />
-                <View style={{ flex: 1, marginHorizontal: 10 }}>
-                  <Text style={styles.addressBoxLabel}>Service Address</Text>
-                  <Text style={styles.addressBoxText} numberOfLines={2}>
-                    {createJob.primaryAddress || 'Tap to select or change address'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.DescriptionTextLight} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Section: Barber Gender Preference */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionTitleRow}>
-              <Ionicons name="people-outline" size={18} color={Colors.ButtonPrimaryColor} />
-              <Text style={styles.sectionCardTitle}>Hairstylist Gender Preference</Text>
-            </View>
-            <View style={styles.genderRow}>
-              {[
-                { label: 'Any', value: 'any' as const },
-                { label: 'Male', value: 'male' as const },
-                { label: 'Female', value: 'female' as const },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.value}
-                  style={[
-                    styles.genderTab,
-                    barberGender === item.value && styles.genderTabActive,
-                  ]}
-                  onPress={() => setBarberGender(item.value)}
-                >
-                  <Text
-                    style={[
-                      styles.genderTabText,
-                      barberGender === item.value && styles.genderTabTextActive,
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Section: Description & Special Instructions */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionTitleRow}>
-              <Ionicons name="document-text-outline" size={18} color={Colors.ButtonPrimaryColor} />
-              <Text style={styles.sectionCardTitle}>Details & Instructions</Text>
-            </View>
-
-            <VTTextField
-              label="Work Description"
-              placeholder="e.g. Skin fade with beard line-up and scissors cut on top..."
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={3}
-            />
-
-            <View style={{ height: 12 }} />
-
-            <VTTextField
-              label="Special Instructions (Optional)"
-              placeholder="e.g. Ring apartment 4B, parking available in driveway..."
-              value={specialInstructions}
-              onChangeText={setSpecialInstructions}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
-
-          {/* Section: Style Reference Photo */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionTitleRow}>
-              <Ionicons name="image-outline" size={18} color={Colors.ButtonPrimaryColor} />
-              <Text style={styles.sectionCardTitle}>Style Reference Photo (Optional)</Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.photoUploadContainer}
-              onPress={handleImagePick}
-              activeOpacity={0.8}
-            >
-              {uploadingImage ? (
-                <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} />
-              ) : styleImageUri ? (
-                <View style={styles.photoSelectedWrapper}>
-                  <Image source={{ uri: styleImageUri }} style={styles.previewImage} />
-                  <View style={styles.photoOverlayBadge}>
-                    <Ionicons name="camera" size={16} color="#FFFFFF" />
-                    <Text style={styles.photoOverlayText}>Change Photo</Text>
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.photoUploadPlaceholder}>
-                  <Ionicons name="camera-outline" size={32} color={Colors.ButtonPrimaryColor} />
-                  <Text style={styles.photoUploadTitle}>Upload Style Example</Text>
-                  <Text style={styles.photoUploadSub}>Tap to select haircut or style photo from library</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-
-        {/* Pinned Bottom Continue Button */}
-        <View
-          style={[
-            styles.bottomBar,
-            { paddingBottom: Math.max(insets.bottom + 12, 16) },
-          ]}
-        >
-          <VTButton
-            title="Find Available Stylists"
-            onPress={handleContinue}
-            disabled={!description.trim()}
-          />
+          <View style={{ width: 44 }} />
         </View>
 
-        {/* Modal: Add Member */}
-        <Modal
-          visible={isAddMemberModalVisible}
-          animationType="slide"
-          transparent
-          onRequestClose={() => setIsAddMemberModalVisible(false)}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.modalBackdrop}
+          {/* Selected Service Banner Card */}
+          <View style={styles.serviceBanner}>
+            <View style={styles.serviceIconBadge}>
+              <MaterialCommunityIcons name="content-cut" size={26} color={Colors.ButtonPrimaryColor} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.serviceCategoryText}>SELECTED SERVICE</Text>
+              <Text style={styles.serviceTitle}>{createJob.subServiceName || 'Custom Haircut & Styling'}</Text>
+              {serviceInfo && (
+                <View style={styles.serviceMetaRow}>
+                  <View style={styles.metaTag}>
+                    <Ionicons name="time-outline" size={12} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
+                    <Text style={styles.metaTagText}>{serviceInfo.duration} {serviceInfo.durationUnit || 'mins'}</Text>
+                  </View>
+                  <Text style={styles.planNameText}>• {serviceInfo.name}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Appointment Schedule Picker */}
+          <Text style={styles.sectionLabel}>1. APPOINTMENT SCHEDULE</Text>
+          <TouchableOpacity
+            style={styles.dateCard}
+            onPress={handleOpenDatePicker}
+            activeOpacity={0.85}
           >
-            <View style={styles.modalCard}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Add Family / Member</Text>
-                <TouchableOpacity onPress={() => setIsAddMemberModalVisible(false)}>
-                  <Ionicons name="close" size={24} color={Colors.TitleColor} />
+            <View style={styles.dateIconCircle}>
+              <Ionicons name="calendar" size={20} color={Colors.ButtonPrimaryColor} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.dateLabel}>Date & Time</Text>
+              <Text style={styles.dateValueText}>{getDisplayDateText()}</Text>
+            </View>
+            <View style={styles.changePill}>
+              <Text style={styles.changePillText}>Change</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Service Delivery Location Mode */}
+          <Text style={styles.sectionLabel}>2. SERVICE DELIVERY MODE</Text>
+          <View style={styles.locationContainer}>
+            <TouchableOpacity
+              style={[styles.locationOptionCard, locationMode === 'user' && styles.locationOptionActive]}
+              onPress={() => setLocationMode('user')}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.locationIconBadge, locationMode === 'user' && styles.locationIconBadgeActive]}>
+                <Ionicons name="home-outline" size={20} color={locationMode === 'user' ? Colors.ButtonPrimaryColor : '#64748B'} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.locationOptionTitle, locationMode === 'user' && styles.locationOptionTitleActive]}>
+                  Mobile Barber (At My Location)
+                </Text>
+                <Text style={styles.locationOptionSub}>Barber comes directly to your home, office, or hotel</Text>
+              </View>
+              <View style={[styles.radioCircle, locationMode === 'user' && styles.radioCircleActive]}>
+                {locationMode === 'user' && <View style={styles.radioDot} />}
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.locationOptionCard, locationMode === 'sp' && styles.locationOptionActive]}
+              onPress={() => setLocationMode('sp')}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.locationIconBadge, locationMode === 'sp' && styles.locationIconBadgeActive]}>
+                <Ionicons name="storefront-outline" size={20} color={locationMode === 'sp' ? Colors.ButtonPrimaryColor : '#64748B'} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.locationOptionTitle, locationMode === 'sp' && styles.locationOptionTitleActive]}>
+                  Barber Shop / Salon Visit
+                </Text>
+                <Text style={styles.locationOptionSub}>You visit the service provider's shop or salon</Text>
+              </View>
+              <View style={[styles.radioCircle, locationMode === 'sp' && styles.radioCircleActive]}>
+                {locationMode === 'sp' && <View style={styles.radioDot} />}
+              </View>
+            </TouchableOpacity>
+
+            {/* Selected Address Pill */}
+            <TouchableOpacity
+              style={styles.addressPill}
+              onPress={() => navigation.navigate('SetLocation')}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="location" size={18} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.addressPillLabel}>DELIVERY ADDRESS</Text>
+                <Text style={styles.addressPillText} numberOfLines={1}>
+                  {createJob.primaryAddress || 'Set your primary address'}
+                </Text>
+              </View>
+              <Ionicons name="pencil" size={14} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Service Notes & Specifications */}
+          <Text style={styles.sectionLabel}>3. SERVICE NOTES & INSTRUCTIONS</Text>
+
+          <VTTextField
+            label="Service Description *"
+            placeholder="Specify haircut style, beard length, guard numbers (e.g. #2 Fade)..."
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={3}
+            leftIcon={<Ionicons name="create-outline" size={18} color="#64748B" />}
+          />
+
+          <VTTextField
+            label="Special Requests (Optional)"
+            placeholder="Any allergies, parking instructions, or special requests..."
+            value={specialInstructions}
+            onChangeText={setSpecialInstructions}
+            multiline
+            numberOfLines={2}
+            leftIcon={<Ionicons name="information-circle-outline" size={18} color="#64748B" />}
+          />
+
+          {/* Reference Photo Attachment */}
+          <Text style={styles.sectionLabel}>4. REFERENCE PHOTO (OPTIONAL)</Text>
+
+          {styleImage ? (
+            <View style={styles.imagePreviewCard}>
+              <Image source={{ uri: styleImage }} style={styles.imagePreview} />
+              <View style={styles.imagePreviewInfo}>
+                <Text style={styles.imagePreviewTitle}>Reference Haircut Photo Attached</Text>
+                <Text style={styles.imagePreviewSub}>Barber will view this photo before service</Text>
+                <TouchableOpacity onPress={handleRemoveImage} style={styles.removePhotoButton}>
+                  <Ionicons name="trash-outline" size={14} color="#EF4444" style={{ marginRight: 4 }} />
+                  <Text style={styles.removePhotoText}>Remove Photo</Text>
                 </TouchableOpacity>
               </View>
-
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <VTTextField
-                  label="First Name"
-                  placeholder="First name"
-                  value={newMemberFirstName}
-                  onChangeText={setNewMemberFirstName}
-                />
-                <View style={{ height: 12 }} />
-                <VTTextField
-                  label="Last Name"
-                  placeholder="Last name"
-                  value={newMemberLastName}
-                  onChangeText={setNewMemberLastName}
-                />
-                <View style={{ height: 12 }} />
-                <VTTextField
-                  label="Relationship"
-                  placeholder="e.g. Son, Daughter, Spouse, Parent"
-                  value={newMemberRelation}
-                  onChangeText={setNewMemberRelation}
-                />
-                <View style={{ height: 12 }} />
-                <VTTextField
-                  label="Age"
-                  placeholder="e.g. 12"
-                  value={newMemberAge}
-                  onChangeText={setNewMemberAge}
-                  keyboardType="number-pad"
-                />
-                <View style={{ height: 14 }} />
-                <View style={styles.modalSwitchRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.modalSwitchTitle}>Special Physical Assistance</Text>
-                    <Text style={styles.modalSwitchSub}>Requires extra assistance or care</Text>
-                  </View>
-                  <Switch
-                    value={newMemberNeedsAssistance}
-                    onValueChange={setNewMemberNeedsAssistance}
-                    trackColor={{ false: '#E2E8F0', true: '#222D63' }}
-                    thumbColor="#FFFFFF"
-                  />
-                </View>
-
-                <View style={{ height: 20 }} />
-                <VTButton
-                  title="Save Member"
-                  onPress={handleSaveMember}
-                  loading={savingMember}
-                />
-              </ScrollView>
             </View>
-          </KeyboardAvoidingView>
-        </Modal>
+          ) : (
+            <TouchableOpacity style={styles.uploadCard} onPress={handleImagePick} activeOpacity={0.8}>
+              <View style={styles.uploadIconCircle}>
+                <Ionicons name="camera" size={24} color={Colors.ButtonPrimaryColor} />
+              </View>
+              <Text style={styles.uploadTitle}>Upload Reference Hair Style Photo</Text>
+              <Text style={styles.uploadSub}>Attach a photo of the exact cut or style you want</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Action Button */}
+          <VTButton
+            title="Search Available Professionals →"
+            onPress={handleContinue}
+            disabled={!description.trim()}
+            style={styles.continueButton}
+            textStyle={styles.continueButtonText}
+          />
+        </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -598,335 +290,328 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.base,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#F1F5F9',
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: FontSizes.lg,
-    fontWeight: '700',
-    color: Colors.TitleColor,
-  },
-  scrollContent: {
-    padding: Spacing.base,
-  },
-  summaryCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.base,
-    marginBottom: Spacing.base,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  summaryLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  summaryIconBadge: {
+  backButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.ButtonPrimaryColor,
-    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
     justifyContent: 'center',
-    marginRight: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  summaryLabel: {
-    fontSize: 11,
+  headerCenter: {
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  headerSubtitle: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
+  },
+  serviceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF4FF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 45, 99, 0.15)',
+  },
+  serviceIconBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  serviceCategoryText: {
+    fontSize: 9,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#64748B',
     letterSpacing: 0.5,
   },
-  summaryValue: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: Colors.TitleColor,
+  serviceTitle: {
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
     marginTop: 2,
   },
-  summaryPrice: {
-    fontSize: FontSizes.md,
-    fontWeight: '800',
-    color: '#059669',
-    marginTop: 2,
+  serviceMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
-  sectionCard: {
+  metaTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.base,
-    marginBottom: Spacing.base,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
   },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  sectionCardTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: Colors.TitleColor,
-    marginLeft: 8,
-  },
-  addMemberBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: `${Colors.ButtonPrimaryColor}12`,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-  },
-  addMemberBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
+  metaTagText: {
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
-    marginLeft: 2,
   },
-  memberOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    marginTop: 8,
-    backgroundColor: '#F8FAFC',
-  },
-  memberOptionActive: {
-    borderColor: Colors.ButtonPrimaryColor,
-    backgroundColor: `${Colors.ButtonPrimaryColor}08`,
-  },
-  memberInfo: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  memberName: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: Colors.TitleColor,
-  },
-  memberSub: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  deleteMemberBtn: {
-    padding: 6,
-  },
-  dateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    borderRadius: BorderRadius.sm,
-    padding: Spacing.base,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginTop: 4,
-  },
-  dateFieldLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  dateButtonText: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: Colors.TitleColor,
-    marginTop: 2,
-  },
-  locationToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  locationTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: '600',
-    color: Colors.TitleColor,
-  },
-  locationSub: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  addressBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    padding: 12,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginTop: 10,
-  },
-  addressBoxLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  addressBoxText: {
-    fontSize: FontSizes.base,
-    fontWeight: '600',
-    color: Colors.TitleColor,
-    marginTop: 2,
-  },
-  genderRow: {
-    flexDirection: 'row',
-    marginTop: 6,
-    gap: 10,
-  },
-  genderTab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-  },
-  genderTabActive: {
-    borderColor: Colors.ButtonPrimaryColor,
-    backgroundColor: Colors.ButtonPrimaryColor,
-  },
-  genderTabText: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  genderTabTextActive: {
-    color: '#FFFFFF',
-  },
-  photoUploadContainer: {
-    borderRadius: BorderRadius.md,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
-    backgroundColor: '#F8FAFC',
-    overflow: 'hidden',
-    marginTop: 6,
-  },
-  photoUploadPlaceholder: {
-    padding: 24,
-    alignItems: 'center',
-  },
-  photoUploadTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: Colors.ButtonPrimaryColor,
-    marginTop: 8,
-  },
-  photoUploadSub: {
-    fontSize: 12,
-    color: '#64748B',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  photoSelectedWrapper: {
-    height: 180,
-    position: 'relative',
-  },
-  previewImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  photoOverlayBadge: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  photoOverlayText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
+  planNameText: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveMedium,
+    color: '#334155',
     marginLeft: 6,
   },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingHorizontal: Spacing.base,
-    paddingTop: Spacing.sm,
+  sectionLabel: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginBottom: Spacing.md,
+    letterSpacing: 0.5,
   },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
+  dateCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
-    maxHeight: '85%',
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  modalHeader: {
+  dateIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EEF4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+  dateLabel: {
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#64748B',
+  },
+  dateValueText: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  changePill: {
+    backgroundColor: '#EEF4FF',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.lg,
+  },
+  changePillText: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  locationContainer: {
+    marginBottom: Spacing.xl,
+    gap: Spacing.md,
+  },
+  locationOptionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.base,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  modalTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: '800',
-    color: Colors.TitleColor,
+  locationOptionActive: {
+    borderColor: Colors.ButtonPrimaryColor,
+    backgroundColor: '#EEF4FF',
   },
-  modalSwitchRow: {
-    flexDirection: 'row',
+  locationIconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    marginRight: Spacing.md,
   },
-  modalSwitchTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: Colors.TitleColor,
+  locationIconBadgeActive: {
+    backgroundColor: '#FFFFFF',
   },
-  modalSwitchSub: {
-    fontSize: 12,
+  locationOptionTitle: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  locationOptionTitleActive: {
+    color: Colors.ButtonPrimaryColor,
+  },
+  locationOptionSub: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
     marginTop: 2,
+  },
+  radioCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#CBD5E1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: Spacing.sm,
+  },
+  radioCircleActive: {
+    borderColor: Colors.ButtonPrimaryColor,
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.ButtonPrimaryColor,
+  },
+  addressPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md + 2,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  addressPillLabel: {
+    fontSize: 9,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  addressPillText: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  uploadCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xl,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: Colors.ButtonPrimaryColor,
+  },
+  uploadIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#EEF4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  uploadTitle: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  uploadSub: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  imagePreviewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  imagePreview: {
+    width: 72,
+    height: 72,
+    borderRadius: BorderRadius.lg,
+    marginRight: Spacing.md,
+  },
+  imagePreviewInfo: {
+    flex: 1,
+  },
+  imagePreviewTitle: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  imagePreviewSub: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  removePhotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.xs,
+  },
+  removePhotoText: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#EF4444',
+  },
+  continueButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 54,
+    marginTop: Spacing.md,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  continueButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
 });
 

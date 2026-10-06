@@ -1,0 +1,715 @@
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      <LoadingOverlay visible={loading} />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Top Bar - Back Button */}
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              onPress={handleBack}
+              style={styles.backButton}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={20} color="#1E293B" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Header Title */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Complete Profile</Text>
+            <Text style={styles.subtitle}>
+              Help us personalize your customer profile & services
+            </Text>
+          </View>
+
+          {/* Avatar Upload Container */}
+          <View style={styles.avatarSection}>
+            <TouchableOpacity
+              onPress={pickImage}
+              activeOpacity={0.85}
+              style={styles.avatarWrapper}
+            >
+              {profileImage ? (
+                <Image source={{ uri: profileImage }} style={styles.profileImage} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Ionicons name="person" size={40} color="#94A3B8" />
+                </View>
+              )}
+              {uploadingImage ? (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                </View>
+              ) : (
+                <View style={styles.cameraBadge}>
+                  <Ionicons name="camera" size={14} color="#FFFFFF" />
+                </View>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.avatarLabel}>
+              {uploadingImage ? 'Uploading photo...' : profileImage ? 'Change Photo' : 'Upload Photo'}
+            </Text>
+          </View>
+
+          <View style={styles.formContainer}>
+            
+            {/* PERSONAL INFO CARD */}
+            <Text style={styles.sectionHeader}>Personal Info</Text>
+            <View style={styles.card}>
+              <View style={styles.rowFields}>
+                <Input
+                  label="First Name"
+                  placeholder="First Name"
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  autoCapitalize="words"
+                  containerStyle={styles.flexHalf}
+                />
+                <Input
+                  label="Last Name"
+                  placeholder="Last Name"
+                  value={lastName}
+                  onChangeText={setLastName}
+                  autoCapitalize="words"
+                  containerStyle={styles.flexHalf}
+                />
+              </View>
+
+              <Input
+                label="Email Address"
+                placeholder="customer@example.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              <Text style={styles.inputLabel}>Gender</Text>
+              <View style={styles.genderSegmentRow}>
+                {[
+                  { key: 'Male', label: 'Male', icon: 'male' },
+                  { key: 'Female', label: 'Female', icon: 'female' },
+                ].map((item) => {
+                  const isActive = gender === item.key;
+                  return (
+                    <TouchableOpacity
+                      key={item.key}
+                      style={[styles.genderCard, isActive && styles.genderCardActive]}
+                      onPress={() => setGender(item.key)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name={item.icon as any}
+                        size={16}
+                        color={isActive ? '#222D63' : '#64748B'}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text
+                        style={[
+                          styles.genderCardText,
+                          isActive && styles.genderCardTextActive,
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.inputLabel}>Date of Birth</Text>
+              <TouchableOpacity
+                style={styles.datePickerTrigger}
+                onPress={openDobModal}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.datePickerText,
+                    !dob && { color: '#94A3B8' },
+                  ]}
+                >
+                  {dob ? `${dob.slice(4, 6)}/${dob.slice(6, 8)}/${dob.slice(0, 4)}` : 'Select Date of Birth'}
+                </Text>
+                <Ionicons
+                  name="calendar-outline"
+                  size={18}
+                  color="#222D63"
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* SECURITY CARD */}
+            <Text style={styles.sectionHeader}>Security</Text>
+            <View style={styles.card}>
+              <Input
+                label="Password"
+                placeholder="Create password"
+                value={password}
+                onChangeText={setPassword}
+                leftIcon="lock-closed-outline"
+                secureTextEntry
+              />
+
+              <Input
+                label="Confirm Password"
+                placeholder="Re-enter password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                leftIcon="lock-closed-outline"
+                secureTextEntry
+              />
+              {confirmPassword.length > 0 && (
+                <View style={styles.passwordMatchNotice}>
+                  <Ionicons
+                    name={password === confirmPassword ? 'checkmark-circle' : 'alert-circle'}
+                    size={14}
+                    color={password === confirmPassword ? '#10B981' : '#EF4444'}
+                    style={{ marginRight: 5 }}
+                  />
+                  <Text
+                    style={[
+                      styles.passwordMatchText,
+                      { color: password === confirmPassword ? '#059669' : '#DC2626' },
+                    ]}
+                  >
+                    {password === confirmPassword ? 'Passwords match' : 'Passwords do not match'}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* ADDRESS CARD */}
+            <Text style={styles.sectionHeader}>Address</Text>
+            <View style={styles.card}>
+              <Text style={styles.inputLabel}>Service / Residence Address</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setAddressSearchQuery(address);
+                  setAddressModalVisible(true);
+                }}
+                activeOpacity={0.8}
+                style={styles.addressTrigger}
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={18}
+                  color="#222D63"
+                  style={{ marginRight: 10 }}
+                />
+                <Text
+                  style={[
+                    styles.addressTriggerText,
+                    !address && { color: '#94A3B8' },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {address || 'Tap to search or set location'}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.gpsQuickDetectBtn}
+                onPress={handleUseCurrentLocation}
+                disabled={detectingGps}
+                activeOpacity={0.7}
+              >
+                {detectingGps ? (
+                  <ActivityIndicator size="small" color="#222D63" style={{ marginRight: 8 }} />
+                ) : (
+                  <Ionicons name="navigate-circle" size={18} color="#222D63" style={{ marginRight: 8 }} />
+                )}
+                <Text style={styles.gpsQuickDetectText}>
+                  {detectingGps ? 'Detecting current GPS location...' : 'Use My Current GPS Location'}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.rowFields}>
+                <Input
+                  label="Apt / Suite / Unit #"
+                  placeholder="e.g. Apt 4B"
+                  value={streetAddressLine1}
+                  onChangeText={setStreetAddressLine1}
+                  containerStyle={styles.flexHalf}
+                />
+                <Input
+                  label="Referral Code"
+                  placeholder="e.g. FRIEND20"
+                  value={referralCode}
+                  onChangeText={setReferralCode}
+                  autoCapitalize="characters"
+                  containerStyle={styles.flexHalf}
+                />
+              </View>
+
+              <View style={styles.rowFields}>
+                <Input
+                  label="City"
+                  placeholder="City"
+                  value={city}
+                  onChangeText={setCity}
+                  containerStyle={styles.flexHalf}
+                />
+                <Input
+                  label="State"
+                  placeholder="State"
+                  value={state}
+                  onChangeText={setState}
+                  containerStyle={styles.flexHalf}
+                />
+              </View>
+
+              <View style={styles.rowFields}>
+                <Input
+                  label="Postal Code"
+                  placeholder="e.g. 33825"
+                  value={postalCode}
+                  onChangeText={setPostalCode}
+                  keyboardType="numeric"
+                  maxLength={10}
+                  containerStyle={styles.flexHalf}
+                />
+                <Input
+                  label="Country"
+                  placeholder="USA"
+                  value={country}
+                  onChangeText={setCountry}
+                  containerStyle={styles.flexHalf}
+                />
+              </View>
+
+              <Text style={styles.inputLabel}>Accessibility Category</Text>
+              <View style={styles.accessibilityRow}>
+                {[
+                  { id: 0, label: 'Standard' },
+                  { id: 1, label: 'Mental' },
+                  { id: 2, label: 'Physical' },
+                ].map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.accessibilityCard,
+                      isPhysicallyDisabled === item.id && styles.accessibilityCardActive,
+                    ]}
+                    onPress={() => setIsPhysicallyDisabled(item.id)}
+                    activeOpacity={0.8}
+                  >
+                    <View
+                      style={[
+                        styles.radioCircle,
+                        isPhysicallyDisabled === item.id && styles.radioCircleActive,
+                      ]}
+                    >
+                      {isPhysicallyDisabled === item.id && <View style={styles.radioInnerCircle} />}
+                    </View>
+                    <Text
+                      style={[
+                        styles.accessibilityCardText,
+                        isPhysicallyDisabled === item.id && styles.accessibilityCardTextActive,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Agreement Checkbox & Text */}
+            <View style={styles.agreementRow}>
+              <TouchableOpacity
+                onPress={() => setIsTermsAccepted(!isTermsAccepted)}
+                activeOpacity={0.8}
+                style={[
+                  styles.checkbox,
+                  isTermsAccepted && styles.checkboxActive,
+                ]}
+              >
+                {isTermsAccepted && (
+                  <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                )}
+              </TouchableOpacity>
+              <View style={styles.agreementTextWrapper}>
+                <Text style={styles.agreementText}>
+                  {"I've read & agree with "}
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() => setTermsModalVisible(true)}
+                  >
+                    Terms & Conditions.
+                  </Text>
+                </Text>
+              </View>
+            </View>
+
+            <Button
+              title="CONTINUE"
+              onPress={handleSubmit}
+              loading={loading}
+              style={{marginTop: 10}}
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Date of Birth Picker Modal */}
+      <Modal
+        visible={dobModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setDobModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.dobModalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Date of Birth</Text>
+              <TouchableOpacity
+                onPress={() => setDobModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <Ionicons name="close" size={24} color="#1E293B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.dobPickersRow}>
+              {/* Month Selector */}
+              <View style={styles.dobColumn}>
+                <Text style={styles.dobColumnLabel}>Month</Text>
+                <View style={styles.selectorBox}>
+                  <TouchableOpacity
+                    onPress={() => setTempMonth((m) => (m > 1 ? m - 1 : 12))}
+                    style={styles.arrowBtn}
+                  >
+                    <Ionicons name="chevron-up" size={20} color="#1E293B" />
+                  </TouchableOpacity>
+                  <Text style={styles.selectorVal}>
+                    {new Date(2000, tempMonth - 1, 1).toLocaleString('default', {
+                      month: 'short',
+                    })}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setTempMonth((m) => (m < 12 ? m + 1 : 1))}
+                    style={styles.arrowBtn}
+                  >
+                    <Ionicons name="chevron-down" size={20} color="#1E293B" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Day Selector */}
+              <View style={styles.dobColumn}>
+                <Text style={styles.dobColumnLabel}>Day</Text>
+                <View style={styles.selectorBox}>
+                  <TouchableOpacity
+                    onPress={() => setTempDay((d) => (d > 1 ? d - 1 : 31))}
+                    style={styles.arrowBtn}
+                  >
+                    <Ionicons name="chevron-up" size={20} color="#1E293B" />
+                  </TouchableOpacity>
+                  <Text style={styles.selectorVal}>{tempDay}</Text>
+                  <TouchableOpacity
+                    onPress={() => setTempDay((d) => (d < 31 ? d + 1 : 1))}
+                    style={styles.arrowBtn}
+                  >
+                    <Ionicons name="chevron-down" size={20} color="#1E293B" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Year Selector */}
+              <View style={styles.dobColumn}>
+                <Text style={styles.dobColumnLabel}>Year</Text>
+                <View style={styles.selectorBox}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setTempYear((y) =>
+                        y < new Date().getFullYear() - 13 ? y + 1 : y
+                      )
+                    }
+                    style={styles.arrowBtn}
+                  >
+                    <Ionicons name="chevron-up" size={20} color="#1E293B" />
+                  </TouchableOpacity>
+                  <Text style={styles.selectorVal}>{tempYear}</Text>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setTempYear((y) => (y > 1930 ? y - 1 : y))
+                    }
+                    style={styles.arrowBtn}
+                  >
+                    <Ionicons name="chevron-down" size={20} color="#1E293B" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.modalFooter}>
+              <Button title="Apply Date" onPress={handleApplyDOB} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Address Selection Modal */}
+      <Modal
+        visible={addressModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setAddressModalVisible(false)}
+      >
+        <SafeAreaView style={styles.addressModalContainer}>
+          <View style={styles.addressModalHeader}>
+            <TouchableOpacity
+              onPress={() => setAddressModalVisible(false)}
+              style={styles.modalCloseBtn}
+            >
+              <Ionicons name="arrow-back" size={22} color="#1E293B" />
+            </TouchableOpacity>
+            <Text style={styles.addressModalTitle}>Set Address</Text>
+            <View style={{ width: 36 }} />
+          </View>
+
+          {/* Search Bar */}
+          <View style={styles.searchWrapper}>
+            <View style={styles.searchBarWrap}>
+              <Ionicons
+                name="search"
+                size={18}
+                color="#94A3B8"
+                style={{ marginRight: 8 }}
+              />
+              <TextInput
+                placeholder="Search street, city, zip code..."
+                placeholderTextColor="#94A3B8"
+                value={addressSearchQuery}
+                onChangeText={searchAddress}
+                style={styles.addressSearchInput}
+                autoFocus={true}
+                clearButtonMode="while-editing"
+              />
+              {searchingAddress && <ActivityIndicator size="small" color="#222D63" />}
+            </View>
+          </View>
+
+          {/* Quick Preset Options */}
+          <View style={styles.quickOptionsSection}>
+            <Text style={styles.quickOptionsTitle}>Quick Suggestions</Text>
+            <TouchableOpacity
+              style={styles.quickOptionRow}
+              onPress={handleUseCurrentLocation}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.quickOptionIconWrap, { backgroundColor: '#F8FAFC' }]}>
+                <Ionicons name="locate" size={18} color="#222D63" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.quickOptionLabel}>Use Current Location</Text>
+                <Text style={styles.quickOptionSub}>Auto-detect via GPS</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Prediction Results */}
+          <ScrollView
+            style={styles.predictionsScroll}
+            contentContainerStyle={styles.predictionsScrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {addressPredictions.map((pred, index) => (
+              <TouchableOpacity
+                key={pred.place_id || index.toString()}
+                style={styles.predictionItem}
+                onPress={() => selectPlacePrediction(pred)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={18}
+                  color="#222D63"
+                  style={{ marginRight: 12, marginTop: 2 }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.predictionText}>{pred.description}</Text>
+                  {(pred.city || pred.state) && (
+                    <Text style={styles.predictionSubText}>
+                      {[pred.city, pred.state, pred.country].filter(Boolean).join(', ')}
+                    </Text>
+                  )}
+                </View>
+                <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
+              </TouchableOpacity>
+            ))}
+
+            {!searchingAddress && addressSearchQuery.length >= 2 && addressPredictions.length === 0 && (
+              <View style={styles.noResultsBox}>
+                <Ionicons name="map-outline" size={36} color="#94A3B8" />
+                <Text style={styles.noResultsTitle}>No locations found</Text>
+                <Text style={styles.noResultsSub}>Try entering a street name, city, or postal code.</Text>
+                <TouchableOpacity
+                  style={styles.useEnteredTextBtn}
+                  onPress={() => {
+                    setAddress(addressSearchQuery);
+                    setAddressModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.useEnteredTextBtnLabel}>Use "{addressSearchQuery}" anyway</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Terms & Conditions Modal */}
+      <Modal
+        visible={termsModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setTermsModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Terms & Conditions</Text>
+            <TouchableOpacity
+              onPress={() => setTermsModalVisible(false)}
+              style={styles.modalCloseBtn}
+            >
+              <Ionicons name="close" size={24} color="#1E293B" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            style={styles.modalScroll}
+            contentContainerStyle={styles.modalScrollContent}
+            showsVerticalScrollIndicator={true}
+          >
+            {termsLoading ? (
+              <View style={styles.termsLoadingContainer}>
+                <ActivityIndicator size="large" color="#222D63" />
+                <Text style={styles.termsLoadingText}>Loading latest terms...</Text>
+              </View>
+            ) : (
+              <Text style={styles.modalBodyText}>
+                {termsDescription
+                  ? termsDescription.replace(/<[^>]+>/g, '').trim()
+                  : 'Welcome to Hairlines. By registering and booking services through our platform, you agree to treat our verified service professionals with respect, adhere to safety and hygiene protocols during appointments, maintain accurate booking and contact information, and comply with our transparent cancellation and refund policy.'}
+              </Text>
+            )}
+          </ScrollView>
+          <View style={styles.modalFooter}>
+            <Button
+              title="I Understand & Accept"
+              onPress={() => {
+                setIsTermsAccepted(true);
+                setTermsModalVisible(false);
+              }}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  keyboardView: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
+  topBar: { marginBottom: 16 },
+  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+  header: { marginBottom: 24 },
+  title: { fontSize: 26, fontWeight: '800', color: '#1E293B', marginBottom: 4 },
+  subtitle: { fontSize: 14, color: '#64748B', lineHeight: 20 },
+  avatarSection: { alignItems: 'center', marginBottom: 24 },
+  avatarWrapper: { position: 'relative', marginBottom: 8 },
+  avatarPlaceholder: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+  profileImage: { width: 88, height: 88, borderRadius: 44, borderWidth: 1, borderColor: '#E2E8F0' },
+  uploadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 44, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  cameraBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#222D63', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
+  avatarLabel: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  formContainer: { width: '100%' },
+  sectionHeader: { fontSize: 11, fontWeight: '700', color: '#94A3B8', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10, marginLeft: 4 },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3, padding: 16, marginBottom: 24 },
+  rowFields: { flexDirection: 'row', gap: 12 },
+  flexHalf: { flex: 1 },
+  inputLabel: { fontSize: 13, fontWeight: '600', color: '#1E293B', marginBottom: 6 },
+  datePickerTrigger: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 14, height: 52, marginBottom: 16 },
+  datePickerText: { fontSize: 15, color: '#1E293B' },
+  genderSegmentRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  genderCard: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 48, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E2E8F0' },
+  genderCardActive: { borderColor: '#222D63', backgroundColor: '#F8FAFC' },
+  genderCardText: { fontSize: 14, fontWeight: '600', color: '#64748B' },
+  genderCardTextActive: { color: '#222D63' },
+  accessibilityRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  accessibilityCard: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 4, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E2E8F0' },
+  accessibilityCardActive: { borderColor: '#222D63', backgroundColor: '#F8FAFC' },
+  radioCircle: { width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: '#94A3B8', justifyContent: 'center', alignItems: 'center', marginRight: 6 },
+  radioCircleActive: { borderColor: '#222D63' },
+  radioInnerCircle: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#222D63' },
+  accessibilityCardText: { fontSize: 11, color: '#64748B', fontWeight: '600' },
+  accessibilityCardTextActive: { color: '#222D63' },
+  passwordMatchNotice: { flexDirection: 'row', alignItems: 'center', marginTop: -8, marginBottom: 12, marginLeft: 4 },
+  passwordMatchText: { fontSize: 12, fontWeight: '600' },
+  addressTrigger: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 14, minHeight: 52, marginBottom: 8 },
+  addressTriggerText: { flex: 1, fontSize: 15, color: '#1E293B' },
+  gpsQuickDetectBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4, marginBottom: 16 },
+  gpsQuickDetectText: { fontSize: 13, fontWeight: '700', color: '#222D63' },
+  agreementRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  checkboxActive: { backgroundColor: '#222D63', borderColor: '#222D63' },
+  agreementTextWrapper: { flex: 1 },
+  agreementText: { fontSize: 14, color: '#334155', lineHeight: 20 },
+  termsLink: { color: '#222D63', fontWeight: '700' },
+  modalContainer: { flex: 1, backgroundColor: '#FFFFFF' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B' },
+  modalCloseBtn: { padding: 4 },
+  modalScroll: { flex: 1 },
+  modalScrollContent: { padding: 20, paddingBottom: 40 },
+  modalBodyText: { fontSize: 14, lineHeight: 22, color: '#334155' },
+  modalFooter: { padding: 20, borderTopWidth: 1, borderTopColor: '#F1F5F9', backgroundColor: '#FFFFFF' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'center', padding: 20 },
+  dobModalCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 20, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 8 },
+  dobPickersRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 20, gap: 12 },
+  dobColumn: { flex: 1, alignItems: 'center' },
+  dobColumnLabel: { fontSize: 12, fontWeight: '600', color: '#64748B', marginBottom: 8 },
+  selectorBox: { width: '100%', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#F1F5F9', paddingVertical: 8 },
+  arrowBtn: { padding: 6 },
+  selectorVal: { fontSize: 16, fontWeight: '700', color: '#1E293B', marginVertical: 4 },
+  addressModalContainer: { flex: 1, backgroundColor: '#FFFFFF' },
+  addressModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  addressModalTitle: { fontSize: 17, fontWeight: '700', color: '#1E293B' },
+  searchWrapper: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  searchBarWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 12 : 8, borderWidth: 1, borderColor: '#F1F5F9' },
+  addressSearchInput: { flex: 1, fontSize: 15, color: '#1E293B' },
+  quickOptionsSection: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  quickOptionsTitle: { fontSize: 11, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
+  quickOptionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 8 },
+  quickOptionIconWrap: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  quickOptionLabel: { fontSize: 14, fontWeight: '700', color: '#1E293B' },
+  quickOptionSub: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  predictionsScroll: { flex: 1 },
+  predictionsScrollContent: { padding: 16 },
+  predictionItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#F1F5F9' },
+  predictionText: { fontSize: 14, color: '#1E293B', fontWeight: '600' },
+  predictionSubText: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  noResultsBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, paddingHorizontal: 20 },
+  noResultsTitle: { fontSize: 16, fontWeight: '700', color: '#334155', marginTop: 12 },
+  noResultsSub: { fontSize: 13, color: '#64748B', textAlign: 'center', marginTop: 4, marginBottom: 16 },
+  useEnteredTextBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#222D63' },
+  useEnteredTextBtnLabel: { fontSize: 13, fontWeight: '700', color: '#222D63' },
+  termsLoadingContainer: { paddingVertical: 40, alignItems: 'center', justifyContent: 'center' },
+  termsLoadingText: { marginTop: 12, fontSize: 14, color: '#64748B' },
+});
+
+export default SignUpFirstScreen;

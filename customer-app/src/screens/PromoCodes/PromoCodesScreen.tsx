@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -8,69 +9,55 @@ import {
   RefreshControl,
   TextInput,
   StatusBar,
-  ActivityIndicator,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { DrawerActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { Header } from '../../components';
+import { VTButton, VTLoading } from '../../components/common';
 import { ProfileApi } from '../../api';
+import { useApi } from '../../hooks';
 import { PromoCode } from '../../models';
 import { useJobStore } from '../../store';
-import { VTLoading } from '../../components/common';
-import Toast from 'react-native-toast-message';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'PromoCodes'>;
 };
 
 const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { setPromoCode } = useJobStore();
-  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
-  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [manualCode, setManualCode] = useState('');
-  const [applying, setApplying] = useState(false);
+
+  const {
+    data: rawPromoCodes,
+    loading,
+    execute: fetchPromoCodes,
+  } = useApi<any>(ProfileApi.fetchPromoCodes);
+
+  const { loading: applying, execute: applyPromo } = useApi(ProfileApi.applyPromoCode);
 
   useEffect(() => {
     loadPromoCodes();
   }, []);
 
-  const loadPromoCodes = async () => {
-    try {
-      setLoading(true);
-      const res: any = await ProfileApi.fetchPromoCodes(0);
-      const list =
-        res?.fetchPromoCodes ||
-        res?.promoCodes ||
-        res?.data ||
-        (Array.isArray(res) ? res : []);
-      if (Array.isArray(list)) {
-        const mapped: PromoCode[] = list.map((item: any) => ({
-          id: item._id || item.id || 1,
-          code: item.code || '',
-          title: item.name || item.title || item.code || 'Discount Voucher',
-          description: item.promoText || item.description || '',
-          discountType: item.type || item.promoType || 1,
-          discountPercentage: item.percentage || 10,
-          amount: item.maxDiscount || item.amount || 10,
-          expiryDate: item.expiryDate ? String(item.expiryDate) : undefined,
-          isExpired: item.isExpired ?? false,
-          canUse: item.canUse ?? true,
-        }));
-        setPromoCodes(mapped);
-      }
-    } catch (e) {
-      console.log('Promo code error:', e);
-    } finally {
-      setLoading(false);
+  const getPromoList = (): PromoCode[] => {
+    if (Array.isArray(rawPromoCodes)) return rawPromoCodes;
+    if (rawPromoCodes && typeof rawPromoCodes === 'object') {
+      const obj = rawPromoCodes as any;
+      if (Array.isArray(obj.promoCodes)) return obj.promoCodes;
+      if (Array.isArray(obj.data)) return obj.data;
     }
+    return [];
+  };
+
+  const promoList = getPromoList();
+
+  const loadPromoCodes = async () => {
+    await fetchPromoCodes(0);
   };
 
   const onRefresh = async () => {
@@ -79,120 +66,92 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const handleApplyCode = async (codeToApply?: string) => {
-    const code = (codeToApply || manualCode).trim();
-    if (!code) return;
+  const handleApplyCode = async (code?: string) => {
+    const targetCode = (code || manualCode).trim();
+    if (!targetCode) return;
 
     try {
-      setApplying(true);
-      const res: any = await ProfileApi.applyPromoCode(code);
+      await applyPromo(targetCode);
       Toast.show({
         type: 'success',
         text1: 'Promo Code Applied!',
-        text2: `Code "${code}" discount is ready for your next booking.`,
+        text2: `Code "${targetCode.toUpperCase()}" added to your job checkout.`,
       });
-
-      const matchedPromo = promoCodes.find((p) => p.code?.toUpperCase() === code.toUpperCase());
-      if (matchedPromo) {
-        setPromoCode(matchedPromo);
-      } else {
-        setPromoCode({
-          id: res?.id || 1,
-          code: code,
-          title: res?.title || code,
-          discountType: res?.discountType || 1,
-          discountPercentage: res?.discountPercentage || 10,
-          amount: res?.amount || 10,
-        });
-      }
       setManualCode('');
+
+      const applied = promoList.find((p) => p.code?.toUpperCase() === targetCode.toUpperCase());
+      if (applied) {
+        setPromoCode(applied);
+      }
     } catch (error: any) {
       Toast.show({
         type: 'error',
-        text1: 'Invalid Promo Code',
-        text2: error.message || 'This promo code is either expired or invalid.',
+        text1: 'Promo Code Error',
+        text2: error.message || 'This promo code is invalid or expired.',
       });
-    } finally {
-      setApplying(false);
     }
   };
 
-  const renderItem = ({ item }: { item: PromoCode }) => {
-    const isExpired = item.isExpired;
-    const discountText =
-      item.promoType === 'percentage' || item.discountType === 1
-        ? `${item.percentage || item.discountPercentage || 10}% OFF`
-        : `$${item.amount || item.maxDiscount || 10} OFF`;
-
-    return (
-      <View style={[styles.promoCard, isExpired && styles.promoCardExpired]}>
-        <View style={styles.promoLeft}>
-          <View style={styles.discountBadge}>
-            <Ionicons name="pricetag" size={13} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
-            <Text style={styles.discountBadgeText}>{discountText}</Text>
-          </View>
-          <Text style={styles.promoName}>{item.name || item.title || item.code}</Text>
-          <Text style={styles.promoCodeText}>Code: {item.code}</Text>
-          {item.promoText ? (
-            <Text style={styles.promoDesc} numberOfLines={2}>
-              {item.promoText}
-            </Text>
-          ) : null}
-          {item.expiryDate && (
-            <Text style={styles.promoExpiry}>Valid until: {item.expiryDate}</Text>
-          )}
+  const renderItem = ({ item }: { item: PromoCode }) => (
+    <View style={[styles.couponCard, item.isExpired && styles.couponCardExpired]}>
+      <View style={styles.couponLeft}>
+        <View style={styles.badgeRow}>
+          <Ionicons name="pricetag" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
+          <Text style={styles.couponName}>{item.name || 'Special Discount'}</Text>
         </View>
-
-        <View style={styles.promoRight}>
-          {!isExpired ? (
-            <TouchableOpacity
-              style={styles.applyBtn}
-              onPress={() => handleApplyCode(item.code)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.applyBtnText}>Apply</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.expiredBadge}>
-              <Text style={styles.expiredBadgeText}>Expired</Text>
-            </View>
-          )}
-        </View>
+        <Text style={styles.couponCode}>CODE: {item.code}</Text>
+        <Text style={styles.couponDesc} numberOfLines={2}>
+          {item.promoText || 'Save on your next grooming session.'}
+        </Text>
+        <Text style={styles.couponExpiry}>Valid until: {item.expiryDate || 'Limited Time'}</Text>
       </View>
-    );
-  };
+
+      <View style={styles.couponRight}>
+        <Text style={styles.discountValue}>
+          {item.promoType === 'percentage' ? `${item.percentage}%` : `$${item.maxDiscount}`}
+        </Text>
+        <Text style={styles.discountLabel}>OFF</Text>
+
+        {!item.isExpired ? (
+          <TouchableOpacity
+            style={styles.applyButton}
+            onPress={() => handleApplyCode(item.code)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.applyText}>Apply</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.expiredBadge}>
+            <Text style={styles.expiredText}>Expired</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-      {/* Header */}
-      <Header
-        title="Promo Codes"
-        left={
-          <TouchableOpacity
-            style={styles.headerBtn}
-            onPress={() => {
-              if ((navigation as any).openDrawer) {
-                (navigation as any).openDrawer();
-              } else if ((navigation.getParent() as any)?.openDrawer) {
-                (navigation.getParent() as any).openDrawer();
-              } else {
-                navigation.dispatch(DrawerActions.openDrawer());
-              }
-            }}
-          >
-            <Ionicons name="menu" size={26} color={Colors.TitleColor} />
-          </TouchableOpacity>
-        }
-      />
+      {/* Header Bar */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => (navigation as any).openDrawer?.()}
+          style={styles.menuButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="menu" size={24} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Promo Codes</Text>
+        <View style={{ width: 44 }} />
+      </View>
 
       {/* Manual Input Container */}
-      <View style={styles.manualContainer}>
+      <View style={styles.inputCard}>
         <View style={styles.inputWrapper}>
-          <Ionicons name="pricetag-outline" size={18} color="#64748B" style={{ marginRight: 8 }} />
+          <Ionicons name="pricetag-outline" size={20} color="#64748B" style={styles.inputIcon} />
           <TextInput
-            style={styles.manualInput}
+            style={styles.textInput}
             placeholder="Enter promo code (e.g. SAVE20)"
             placeholderTextColor="#94A3B8"
             value={manualCode}
@@ -201,47 +160,49 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
           />
         </View>
         <TouchableOpacity
-          style={[styles.manualApplyBtn, !manualCode.trim() && styles.manualApplyBtnDisabled]}
+          style={[styles.inputApplyButton, !manualCode.trim() && styles.inputApplyDisabled]}
           onPress={() => handleApplyCode()}
           disabled={!manualCode.trim() || applying}
+          activeOpacity={0.8}
         >
-          {applying ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={styles.manualApplyBtnText}>Apply</Text>
-          )}
+          <Text style={styles.inputApplyText}>Apply</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Coupon List */}
       <FlatList
-        data={promoCodes}
-        keyExtractor={(item, index) => String(item.id || item.code || index)}
+        data={promoList}
+        keyExtractor={(item) => item.id || item.code || Math.random().toString()}
         renderItem={renderItem}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: Math.max(insets.bottom, 16) + 30 }
-        ]}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.ButtonPrimaryColor]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.ButtonPrimaryColor]}
+            tintColor={Colors.ButtonPrimaryColor}
+          />
+        }
+        ListHeaderComponent={
+          <Text style={styles.sectionTitle}>AVAILABLE PROMOS & OFFERS</Text>
         }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="pricetags-outline" size={40} color="#94A3B8" />
-              </View>
-              <Text style={styles.emptyTitle}>No Promo Codes Available</Text>
+              <Ionicons name="gift-outline" size={48} color="#CBD5E1" />
+              <Text style={styles.emptyTitle}>No active promo codes</Text>
               <Text style={styles.emptySubtitle}>
-                You can enter a promotional code above if you have received a coupon voucher.
+                Check back soon or enter a promo code above.
               </Text>
             </View>
           ) : null
         }
       />
 
-      <VTLoading visible={loading && !refreshing} />
-    </View>
+      <VTLoading visible={loading || applying} />
+    </SafeAreaView>
   );
 };
 
@@ -250,168 +211,200 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  manualContainer: {
+  header: {
     flexDirection: 'row',
-    padding: Spacing.base,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    gap: 10,
+    borderBottomColor: '#F1F5F9',
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  headerTitle: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  inputCard: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    gap: Spacing.sm,
   },
   inputWrapper: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: 12,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    height: 48,
   },
-  manualInput: {
+  inputIcon: {
+    marginRight: Spacing.sm,
+  },
+  textInput: {
     flex: 1,
-    fontSize: 13,
-    color: Colors.TitleColor,
-    fontWeight: FontWeights.semibold,
-    paddingVertical: 10,
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveMedium,
+    color: '#0F172A',
   },
-  manualApplyBtn: {
+  inputApplyButton: {
     backgroundColor: Colors.ButtonPrimaryColor,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: 20,
-    alignItems: 'center',
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.xl,
     justifyContent: 'center',
+    alignItems: 'center',
+    height: 48,
   },
-  manualApplyBtnDisabled: {
+  inputApplyDisabled: {
     backgroundColor: '#CBD5E1',
   },
-  manualApplyBtnText: {
-    fontSize: 13,
-    fontWeight: FontWeights.bold,
+  inputApplyText: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
     color: '#FFFFFF',
   },
   listContent: {
-    padding: Spacing.base,
-    paddingBottom: 40,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
   },
-  promoCard: {
+  sectionTitle: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginBottom: Spacing.md,
+    letterSpacing: 0.5,
+  },
+  couponCard: {
     flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderLeftWidth: 4,
+    borderLeftWidth: 5,
     borderLeftColor: Colors.ButtonPrimaryColor,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 2,
   },
-  promoCardExpired: {
-    borderLeftColor: '#94A3B8',
-    opacity: 0.65,
+  couponCardExpired: {
+    borderLeftColor: '#CBD5E1',
+    opacity: 0.6,
   },
-  promoLeft: {
+  couponLeft: {
     flex: 1,
+    marginRight: Spacing.md,
   },
-  discountBadge: {
+  badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    marginBottom: 2,
+  },
+  couponName: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  couponCode: {
+    fontSize: FontSizes.xs + 1,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+    marginBottom: 4,
+    letterSpacing: 0.5,
+  },
+  couponDesc: {
+    fontSize: FontSizes.xs + 1,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#64748B',
+    lineHeight: 18,
     marginBottom: 6,
   },
-  discountBadgeText: {
-    fontSize: 11,
-    fontWeight: FontWeights.bold,
+  couponExpiry: {
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#94A3B8',
+  },
+  couponRight: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: '#F1F5F9',
+    paddingLeft: Spacing.md,
+    minWidth: 80,
+  },
+  discountValue: {
+    fontSize: FontSizes['2xl'],
+    fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
   },
-  promoName: {
-    fontSize: 15,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
-  },
-  promoCodeText: {
-    fontSize: 12,
-    fontWeight: FontWeights.semibold,
+  discountLabel: {
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
     color: '#64748B',
-    marginTop: 2,
+    marginBottom: Spacing.xs,
   },
-  promoDesc: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 4,
-    lineHeight: 16,
-  },
-  promoExpiry: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 6,
-  },
-  promoRight: {
-    marginLeft: 12,
-  },
-  applyBtn: {
+  applyButton: {
     backgroundColor: Colors.ButtonPrimaryColor,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.md,
   },
-  applyBtnText: {
-    fontSize: 13,
-    fontWeight: FontWeights.bold,
+  applyText: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
     color: '#FFFFFF',
   },
   expiredBadge: {
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
   },
-  expiredBadgeText: {
-    fontSize: 12,
-    fontWeight: FontWeights.semibold,
+  expiredText: {
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
     color: '#94A3B8',
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 24,
-  },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    paddingVertical: Spacing['3xl'],
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.TitleColor,
-    marginBottom: 6,
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginTop: Spacing.md,
   },
   emptySubtitle: {
-    fontSize: 13,
-    color: '#64748B',
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#94A3B8',
     textAlign: 'center',
-    lineHeight: 18,
+    marginTop: 4,
+    paddingHorizontal: Spacing.xl,
   },
 });
 

@@ -18,7 +18,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.CardColor,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: Colors.BorderColor,
+    borderColor: '#E2E8F0',
     padding: Spacing.base,
     marginVertical: Spacing.sm,
     shadowColor: "#0F172A",

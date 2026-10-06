@@ -69,9 +69,6 @@ export const AuthApi = {
       userType: 1,
     }),
 
-  changePassword: (password: string, newPassword: string) =>
-    apiClient.post('user/change-password', { password, newPassword }),
-
   facebookAuth: (accessToken: string, deviceToken: string, deviceType: string) =>
     apiClient.post<Account>('auth/facebook', {
       access_token: accessToken,
@@ -107,16 +104,6 @@ export const AuthApi = {
   logout: () => apiClient.get('logout'),
 
   basicInfo: (params: any) => apiClient.post<Account>('user/basic-info', params),
-
-  getTermsConditions: async () => {
-    try {
-      const res = await apiClient.get<any>('terms-and-conditions');
-      if (res) return res;
-    } catch (e) {
-      // Fallback to legacy endpoint
-    }
-    return apiClient.get<any>('privacy-term-conditions?userType=user');
-  },
 
   checkVersion: (versionCode: string, deviceType: string, userType: string = 'user') =>
     apiClient.put('check-version', { versionCode, deviceType, userType }),

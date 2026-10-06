@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -7,374 +8,293 @@ import {
   FlatList,
   Image,
   RefreshControl,
-  Modal,
-  TextInput,
-  Alert,
   StatusBar,
+  TextInput,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { DrawerActions } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { VTButton, VTLoading } from '../../components/common';
-import { JobsApi } from '../../api';
-import { useAuthStore, useJobStore, useUserStore } from '../../store';
-import Toast from 'react-native-toast-message';
+import { useAuthStore, useUserStore, useJobStore } from '../../store';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Categories'>;
 };
 
-interface ServiceCategory {
-  _id?: string;
-  id?: string;
-  serviceTypeName?: string;
-  name?: string;
-  serviceTypeDescription?: string;
-  description?: string;
-  serviceTypeImage?: string;
-  image?: string;
-  iconName?: string;
+interface ServiceCategoryItem {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
 }
 
-const DEFAULT_CATEGORIES: ServiceCategory[] = [
+// 4 Required Categories ALWAYS displayed on Book a Service screen when location is set
+const categoriesList: ServiceCategoryItem[] = [
   {
-    id: 'cat_mens_haircut',
-    serviceTypeName: "Men's Haircut & Grooming",
-    serviceTypeDescription: 'Fades, tapers, beard sculpts, razor shaves & styling.',
-    iconName: 'cut',
+    id: 'haircuts-1',
+    name: 'Haircuts',
+    description: 'Classic & precision haircuts tailored to your head shape.',
+    image: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=400&q=80',
   },
   {
-    id: 'cat_womens_salon',
-    serviceTypeName: "Women's Salon & Haircare",
-    serviceTypeDescription: 'Blowouts, coloring, precision cuts, balayage & treatments.',
-    iconName: 'sparkles',
+    id: 'styled-haircuts-2',
+    name: 'Styled Haircuts',
+    description: 'Custom razor lineups, fades, pompadours & modern styling.',
+    image: 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=400&q=80',
   },
   {
-    id: 'cat_braiding_locs',
-    serviceTypeName: 'Braids, Locs & Twists',
-    serviceTypeDescription: 'Box braids, knotless, cornrows, loc maintenance & styling.',
-    iconName: 'flower',
+    id: 'group-cuts-3',
+    name: 'Group Cuts',
+    description: 'Family packages, wedding parties & multi-person bookings.',
+    image: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=400&q=80',
   },
   {
-    id: 'cat_kids_styling',
-    serviceTypeName: 'Kids & Teens Haircut',
-    serviceTypeDescription: 'Gentle, patient haircutting and styling for children.',
-    iconName: 'happy',
-  },
-  {
-    id: 'cat_facial_spa',
-    serviceTypeName: 'Facial, Steam & Grooming',
-    serviceTypeDescription: 'Black mask, hot towel exfoliation, scalp massage & facial care.',
-    iconName: 'water',
+    id: 'addon-services-4',
+    name: 'Add-On Services',
+    description: 'Beard trimming, hot towel shave, hair color & scalp treatment.',
+    image: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=400&q=80',
   },
 ];
 
 const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
-  const { user } = useAuthStore();
-  const { createJob, setCreateJobField } = useJobStore();
+  const { user, account, isGuest } = useAuthStore();
   const { notificationBadge } = useUserStore();
-
-  const [categories, setCategories] = useState<ServiceCategory[]>(DEFAULT_CATEGORIES);
-  const [loading, setLoading] = useState(false);
+  const { createJob, setCreateJobField } = useJobStore();
   const [refreshing, setRefreshing] = useState(false);
-
-  // Unrated Job State
-  const [unratedJob, setUnratedJob] = useState<any>(null);
-  const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
-  const [ratingStars, setRatingStars] = useState(5);
-  const [tipAmount, setTipAmount] = useState(0);
-  const [reviewText, setReviewText] = useState('');
-  const [submittingRating, setSubmittingRating] = useState(false);
+  const [detectedLocation, setDetectedLocation] = useState('Set your location');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    loadData();
-    checkUnratedJob();
+    detectLocation();
   }, []);
 
-  const loadData = async () => {
+  const detectLocation = async () => {
+    if (user?.address || createJob?.primaryAddress) return;
     try {
-      setLoading(true);
-      const res: any = await JobsApi.fetchServiceTypes();
-      const list =
-        res?.serviceTypes ||
-        res?.servicesList ||
-        res?.serviceType ||
-        res?.data ||
-        (Array.isArray(res) ? res : []);
-      if (Array.isArray(list) && list.length > 0) {
-        const mapped = list.map((item: any) => ({
-          _id: item._id || item.id,
-          id: item._id || item.id,
-          serviceTypeName: item.serviceTypeName || item.name,
-          name: item.serviceTypeName || item.name,
-          serviceTypeDescription: item.serviceTypeDescription || item.serviceDescription || item.description,
-          description: item.serviceTypeDescription || item.serviceDescription || item.description,
-          serviceTypeImage: item.serviceTypeImage || item.serviceImage || item.image,
-          image: item.serviceTypeImage || item.serviceImage || item.image,
-        }));
-        setCategories(mapped);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setDetectedLocation('Set your location');
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const geocode = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      if (geocode && geocode[0]) {
+        const place = geocode[0];
+        const formattedAddress = [
+          place.street,
+          place.streetNumber,
+          place.city,
+          place.region,
+          place.country,
+        ]
+          .filter(Boolean)
+          .join(', ');
+        setDetectedLocation(formattedAddress);
+        setCreateJobField('primaryAddress', formattedAddress);
+        setCreateJobField('city', place.city || '');
+        setCreateJobField('state', place.region || '');
+        setCreateJobField('country', place.country || '');
+        setCreateJobField('latitude', location.coords.latitude);
+        setCreateJobField('longitude', location.coords.longitude);
       } else {
-        setCategories(DEFAULT_CATEGORIES);
+        setDetectedLocation('Set your location');
       }
     } catch (e) {
-      console.log('Categories fetch error:', e);
-      setCategories(DEFAULT_CATEGORIES);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const checkUnratedJob = async () => {
-    try {
-      const res: any = await JobsApi.fetchUnratedJobs();
-      const job = res?.job || res?.data || (Array.isArray(res) ? res[0] : null);
-      if (job && !job.isUserRated && (job.status === 4 || job.spJobStatus === 4 || job.status === 5)) {
-        setUnratedJob(job);
-        setIsRatingModalVisible(true);
-      }
-    } catch (e) {
-      // ignore
+      setDetectedLocation('Set your location');
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
+    setTimeout(() => setRefreshing(false), 500);
   };
 
-  const handleSelectCategory = (item: ServiceCategory) => {
-    const serviceTypeId = item._id || item.id || '';
-    const serviceTypeName = item.serviceTypeName || item.name || '';
-    setCreateJobField('serviceTypeId', serviceTypeId);
-    setCreateJobField('serviceTypeName', serviceTypeName);
-
-    // Match iOS CategoriesViewController.swift:463-471 - populate default address if not set
-    if (!createJob.primaryAddress && user) {
-      const addr = typeof user.permanentAddress === 'string'
-        ? user.permanentAddress
-        : user.permanentAddress?.primaryAddress || user.address || '';
-      if (addr) {
-        setCreateJobField('primaryAddress', addr);
-        setCreateJobField('city', user.city || (typeof user.permanentAddress === 'object' ? user.permanentAddress?.city : '') || '');
-        setCreateJobField('state', user.state || (typeof user.permanentAddress === 'object' ? user.permanentAddress?.state : '') || '');
-        setCreateJobField('country', user.country || (typeof user.permanentAddress === 'object' ? user.permanentAddress?.country : '') || 'USA');
-        setCreateJobField('latitude', user.lastLocation?.latitude || user.latitude || 37.7749);
-        setCreateJobField('longitude', user.lastLocation?.longitude || user.longitude || -122.4194);
-        setCreateJobField('streetAddressLine1', user.streetAddressLine1 || '');
-        setCreateJobField('streetAddressLine2', user.streetAddressLine2 || '');
-      }
-    }
-
-    navigation.navigate('Services', {
-      serviceTypeId,
-      serviceTypeName,
+  const handleCategoryPress = (item: ServiceCategoryItem) => {
+    navigation.navigate('SubServices', {
+      serviceId: item.id,
+      serviceName: item.name,
     });
   };
 
-  const handleRateSubmit = async () => {
-    if (!unratedJob) return;
-    try {
-      setSubmittingRating(true);
-      const jobId = unratedJob._id || unratedJob.id || unratedJob.jobId;
-      const spId = unratedJob.spProfileId || unratedJob.worker?.id || unratedJob.workerId;
-      await JobsApi.rateSP({
-        jobId,
-        spProfileId: spId,
-        rating: ratingStars,
-        review: reviewText.trim(),
-        gratuity: tipAmount,
-      });
-      setIsRatingModalVisible(false);
-      Toast.show({
-        type: 'success',
-        text1: 'Review Submitted!',
-        text2: 'Thank you for your feedback.',
-      });
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to submit review');
-    } finally {
-      setSubmittingRating(false);
-    }
-  };
+  const hasLocationPicked = Boolean(
+    createJob?.primaryAddress ||
+      user?.address ||
+      (detectedLocation &&
+        detectedLocation !== 'Set your location' &&
+        detectedLocation !== 'Detecting location...')
+  );
 
-  const renderItem = ({ item }: { item: ServiceCategory }) => {
-    const title = item.serviceTypeName || item.name || 'Grooming Service';
-    const description = item.serviceTypeDescription || item.description || 'Premium grooming & styling';
-    const iconName = item.iconName || 'cut';
-
+  const filteredServices = categoriesList.filter((item) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
     return (
-      <TouchableOpacity
-        style={styles.categoryCard}
-        onPress={() => handleSelectCategory(item)}
-        activeOpacity={0.85}
-      >
-        <View style={styles.cardLeft}>
-          <View style={styles.iconCircle}>
-            <Ionicons name={iconName as any} size={24} color={Colors.ButtonPrimaryColor} />
-          </View>
-          <View style={styles.cardContent}>
-            <Text style={styles.cardTitle}>{title}</Text>
-            <Text style={styles.cardDescription} numberOfLines={2}>
-              {description}
-            </Text>
-          </View>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
-      </TouchableOpacity>
+      item.name.toLowerCase().includes(q) ||
+      item.description.toLowerCase().includes(q)
     );
+  });
+
+  const currentLocationText =
+    createJob?.primaryAddress || user?.address || detectedLocation;
+
+  const getUserGreetingName = () => {
+    if (user?.firstName) return user.firstName;
+    if (user?.name) return user.name.split(' ')[0];
+    if (account?.firstName) return account.firstName;
+    if (account?.name) return account.name.split(' ')[0];
+    if (isGuest) return 'Guest';
+    return 'Customer';
   };
+
+  const renderItem = ({ item }: { item: ServiceCategoryItem }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => handleCategoryPress(item)}
+      activeOpacity={0.85}
+    >
+      <View style={styles.imageContainer}>
+        {item.image ? (
+          <Image source={{ uri: item.image }} style={styles.image} />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <MaterialCommunityIcons name="content-cut" size={28} color={Colors.ButtonPrimaryColor} />
+          </View>
+        )}
+      </View>
+
+      <View style={styles.cardContent}>
+        <View style={styles.titleRow}>
+          <Text style={styles.cardTitle}>{item.name}</Text>
+        </View>
+        <Text style={styles.cardDescription} numberOfLines={2}>
+          {item.description}
+        </Text>
+      </View>
+
+      <View style={styles.arrowButton}>
+        <Ionicons name="arrow-forward" size={18} color={Colors.ButtonPrimaryColor} />
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-      {/* Top Bar with Status Bar Top Inset */}
-      <View style={[styles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
+      {/* Top Header Bar */}
+      <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => {
-            if ((navigation as any).openDrawer) {
-              (navigation as any).openDrawer();
-            } else if ((navigation.getParent() as any)?.openDrawer) {
-              (navigation.getParent() as any).openDrawer();
-            } else {
-              navigation.dispatch(DrawerActions.openDrawer());
-            }
-          }}
-          style={styles.headerBtn}
-          activeOpacity={0.7}
+          onPress={() => (navigation.getParent() as any)?.openDrawer?.()}
+          style={styles.headerButton}
+          activeOpacity={0.8}
         >
-          <Ionicons name="menu" size={26} color={Colors.TitleColor} />
+          <Ionicons name="menu" size={24} color="#0F172A" />
         </TouchableOpacity>
 
-        {/* Location Selector */}
+        {/* Location Picker Pill */}
         <TouchableOpacity
-          style={styles.locationContainer}
+          style={styles.locationPill}
           onPress={() => navigation.navigate('SetLocation')}
           activeOpacity={0.8}
         >
-          <Ionicons name="location" size={16} color={Colors.ButtonPrimaryColor} />
-          <View style={{ marginHorizontal: 6, flex: 1 }}>
-            <Text style={styles.locationLabel}>Service Location</Text>
+          <Ionicons name="location-sharp" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 6 }} />
+          <View style={styles.locationTextWrapper}>
+            <Text style={styles.locationLabel}>CURRENT LOCATION</Text>
             <Text style={styles.locationText} numberOfLines={1}>
-              {createJob.primaryAddress || user?.address || (typeof user?.permanentAddress === 'string' ? user.permanentAddress : user?.permanentAddress?.primaryAddress) || 'Select location'}
+              {currentLocationText}
             </Text>
           </View>
-          <Ionicons name="chevron-down" size={14} color="#64748B" />
+          <Ionicons name="chevron-down" size={14} color="#64748B" style={{ marginLeft: 4 }} />
         </TouchableOpacity>
 
         {/* Notification Button */}
         <TouchableOpacity
-          style={styles.headerBtn}
-          onPress={() => (navigation.getParent() as any)?.navigate('Notifications')}
-          activeOpacity={0.7}
+          style={styles.headerButton}
+          onPress={() => navigation.navigate('Notifications' as any)}
+          activeOpacity={0.8}
         >
-          <Ionicons name="notifications-outline" size={24} color={Colors.TitleColor} />
-          {notificationBadge > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{notificationBadge}</Text>
-            </View>
-          )}
+          <Ionicons name="notifications-outline" size={22} color="#0F172A" />
+          {notificationBadge > 0 && <View style={styles.badgeDot} />}
         </TouchableOpacity>
       </View>
 
-      {/* Hero Title Section */}
-      <View style={styles.heroSection}>
-        <Text style={styles.heroTitle}>Book a Stylist</Text>
-        <Text style={styles.heroSubtitle}>Select a service category to discover top-rated professionals nearby</Text>
-      </View>
-
-      {/* Category List */}
+      {/* Main Content Area */}
       <FlatList
-        data={categories}
-        keyExtractor={(item, index) => item._id || item.id || `cat_${index}`}
+        data={hasLocationPicked ? filteredServices : []}
+        keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 16) + 30 }]}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.ButtonPrimaryColor]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.ButtonPrimaryColor]}
+            tintColor={Colors.ButtonPrimaryColor}
+          />
         }
-      />
+        ListHeaderComponent={
+          <View style={styles.heroSection}>
+            {/* Greeting */}
+            <Text style={styles.greetingText}>
+              Hello, {getUserGreetingName()} 👋
+            </Text>
+            <Text style={styles.heroTitle}>What service do you need today?</Text>
 
-      <VTLoading visible={loading && !refreshing} />
+            {/* Quick Search Bar */}
+            {hasLocationPicked && (
+              <View style={styles.searchBarContainer}>
+                <Ionicons name="search-outline" size={20} color="#64748B" style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search services (e.g. Haircuts, Fade)..."
+                  placeholderTextColor="#94A3B8"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  clearButtonMode="while-editing"
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
+                    <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
 
-      {/* Modal: Rate & Review Completed Job */}
-      <Modal
-        visible={isRatingModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setIsRatingModalVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.ratingCard}>
-            <View style={styles.ratingHeader}>
-              <Text style={styles.ratingTitle}>Rate Your Experience</Text>
-              <TouchableOpacity onPress={() => setIsRatingModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+            {hasLocationPicked && <Text style={styles.sectionTitle}>SELECT A SERVICE</Text>}
+          </View>
+        }
+        ListEmptyComponent={
+          !hasLocationPicked ? (
+            <View style={styles.locationRequiredCard}>
+              <View style={styles.locationIconCircle}>
+                <Ionicons name="location-sharp" size={32} color={Colors.ButtonPrimaryColor} />
+              </View>
+              <Text style={styles.locationRequiredTitle}>Set Location to View Services</Text>
+              <Text style={styles.locationRequiredSub}>
+                Please select your location to view available haircuts, styling, and grooming services near you.
+              </Text>
+              <TouchableOpacity
+                style={styles.setLocationButton}
+                onPress={() => navigation.navigate('SetLocation')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="map-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.setLocationButtonText}>Select Service Location</Text>
               </TouchableOpacity>
             </View>
-
-            <Text style={styles.ratingSubtitle}>
-              How was your service with {unratedJob?.spName || unratedJob?.worker?.name || 'your hairstylist'}?
-            </Text>
-
-            {/* Star Rating Selector */}
-            <View style={styles.starRow}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <TouchableOpacity key={s} onPress={() => setRatingStars(s)}>
-                  <Ionicons
-                    name={s <= ratingStars ? 'star' : 'star-outline'}
-                    size={36}
-                    color="#F59E0B"
-                    style={{ marginHorizontal: 4 }}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Gratuity Tip Options */}
-            <Text style={styles.tipLabel}>Add a Tip (Optional)</Text>
-            <View style={styles.tipRow}>
-              {[0, 3, 5, 10].map((amt) => (
-                <TouchableOpacity
-                  key={amt}
-                  style={[styles.tipBtn, tipAmount === amt && styles.tipBtnActive]}
-                  onPress={() => setTipAmount(amt)}
-                >
-                  <Text style={[styles.tipBtnText, tipAmount === amt && styles.tipBtnTextActive]}>
-                    {amt === 0 ? 'No Tip' : `$${amt}`}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Review Comment */}
-            <TextInput
-              style={styles.reviewInput}
-              placeholder="Leave a comment or feedback for the stylist..."
-              value={reviewText}
-              onChangeText={setReviewText}
-              multiline
-              numberOfLines={3}
-            />
-
-            <View style={{ marginTop: 16 }}>
-              <VTButton
-                title="Submit Review"
-                onPress={handleRateSubmit}
-                loading={submittingRating}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </View>
+          ) : null
+        }
+      />
+    </SafeAreaView>
   );
 };
 
@@ -387,200 +307,226 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.base,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#F1F5F9',
   },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
+  headerButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#F8FAFC',
     justifyContent: 'center',
-    position: 'relative',
-  },
-  locationContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginHorizontal: 10,
-  },
-  locationLabel: {
-    fontSize: 10,
-    color: '#64748B',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  locationText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.TitleColor,
-  },
-  badge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: '#EF4444',
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  heroSection: {
-    paddingHorizontal: Spacing.base,
-    paddingTop: Spacing.base,
-    paddingBottom: Spacing.sm,
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: Colors.TitleColor,
-    letterSpacing: -0.5,
-  },
-  heroSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  listContent: {
-    padding: Spacing.base,
-  },
-  categoryCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
+    position: 'relative',
+  },
+  badgeDot: {
+    position: 'absolute',
+    top: 9,
+    right: 9,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: '#EF4444',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  locationPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    marginHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  locationTextWrapper: {
+    flex: 1,
+  },
+  locationLabel: {
+    fontSize: 9,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  locationText: {
+    fontSize: FontSizes.xs + 1,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  listContent: {
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing['3xl'],
+  },
+  heroSection: {
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xs,
+  },
+  greetingText: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+    marginBottom: 4,
+  },
+  heroTitle: {
+    fontSize: FontSizes['2xl'] + 2,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+    letterSpacing: 0.2,
+    marginBottom: Spacing.lg,
+  },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: Spacing.lg,
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 2,
   },
-  cardLeft: {
+  searchIcon: {
+    marginRight: Spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#0F172A',
+  },
+  sectionTitle: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    letterSpacing: 0.5,
+    marginBottom: Spacing.sm,
+  },
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    marginRight: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
-    alignItems: 'center',
+  imageContainer: {
+    marginRight: Spacing.lg,
+  },
+  image: {
+    width: 64,
+    height: 64,
+    borderRadius: BorderRadius.lg,
+  },
+  imagePlaceholder: {
+    width: 64,
+    height: 64,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: '#EEF4FF',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   cardContent: {
-    marginLeft: 14,
     flex: 1,
+    marginRight: Spacing.md,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   cardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.TitleColor,
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
   },
   cardDescription: {
-    fontSize: 12,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
-    marginTop: 3,
-    lineHeight: 16,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  ratingCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-  },
-  ratingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  ratingTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: '800',
-    color: Colors.TitleColor,
-  },
-  ratingSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    marginVertical: 12,
     lineHeight: 18,
   },
-  starRow: {
-    flexDirection: 'row',
+  arrowButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EEF4FF',
     justifyContent: 'center',
-    marginVertical: 12,
-  },
-  tipLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.TitleColor,
-    marginTop: 10,
-    marginBottom: 8,
-  },
-  tipRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  tipBtn: {
-    flex: 1,
-    marginHorizontal: 4,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
   },
-  tipBtnActive: {
-    borderColor: Colors.ButtonPrimaryColor,
-    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
-  },
-  tipBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  tipBtnTextActive: {
-    color: Colors.ButtonPrimaryColor,
-  },
-  reviewInput: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
+  locationRequiredCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    marginTop: Spacing.lg,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    padding: 12,
-    fontSize: 13,
-    color: Colors.TitleColor,
-    minHeight: 80,
-    textAlignVertical: 'top',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  locationIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#EEF4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  locationRequiredTitle: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+    marginBottom: Spacing.xs,
+  },
+  locationRequiredSub: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: Spacing.xl,
+  },
+  setLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.ButtonPrimaryColor,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  setLocationButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
 });
 

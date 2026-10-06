@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -6,190 +7,85 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  ActivityIndicator,
-  Modal,
-  Image,
   StatusBar,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { Header } from '../../components';
-import { VTButton, VTTextField } from '../../components/common';
-import { JobsApi, PaymentsApi, ProfileApi } from '../../api';
-import { useJobStore, useAuthStore } from '../../store';
-import { CostBreakDown, CreditCards, StripeCustomer } from '../../models';
-import Toast from 'react-native-toast-message';
+import { VTButton, VTLoading } from '../../components/common';
+import { JobsApi } from '../../api';
+import { useApi } from '../../hooks';
+import { useJobStore } from '../../store';
+import { CostBreakDown } from '../../models';
+
+import { formatJobDate } from '../../utils/helpers';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'JobSummary'>;
 };
 
 const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
-  const { createJob, selectedPromoCode, setPromoCode, resetCreateJob } = useJobStore();
-  const { user } = useAuthStore();
-
+  const { createJob, selectedPromoCode, resetCreateJob } = useJobStore();
   const [costBreakdown, setCostBreakdown] = useState<CostBreakDown | null>(null);
-  const [estimateLoading, setEstimateLoading] = useState(false);
-  const [posting, setPosting] = useState(false);
 
-  // Cards
-  const [cards, setCards] = useState<CreditCards[]>([]);
-  const [selectedCardId, setSelectedCardId] = useState<string>('');
-  const [loadingCards, setLoadingCards] = useState(false);
-
-  // Promo Code Modal
-  const [isPromoModalVisible, setIsPromoModalVisible] = useState(false);
-  const [promoInput, setPromoInput] = useState('');
-  const [applyingPromo, setApplyingPromo] = useState(false);
-
-  // Success Modal
-  const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false);
-  const [postedJobId, setPostedJobId] = useState('');
+  const { loading: estimateLoading, execute: fetchEstimate } = useApi<CostBreakDown>(JobsApi.estimateBreakdown);
+  const { loading: posting, execute: postJob } = useApi(JobsApi.postJob);
 
   useEffect(() => {
     loadEstimate();
-    loadCards();
-  }, [selectedPromoCode]);
+  }, []);
 
   const loadEstimate = async () => {
-    try {
-      setEstimateLoading(true);
-      const params: any = {
-        subServiceId: createJob.subServiceId,
-        latitude: createJob.latitude || 37.7749,
-        longitude: createJob.longitude || -122.4194,
-      };
-      if (createJob.worker?.id || createJob.selectedSp?.id) {
-        params.spProfileId = createJob.worker?.id || createJob.selectedSp?.id;
-      }
-      if (selectedPromoCode?.code) {
-        params.promoCode = selectedPromoCode.code;
-      }
-      const result: any = await JobsApi.estimateBreakdown(params);
-      const breakdown = result?.costBreakDown || result?.data || result;
-      if (breakdown) {
-        setCostBreakdown(breakdown);
-      }
-    } catch (e) {
-      console.warn('Estimate fetch failed:', e);
-    } finally {
-      setEstimateLoading(false);
+    const params: any = {
+      subServiceId: createJob.subServiceId,
+      latitude: createJob.latitude,
+      longitude: createJob.longitude,
+    };
+    if (createJob.selectedSp?.id) {
+      params.spProfileId = createJob.selectedSp.id;
     }
-  };
-
-  const loadCards = async () => {
-    try {
-      setLoadingCards(true);
-      const res: any = await PaymentsApi.fetchCustomer();
-      const customerCards: CreditCards[] = res?.customer?.cards || res?.cards || [];
-      if (Array.isArray(customerCards) && customerCards.length > 0) {
-        setCards(customerCards);
-        const def = customerCards.find((c) => c.isDefault) || customerCards[0];
-        if (def) setSelectedCardId(def.cardId);
-      }
-    } catch (e) {
-      console.log('Cards fetch error:', e);
-    } finally {
-      setLoadingCards(false);
+    if (selectedPromoCode?.code) {
+      params.promoCode = selectedPromoCode.code;
     }
-  };
-
-  const handleApplyPromo = async () => {
-    if (!promoInput.trim()) return;
-    try {
-      setApplyingPromo(true);
-      const res: any = await ProfileApi.applyPromoCode(promoInput.trim());
-      setPromoCode({
-        id: res?.id || 1,
-        code: promoInput.trim(),
-        title: res?.title || promoInput.trim(),
-        discountType: res?.discountType || 1,
-        discountPercentage: res?.discountPercentage || 10,
-        amount: res?.amount || 10,
-      });
-      setIsPromoModalVisible(false);
-      setPromoInput('');
-      Toast.show({ type: 'success', text1: 'Promo Code Applied!' });
-    } catch (e: any) {
-      Alert.alert('Invalid Code', e.message || 'Promo code could not be applied');
-    } finally {
-      setApplyingPromo(false);
+    const result = await fetchEstimate(params);
+    if (result) {
+      setCostBreakdown(result);
     }
-  };
-
-  const handleRemovePromo = () => {
-    setPromoCode(null);
   };
 
   const handlePostJob = async () => {
     Alert.alert(
-      'Confirm Appointment',
-      `Are you ready to book ${createJob.subServiceName || 'this service'} with ${createJob.worker?.name || createJob.selectedSp?.name || 'our verified stylist'}?`,
+      'Confirm Service Request',
+      'Are you sure you want to confirm and post this booking?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Confirm & Book',
+          text: 'Confirm Booking',
           onPress: async () => {
             try {
-              setPosting(true);
-              const spId = createJob.worker?.id || createJob.selectedSp?.id || '';
-              const sp = createJob.selectedSp || createJob.worker;
-
-              // When atSpLocation=true, iOS uses the SP's own address & lat/lng (ApiClient.swift:451-455)
-              const useSpLocation = !!createJob.atSpLocation;
-              const jobLat = useSpLocation ? (sp?.permanentAddressLat ?? createJob.latitude ?? 37.7749) : (createJob.latitude ?? 37.7749);
-              const jobLng = useSpLocation ? (sp?.permanentAddressLong ?? createJob.longitude ?? -122.4194) : (createJob.longitude ?? -122.4194);
-              const jobPrimaryAddress = useSpLocation ? (sp?.spPrimaryAddress || createJob.primaryAddress || '') : (createJob.primaryAddress || '');
-              const jobCity = useSpLocation ? (sp?.spCity || createJob.city || '') : (createJob.city || '');
-              const jobState = useSpLocation ? (sp?.spState || createJob.state || '') : (createJob.state || '');
-              const jobCountry = useSpLocation ? (sp?.spCountry || createJob.country || '') : (createJob.country || '');
-
               const params = {
-                subServiceId: createJob.subServiceId,
-                subServiceTypeId: createJob.subServiceTypeId || '',
-                subServiceTypeRate: createJob.subServiceTypeRate || 0,
-                jobStartTime: createJob.jobStartTime || new Date().toISOString(),
-                latitude: jobLat,
-                longitude: jobLng,
-                spProfileId: spId,
-                specialInstruction: createJob.specialInstruction || '',
-                primaryAddress: jobPrimaryAddress,
-                streetAddressLine1: createJob.streetAddressLine1 || '',
-                streetAddressLine2: useSpLocation ? '' : (createJob.streetAddressLine2 || ''),
-                city: jobCity,
-                state: jobState,
-                country: jobCountry,
-                workDescription: createJob.descriptionText || '',
+                ...createJob,
                 promoCode: selectedPromoCode?.code || '',
-                jobId: createJob.jobId || '',
-                provideServiceInPremises: !!createJob.atSpLocation,
-                provideServiceInUserPremises: !!createJob.atUserLocation,
-                stylePreferenceImage: createJob.stylePreferenceImage || '',
-                isJobOfferedFor: createJob.isJobOfferedFor ?? 0,
-                serviceFor: createJob.serviceFor ?? 0,
-                barberGender: createJob.barberGender ?? -1,
-                bookingType: createJob.bookingType || 0,
-                ...(createJob.memberId ? { memberId: createJob.memberId } : {}),
+                userType: 1,
               };
-
-              const res: any = await JobsApi.postJob(params);
-              const newJobId = res?.jobId || res?.data?.jobId || res?._id || '';
-              setPostedJobId(newJobId);
-              setIsSuccessModalVisible(true);
+              await postJob(params);
+              Toast.show({
+                type: 'success',
+                text1: 'Booking Confirmed!',
+                text2: 'Your request has been dispatched to available barbers.',
+              });
+              resetCreateJob();
+              navigation.navigate('Categories');
             } catch (error: any) {
               Toast.show({
                 type: 'error',
-                text1: 'Booking Failed',
-                text2: error.message || 'Please check your connection and try again',
+                text1: 'Booking Error',
+                text2: error.message || 'Could not complete booking request.',
               });
-            } finally {
-              setPosting(false);
             }
           },
         },
@@ -197,291 +93,134 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
-  const handleFinishSuccess = () => {
-    setIsSuccessModalVisible(false);
-    resetCreateJob();
-    navigation.getParent()?.navigate('MyJobs' as any);
-  };
-
-  const formattedStartTime = createJob.jobStartTime
-    ? new Date(createJob.jobStartTime).toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : 'Immediate / Next Available';
-
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <Header title="Appointment Summary" onBackPress={() => navigation.goBack()} />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Booking Summary</Text>
+        <View style={{ width: 44 }} />
+      </View>
 
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: Math.max(insets.bottom + 100, 120) },
-        ]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Service Details Card */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <View style={styles.iconCircle}>
-              <MaterialCommunityIcons name="content-cut" size={20} color="#FFFFFF" />
-            </View>
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.cardSubtitle}>Service Details</Text>
-              <Text style={styles.cardTitle}>{createJob.subServiceName || 'Hair Styling'}</Text>
-            </View>
+            <Ionicons name="cut-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+            <Text style={styles.cardTitle}>SERVICE DETAILS</Text>
           </View>
-          {createJob.descriptionText ? (
-            <Text style={styles.descriptionText} numberOfLines={3}>
-              "{createJob.descriptionText}"
-            </Text>
-          ) : null}
+          <Text style={styles.cardValue}>{createJob.serviceName || 'Grooming Service'}</Text>
+          <Text style={styles.cardSub}>{createJob.subServiceName || 'Standard Package'}</Text>
         </View>
 
-        {/* Selected Stylist Card */}
-        {(createJob.worker || createJob.selectedSp) && (
+        {/* Professional Details Card */}
+        {createJob.selectedSp && (
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
-              <View style={[styles.iconCircle, { backgroundColor: '#E5B652' }]}>
-                <Ionicons name="person" size={20} color="#FFFFFF" />
-              </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.cardSubtitle}>Selected Hairstylist</Text>
-                <Text style={styles.cardTitle}>
-                  {createJob.worker?.name || createJob.selectedSp?.name}
-                </Text>
-                <View style={styles.ratingRow}>
-                  <Ionicons name="star" size={14} color="#F59E0B" />
-                  <Text style={styles.ratingText}>
-                    {createJob.worker?.avgRating || createJob.selectedSp?.avgRating || 5.0}
-                    {(createJob.worker as any)?.totalReviews || createJob.worker?.totalJobDone ? ` (${(createJob.worker as any)?.totalReviews || createJob.worker?.totalJobDone} reviews)` : ''}
-                  </Text>
-                </View>
-              </View>
+              <Ionicons name="person-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+              <Text style={styles.cardTitle}>SELECTED BARBER</Text>
             </View>
+            <Text style={styles.cardValue}>{createJob.selectedSp.name}</Text>
+            <Text style={styles.cardSub}>⭐ {createJob.selectedSp.avgRating?.toFixed(1) || '5.0'} Rating</Text>
           </View>
         )}
 
-        {/* Schedule & Location Card */}
+        {/* Schedule & Location */}
         <View style={styles.card}>
-          <View style={styles.infoRow}>
-            <Ionicons name="time-outline" size={20} color={Colors.ButtonPrimaryColor} />
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Date & Time</Text>
-              <Text style={styles.infoValue}>{formattedStartTime}</Text>
-            </View>
+          <View style={styles.cardHeaderRow}>
+            <Ionicons name="calendar-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+            <Text style={styles.cardTitle}>WHEN & WHERE</Text>
           </View>
+          <Text style={styles.cardValue}>
+            {formatJobDate(createJob.jobStartTime, 'As Soon As Possible')}
+          </Text>
+          <Text style={styles.cardSub}>{createJob.primaryAddress || 'Service address specified'}</Text>
+        </View>
+
+        {/* Promo Code Pill */}
+        <TouchableOpacity
+          style={styles.promoPill}
+          onPress={() => navigation.getParent()?.navigate('PromoCodes')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="pricetag-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+          <Text style={styles.promoText}>
+            {selectedPromoCode ? `Promo Applied: ${selectedPromoCode.code}` : 'Apply Promo Code / Coupon'}
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color={Colors.ButtonPrimaryColor} />
+        </TouchableOpacity>
+
+        {/* Cost Breakdown Receipt */}
+        <View style={styles.costCard}>
+          <Text style={styles.costTitle}>PAYMENT RECEIPT SUMMARY</Text>
+
+          <View style={styles.costRow}>
+            <Text style={styles.costLabel}>Base Service Charges</Text>
+            <Text style={styles.costValue}>
+              {costBreakdown?.currency || '$'}{costBreakdown?.serviceCharges?.toFixed(2) || '0.00'}
+            </Text>
+          </View>
+
+          {costBreakdown?.totalLineItemAmount ? (
+            <View style={styles.costRow}>
+              <Text style={styles.costLabel}>Sub-Service Line Items</Text>
+              <Text style={styles.costValue}>
+                {costBreakdown.currency}{costBreakdown.totalLineItemAmount.toFixed(2)}
+              </Text>
+            </View>
+          ) : null}
+
+          {costBreakdown?.discountAmount ? (
+            <View style={styles.costRow}>
+              <Text style={styles.discountLabel}>Promo Discount</Text>
+              <Text style={styles.discountValue}>
+                -{costBreakdown.currency}{costBreakdown.discountAmount.toFixed(2)}
+              </Text>
+            </View>
+          ) : null}
+
+          {costBreakdown?.walletAmount ? (
+            <View style={styles.costRow}>
+              <Text style={styles.discountLabel}>Wallet Credits</Text>
+              <Text style={styles.discountValue}>
+                -{costBreakdown.currency}{costBreakdown.walletAmount.toFixed(2)}
+              </Text>
+            </View>
+          ) : null}
 
           <View style={styles.divider} />
 
-          <View style={styles.infoRow}>
-            <Ionicons name="location-outline" size={20} color={Colors.ButtonPrimaryColor} />
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Location</Text>
-              <Text style={styles.infoValue}>
-                {createJob.atSpLocation ? 'Stylist Studio / Salon' : createJob.primaryAddress || 'Your Address'}
-              </Text>
-            </View>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total Due</Text>
+            <Text style={styles.totalValue}>
+              {costBreakdown?.currency || '$'}{costBreakdown?.totalAmount?.toFixed(2) || '0.00'}
+            </Text>
           </View>
         </View>
 
-        {/* Promo Code Section */}
-        <View style={styles.card}>
-          <View style={styles.promoHeaderRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="pricetag-outline" size={18} color={Colors.ButtonPrimaryColor} />
-              <Text style={styles.sectionHeading}>Promo Code</Text>
-            </View>
-            {selectedPromoCode ? (
-              <TouchableOpacity onPress={handleRemovePromo}>
-                <Text style={styles.removePromoText}>Remove</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
-          {selectedPromoCode ? (
-            <View style={styles.appliedPromoBadge}>
-              <Ionicons name="checkmark-circle" size={18} color="#059669" />
-              <Text style={styles.appliedPromoCode}>{selectedPromoCode.code}</Text>
-              <Text style={styles.appliedPromoDiscount}>Discount applied</Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.addPromoBtn}
-              onPress={() => setIsPromoModalVisible(true)}
-            >
-              <Text style={styles.addPromoBtnText}>+ Apply Promo Code</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Payment Method Section */}
-        <View style={styles.card}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-            <Ionicons name="card-outline" size={18} color={Colors.ButtonPrimaryColor} />
-            <Text style={styles.sectionHeading}>Payment Method</Text>
-          </View>
-
-          {loadingCards ? (
-            <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} />
-          ) : cards.length > 0 ? (
-            cards.map((c) => {
-              const isSelected = selectedCardId === c.cardId;
-              return (
-                <TouchableOpacity
-                  key={c.cardId}
-                  style={[styles.cardItem, isSelected && styles.cardItemActive]}
-                  onPress={() => setSelectedCardId(c.cardId)}
-                >
-                  <Ionicons
-                    name={isSelected ? 'radio-button-on' : 'radio-button-off'}
-                    size={20}
-                    color={isSelected ? Colors.ButtonPrimaryColor : '#94A3B8'}
-                  />
-                  <Ionicons name="card" size={20} color="#222D63" style={{ marginLeft: 10 }} />
-                  <Text style={styles.cardItemText}>•••• {c.last4} ({c.brand || 'Card'})</Text>
-                </TouchableOpacity>
-              );
-            })
-          ) : (
-            <View style={styles.noCardRow}>
-              <Text style={styles.noCardText}>Default in-app payment / Card on file</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Cost Breakdown Card */}
-        <View style={styles.costCard}>
-          <Text style={styles.costTitle}>Estimated Cost Breakdown</Text>
-
-          {estimateLoading ? (
-            <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} style={{ marginVertical: 12 }} />
-          ) : (
-            <>
-              <View style={styles.costRow}>
-                <Text style={styles.costLabel}>Service Charges</Text>
-                <Text style={styles.costValue}>
-                  ${costBreakdown?.serviceCharges ? Number(costBreakdown.serviceCharges).toFixed(2) : '35.00'}
-                </Text>
-              </View>
-
-              {!!costBreakdown?.deliveryCharges && (
-                <View style={styles.costRow}>
-                  <Text style={styles.costLabel}>Travel / Travel Fee</Text>
-                  <Text style={styles.costValue}>${Number(costBreakdown.deliveryCharges).toFixed(2)}</Text>
-                </View>
-              )}
-
-              {!!costBreakdown?.discountAmount && (
-                <View style={styles.costRow}>
-                  <Text style={[styles.costLabel, { color: '#059669' }]}>Promo Discount</Text>
-                  <Text style={[styles.costValue, { color: '#059669' }]}>
-                    -${Number(costBreakdown.discountAmount).toFixed(2)}
-                  </Text>
-                </View>
-              )}
-
-              {!!costBreakdown?.tax && (
-                <View style={styles.costRow}>
-                  <Text style={styles.costLabel}>Taxes & Fees</Text>
-                  <Text style={styles.costValue}>${Number(costBreakdown.tax).toFixed(2)}</Text>
-                </View>
-              )}
-
-              <View style={styles.costDivider} />
-
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total Estimated</Text>
-                <Text style={styles.totalValue}>
-                  ${costBreakdown?.totalAmount ? Number(costBreakdown.totalAmount).toFixed(2) : '35.00'}
-                </Text>
-              </View>
-            </>
-          )}
-        </View>
-      </ScrollView>
-
-      {/* Pinned Bottom Confirm Button */}
-      <View
-        style={[
-          styles.bottomBar,
-          { paddingBottom: Math.max(insets.bottom + 12, 16) },
-        ]}
-      >
+        {/* Confirm Button */}
         <VTButton
-          title="Confirm & Book Appointment"
+          title={posting ? 'Posting Request...' : 'Confirm & Post Booking'}
           onPress={handlePostJob}
           loading={posting}
+          style={styles.postButton}
+          textStyle={styles.postButtonText}
         />
-      </View>
+      </ScrollView>
 
-      {/* Modal: Promo Code Input */}
-      <Modal
-        visible={isPromoModalVisible}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setIsPromoModalVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.promoModalCard}>
-            <Text style={styles.promoModalTitle}>Apply Promo Code</Text>
-            <VTTextField
-              placeholder="Enter promo code (e.g. HAIRLINES10)"
-              value={promoInput}
-              onChangeText={setPromoInput}
-              autoCapitalize="characters"
-            />
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-              <TouchableOpacity
-                style={styles.promoCancelBtn}
-                onPress={() => setIsPromoModalVisible(false)}
-              >
-                <Text style={styles.promoCancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.promoApplyBtn}
-                onPress={handleApplyPromo}
-                disabled={applyingPromo || !promoInput.trim()}
-              >
-                {applyingPromo ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.promoApplyBtnText}>Apply</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal: Booking Success */}
-      <Modal
-        visible={isSuccessModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={handleFinishSuccess}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.successModalCard}>
-            <View style={styles.successCheckCircle}>
-              <Ionicons name="checkmark" size={48} color="#FFFFFF" />
-            </View>
-            <Text style={styles.successTitle}>Booking Placed!</Text>
-            <Text style={styles.successSub}>
-              Your appointment request has been confirmed. The hairstylist has been notified and you can track real-time status in My Appointments.
-            </Text>
-            <View style={{ width: '100%', marginTop: 24 }}>
-              <VTButton title="View My Appointments" onPress={handleFinishSuccess} />
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </View>
+      <VTLoading visible={estimateLoading && !costBreakdown} />
+    </SafeAreaView>
   );
 };
 
@@ -494,302 +233,163 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.base,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#F1F5F9',
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
     justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  title: {
-    fontSize: FontSizes.lg,
-    fontWeight: '700',
-    color: Colors.TitleColor,
+  headerTitle: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
   },
   scrollContent: {
-    padding: Spacing.base,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.base,
-    marginBottom: Spacing.base,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.ButtonPrimaryColor,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardSubtitle: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
   },
   cardTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: Colors.TitleColor,
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  cardValue: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  cardSub: {
+    fontSize: FontSizes.xs + 1,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#64748B',
     marginTop: 2,
   },
-  descriptionText: {
-    fontSize: 13,
-    color: '#475569',
-    fontStyle: 'italic',
-    marginTop: 8,
-    paddingLeft: 4,
-  },
-  ratingRow: {
+  promoPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    backgroundColor: '#EEF4FF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md + 2,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 45, 99, 0.2)',
   },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginLeft: 4,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  infoContent: {
-    marginLeft: 12,
+  promoText: {
     flex: 1,
-  },
-  infoLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  infoValue: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: Colors.TitleColor,
-    marginTop: 2,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginVertical: 12,
-  },
-  sectionHeading: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: Colors.TitleColor,
-    marginLeft: 8,
-  },
-  promoHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  removePromoText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.errorViewColor,
-  },
-  appliedPromoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    padding: 10,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  appliedPromoCode: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#065F46',
-    marginLeft: 6,
-  },
-  appliedPromoDiscount: {
-    fontSize: 12,
-    color: '#047857',
-    marginLeft: 8,
-  },
-  addPromoBtn: {
-    paddingVertical: 8,
-  },
-  addPromoBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
-  },
-  cardItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-    marginTop: 6,
-  },
-  cardItemActive: {
-    borderColor: Colors.ButtonPrimaryColor,
-    backgroundColor: `${Colors.ButtonPrimaryColor}08`,
-  },
-  cardItemText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.TitleColor,
-    marginLeft: 8,
-  },
-  noCardRow: {
-    paddingVertical: 6,
-  },
-  noCardText: {
-    fontSize: 13,
-    color: '#64748B',
   },
   costCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.base,
-    marginBottom: Spacing.base,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.xl,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   costTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: Colors.TitleColor,
-    marginBottom: 12,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginBottom: Spacing.md,
+    letterSpacing: 0.5,
   },
   costRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
   },
   costLabel: {
-    fontSize: 13,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
   },
   costValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.TitleColor,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
   },
-  costDivider: {
+  discountLabel: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#22C55E',
+  },
+  discountValue: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#22C55E',
+  },
+  divider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
-    marginVertical: 10,
+    backgroundColor: '#F1F5F9',
+    marginVertical: Spacing.md,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 2,
   },
   totalLabel: {
-    fontSize: FontSizes.base,
-    fontWeight: '800',
-    color: Colors.TitleColor,
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
   },
   totalValue: {
-    fontSize: FontSizes.xl,
-    fontWeight: '900',
+    fontSize: FontSizes['2xl'],
+    fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
   },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingHorizontal: Spacing.base,
-    paddingTop: Spacing.sm,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  promoModalCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-  },
-  promoModalTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: '800',
-    color: Colors.TitleColor,
-    marginBottom: 14,
-  },
-  promoCancelBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  promoCancelBtnText: {
-    color: '#64748B',
-    fontWeight: '700',
-  },
-  promoApplyBtn: {
-    flex: 1,
+  postButton: {
     backgroundColor: Colors.ButtonPrimaryColor,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: BorderRadius.sm,
+    borderRadius: BorderRadius.lg,
+    minHeight: 54,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  promoApplyBtnText: {
+  postButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
     color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  successModalCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-  },
-  successCheckCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#10B981',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  successTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: Colors.TitleColor,
-    marginBottom: 8,
-  },
-  successSub: {
-    fontSize: 14,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 20,
   },
 });
 

@@ -1,21 +1,11 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  Alert,
-} from 'react-native';
-import {
-  DrawerContentScrollView,
-  DrawerContentComponentProps,
-} from '@react-navigation/drawer';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { DrawerContentScrollView, DrawerContentComponentProps } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store';
 import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
 
 interface MenuItem {
@@ -27,79 +17,68 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { label: 'Book a Service', iconName: 'cut-outline', route: 'HomeStack' },
-  { label: 'My Bookings', iconName: 'calendar-outline', route: 'MyJobs' },
+  { label: 'My Services', iconName: 'calendar-outline', route: 'MyJobs' },
   { label: 'Notifications', iconName: 'notifications-outline', route: 'Notifications' },
-  { label: 'Manage Account', iconName: 'person-outline', route: 'MyProfile' },
-  { label: 'Wallet & Balance', iconName: 'wallet-outline', route: 'Wallet' },
+  { label: 'Manage Account', iconName: 'person-circle-outline', route: 'MyProfile' },
+  { label: 'Wallet', iconName: 'wallet-outline', route: 'Wallet' },
   { label: 'Payment Methods', iconName: 'card-outline', route: 'Payments' },
-  { label: 'Invite & Earn', iconName: 'gift-outline', route: 'ShareReferral', badge: 'Free $10' },
-  { label: 'Promo Codes', iconName: 'pricetag-outline', route: 'PromoCodes' },
-  { label: 'Help & Support', iconName: 'headset-outline', route: 'ContactSupport' },
-  { label: 'Terms & Policies', iconName: 'document-text-outline', route: 'Terms' },
+  { label: 'Invite Friends', iconName: 'gift-outline', route: 'ShareReferral', badge: 'Rewards' },
+  { label: 'Promo Code', iconName: 'pricetag-outline', route: 'PromoCodes' },
+  { label: 'Contact Support', iconName: 'headset-outline', route: 'ContactSupport' },
+  { label: 'Terms & Conditions', iconName: 'document-text-outline', route: 'Terms' },
 ];
 
 const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
-  const { user, logout } = useAuthStore();
+  const { user, account, isGuest, logout } = useAuthStore();
   const { navigation, state } = props;
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out of your Hairlines account?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-          },
-        },
-      ]
-    );
+  const handleLogout = async () => {
+    await logout();
   };
 
   const getUserDisplayName = () => {
     if (user?.name) return user.name;
-    const combined = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
-    if (combined) return combined;
-    return 'Valued Customer';
+    if (user?.firstName) return `${user.firstName} ${user.lastName || ''}`.trim();
+    if (account?.name) return account.name;
+    if (account?.firstName) return `${account.firstName} ${account.lastName || ''}`.trim();
+    return isGuest ? 'Guest User' : 'Customer Account';
   };
 
   const getUserSubText = () => {
-    if (user?.phoneNumber) {
-      return `${user.countryCode || ''} ${user.phoneNumber}`.trim();
+    if (user?.phoneNumber || account?.phoneNumber) {
+      const code = user?.phoneCode || account?.phoneCode || '';
+      const phone = user?.phoneNumber || account?.phoneNumber || '';
+      return `${code} ${phone}`.trim();
     }
-    if (user?.email) return user.email;
-    return 'Hairlines Customer';
+    if (user?.email || account?.email) return user?.email || account?.email || '';
+    return 'Member Account';
+  };
+
+  const getUserRating = () => {
+    if (user?.avgRating && user.avgRating > 0) return user.avgRating.toFixed(1);
+    if (account?.avgRating && account.avgRating > 0) return account.avgRating.toFixed(1);
+    return '5.0';
   };
 
   const getInitials = () => {
     const nameStr = getUserDisplayName();
+    if (!nameStr || nameStr === 'Guest User' || nameStr === 'Customer Account') return 'H';
     const parts = nameStr.split(' ');
     if (parts.length >= 2) {
       return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
     }
-    return nameStr.charAt(0).toUpperCase() || 'C';
+    return nameStr.charAt(0).toUpperCase() || 'H';
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <DrawerContentScrollView
-        {...props}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Customer Profile Header Card */}
+      <DrawerContentScrollView {...props} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* User Profile Header Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarWrapper}>
-            {user?.profileImage ? (
-              <Image source={{ uri: user.profileImage }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>{getInitials()}</Text>
-              </View>
-            )}
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{getInitials()}</Text>
+            </View>
             <View style={styles.onlineBadge} />
           </View>
 
@@ -112,15 +91,19 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
             </Text>
 
             <View style={styles.tagRow}>
-              <View style={styles.proTag}>
-                <Ionicons
-                  name="shield-checkmark"
-                  size={10}
-                  color={Colors.ButtonPrimaryColor}
-                  style={{ marginRight: 3 }}
-                />
-                <Text style={styles.proTagText}>Customer</Text>
+              <View style={styles.memberTag}>
+                <Ionicons name="sparkles" size={10} color={Colors.ButtonPrimaryColor} style={{ marginRight: 3 }} />
+                <Text style={styles.memberTagText}>
+                  {isGuest ? 'Guest' : 'Customer'}
+                </Text>
               </View>
+
+              {!isGuest && (
+                <View style={styles.ratingBadge}>
+                  <Ionicons name="star" size={10} color="#854D0E" style={{ marginRight: 3 }} />
+                  <Text style={styles.ratingText}>{getUserRating()} ★</Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -139,12 +122,7 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
                 onPress={() => navigation.navigate(item.route as any)}
                 activeOpacity={0.7}
               >
-                <View
-                  style={[
-                    styles.iconContainer,
-                    isFocused && styles.iconContainerActive,
-                  ]}
-                >
+                <View style={[styles.iconContainer, isFocused && styles.iconContainerActive]}>
                   <Ionicons
                     name={item.iconName}
                     size={20}
@@ -152,9 +130,7 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
                   />
                 </View>
 
-                <Text
-                  style={[styles.menuLabel, isFocused && styles.menuLabelActive]}
-                >
+                <Text style={[styles.menuLabel, isFocused && styles.menuLabelActive]}>
                   {item.label}
                 </Text>
 
@@ -176,22 +152,13 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
         </View>
       </DrawerContentScrollView>
 
-      {/* Footer Area - Logout */}
+      {/* Footer Area - Logout Button */}
       <View style={styles.footerContainer}>
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={handleLogout}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name="log-out-outline"
-            size={20}
-            color={Colors.errorViewColor}
-            style={{ marginRight: 10 }}
-          />
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
+          <Ionicons name="log-out-outline" size={20} color={Colors.errorViewColor} style={{ marginRight: 10 }} />
           <Text style={styles.logoutText}>Logout Account</Text>
         </TouchableOpacity>
-        <Text style={styles.appVersionText}>Hairlines Customer v1.0.0</Text>
+        <Text style={styles.appVersionText}>Hairlines v1.0.0</Text>
       </View>
     </SafeAreaView>
   );
@@ -214,18 +181,13 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.BorderColor,
+    borderColor: '#F1F5F9',
   },
   avatarWrapper: {
     position: 'relative',
     marginRight: Spacing.md,
   },
-  avatarImage: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-  },
-  avatarPlaceholder: {
+  avatar: {
     width: 54,
     height: 54,
     borderRadius: 27,
@@ -241,7 +203,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: '#FFFFFF',
     fontSize: FontSizes.lg,
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
   },
   onlineBadge: {
     position: 'absolute',
@@ -259,13 +221,13 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: FontSizes.md,
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
     color: '#0F172A',
     marginBottom: 2,
   },
   userPhone: {
     fontSize: FontSizes.xs,
-    fontWeight: FontWeights.regular,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
     marginBottom: 4,
   },
@@ -274,7 +236,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  proTag: {
+  memberTag: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EEF4FF',
@@ -282,11 +244,24 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: BorderRadius.full,
   },
-  proTagText: {
+  memberTagText: {
     fontSize: 9,
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
     textTransform: 'uppercase',
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF9C3',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  ratingText: {
+    fontSize: 9,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#854D0E',
   },
   divider: {
     height: 1,
@@ -300,7 +275,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
+    paddingVertical: 11,
     borderRadius: BorderRadius.lg,
     marginBottom: 4,
   },
@@ -318,24 +293,19 @@ const styles = StyleSheet.create({
   },
   iconContainerActive: {
     backgroundColor: '#FFFFFF',
-    shadowColor: Colors.ButtonPrimaryColor,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
   },
   menuLabel: {
     flex: 1,
     fontSize: FontSizes.md,
-    fontWeight: FontWeights.medium,
+    fontFamily: Fonts.uberMoveMedium,
     color: '#334155',
   },
   menuLabelActive: {
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
   },
   badgeContainer: {
-    backgroundColor: Colors.ButtonPrimaryRight,
+    backgroundColor: '#EF4444',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
@@ -343,7 +313,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 9,
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
     color: '#FFFFFF',
   },
   arrowIcon: {
@@ -367,12 +337,12 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: FontSizes.md,
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
     color: Colors.errorViewColor,
   },
   appVersionText: {
     fontSize: FontSizes.xs,
-    fontWeight: FontWeights.regular,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#94A3B8',
     textAlign: 'center',
     marginTop: Spacing.sm,
@@ -380,4 +350,3 @@ const styles = StyleSheet.create({
 });
 
 export default CustomDrawerContent;
-

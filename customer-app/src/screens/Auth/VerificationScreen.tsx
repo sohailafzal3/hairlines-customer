@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -8,21 +9,20 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
+  ScrollView,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
-import { Spacing } from '../../theme/spacing';
+import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTButton } from '../../components/common';
 import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
 import { Storage } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../constants';
-import { getDeviceToken } from '../../services/notifications';
-import Toast from 'react-native-toast-message';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Verification'>;
@@ -30,33 +30,23 @@ type Props = {
 };
 
 const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
-  const insets = useSafeAreaInsets();
-  const { countryCode, phoneNumber, isSignUp, isForgotPassword, code: incomingCode } = route.params;
-  const { setAccount, login } = useAuthStore();
+  const { countryCode, phoneNumber, isSignUp, isForgotPassword, otpCode } = route.params;
+  const { setAccount, setLoggedIn } = useAuthStore();
 
-  const getInitialCode = () => {
-    if (incomingCode) {
-      const cleaned = String(incomingCode).replace(/\D/g, '');
-      if (cleaned.length >= 4) {
-        return cleaned.slice(0, 4).split('');
-      }
-    }
-    return ['', '', '', ''];
-  };
-
-  const [code, setCode] = useState<string[]>(getInitialCode);
+  const [code, setCode] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
+  const [errorMsg, setErrorMsg] = useState('');
   const inputs = useRef<Array<TextInput | null>>([]);
 
+  // Auto-fill OTP boxes if the backend returned the code in the signup response
   useEffect(() => {
-    if (incomingCode) {
-      const cleaned = String(incomingCode).replace(/\D/g, '');
-      if (cleaned.length >= 4) {
-        setCode(cleaned.slice(0, 4).split(''));
-      }
+    if (otpCode && otpCode.length >= 4) {
+      const digits = otpCode.replace(/\D/g, '').slice(0, 4).split('');
+      const filled = [...digits, '', '', '', ''].slice(0, 4) as string[];
+      setCode(filled);
     }
-  }, [incomingCode]);
+  }, [otpCode]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -66,23 +56,11 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   }, []);
 
   const handleChange = (text: string, index: number) => {
-    const cleaned = text.replace(/\D/g, '');
-    if (cleaned.length > 1) {
-      const digits = cleaned.slice(0, 4).split('');
-      const newCode = ['', '', '', ''];
-      digits.forEach((d, i) => {
-        newCode[i] = d;
-      });
-      setCode(newCode);
-      inputs.current[Math.min(digits.length - 1, 3)]?.focus();
-      return;
-    }
-
     const newCode = [...code];
-    newCode[index] = cleaned;
+    newCode[index] = text;
     setCode(newCode);
 
-    if (cleaned && index < 3) {
+    if (text && index < 3) {
       inputs.current[index + 1]?.focus();
     }
   };
@@ -94,27 +72,13 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleResend = async () => {
+    setErrorMsg('');
     setTimer(60);
     try {
-      const res: any = await AuthApi.sendVerificationCode(countryCode, phoneNumber);
-      if (res?.verificationCode) {
-        const cleaned = String(res.verificationCode).replace(/\D/g, '');
-        if (cleaned.length >= 4) {
-          setCode(cleaned.slice(0, 4).split(''));
-        }
-      }
-      Toast.show({
-        type: 'success',
-        text1: 'Code Resent',
-        text2: 'A new code has been sent to your phone',
-      });
+      await AuthApi.sendVerificationCode(countryCode, phoneNumber);
     } catch (error: any) {
       console.error('Resend error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: error?.message || 'Failed to resend code',
-      });
+      setErrorMsg(error.message || 'Failed to resend verification code.');
     }
   };
 
@@ -122,46 +86,25 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
     const fullCode = code.join('');
     if (fullCode.length !== 4) return;
 
+    setErrorMsg('');
     setLoading(true);
     try {
-      const deviceToken = await getDeviceToken();
-      const deviceType = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
+      const deviceToken = '0000000000000000000000000000000000000000000000000000000000000000';
 
-      if (isForgotPassword) {
-        const account = await AuthApi.verifySignInCode({
-          countryCode,
-          phoneNumber,
-          code: fullCode,
-          deviceToken,
-          deviceType,
-        });
-        if (account) {
-          setAccount(account);
-          Toast.show({
-            type: 'success',
-            text1: 'Verified',
-            text2: 'Please set your new password',
-          });
-          navigation.navigate('NewPassword', { isFromProfile: false });
-        }
-      } else if (isSignUp) {
+      if (isSignUp) {
         const account = await AuthApi.verifyCode({
           countryCode,
           phoneNumber,
           code: fullCode,
           deviceToken,
-          deviceType,
+          deviceType: 'ios',
         });
         if (account) {
+          setAccount(account);
           if (account.isSignUpCompleted) {
-            Toast.show({
-              type: 'success',
-              text1: 'Verified',
-              text2: 'Welcome to Hairlines!',
-            });
-            await login(account);
+            setLoggedIn(true);
+            await Storage.setItem(STORAGE_KEYS.kIsUserLoggedIn, 'true');
           } else {
-            setAccount(account);
             navigation.navigate('SignUpFirst');
           }
         }
@@ -171,24 +114,17 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
           phoneNumber,
           code: fullCode,
           deviceToken,
-          deviceType,
+          deviceType: 'ios',
         });
         if (account) {
-          Toast.show({
-            type: 'success',
-            text1: 'Verified',
-            text2: 'Welcome to Hairlines!',
-          });
-          await login(account);
+          setAccount(account);
+          setLoggedIn(true);
+          await Storage.setItem(STORAGE_KEYS.kIsUserLoggedIn, 'true');
         }
       }
     } catch (error: any) {
-      console.error('Verification error:', error.message);
-      Toast.show({
-        type: 'error',
-        text1: 'Verification Failed',
-        text2: error?.message || 'Invalid code entered',
-      });
+      console.error('Verification error:', error);
+      setErrorMsg(error.message || 'Invalid verification code. Please check and try again.');
     } finally {
       setLoading(false);
     }
@@ -197,127 +133,252 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   const isComplete = code.every((c) => c.length === 1);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 10, paddingBottom: Math.max(insets.bottom, 16) + 10 }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.BGColor} />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <View style={styles.content}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backIcon}>←</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.title}>Verification Code</Text>
-          <Text style={styles.subtitle}>
-            Enter the 4-digit code sent to {countryCode} {phoneNumber}
-          </Text>
-
-          <View style={styles.codeContainer}>
-            {code.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref: any) => (inputs.current[index] = ref)}
-                style={styles.codeInput}
-                keyboardType="number-pad"
-                maxLength={1}
-                value={digit}
-                onChangeText={(text) => handleChange(text, index)}
-                onKeyPress={(e) => handleKeyPress(e, index)}
-                autoFocus={index === 0}
-              />
-            ))}
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Top Bar Back Button */}
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+            </TouchableOpacity>
           </View>
 
+          {/* Header Title */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Verification Code</Text>
+            <Text style={styles.subtitle}>
+              We sent a 4-digit code to{' '}
+              <Text style={styles.phoneHighlight}>
+                {countryCode} {phoneNumber}
+              </Text>
+            </Text>
+          </View>
+
+          {/* Error Banner */}
+          {!!errorMsg && (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={18} color={Colors.errorViewColor} style={{ marginRight: 6 }} />
+              <Text style={styles.errorBannerText}>{errorMsg}</Text>
+            </View>
+          )}
+
+          {/* Auto-fill Banner */}
+          {!!otpCode && !errorMsg && (
+            <View style={styles.autoFillBanner}>
+              <Ionicons name="checkmark-circle-outline" size={18} color="#059669" style={{ marginRight: 6 }} />
+              <Text style={styles.autoFillText}>Code auto-filled from server — tap Verify to continue</Text>
+            </View>
+          )}
+
+          {/* OTP Digit Row */}
+          <View style={styles.codeContainer}>
+            {code.map((digit, index) => {
+              const isFilled = digit.length > 0;
+              return (
+                <TextInput
+                  key={index}
+                  ref={(ref: any) => (inputs.current[index] = ref)}
+                  style={[styles.codeInput, isFilled && styles.codeInputFilled]}
+                  keyboardType="number-pad"
+                  maxLength={1}
+                  value={digit}
+                  onChangeText={(text) => handleChange(text, index)}
+                  onKeyPress={(e) => handleKeyPress(e, index)}
+                  autoFocus={index === 0}
+                  selectTextOnFocus
+                />
+              );
+            })}
+          </View>
+
+          {/* Verify Button */}
           <VTButton
-            title="Verify"
+            title="Verify & Continue"
             onPress={handleVerify}
             loading={loading}
             disabled={!isComplete}
-            style={styles.button}
+            style={styles.verifyButton}
+            textStyle={styles.verifyButtonText}
           />
 
-          {timer > 0 ? (
-            <Text style={styles.timerText}>Resend code in {timer}s</Text>
-          ) : (
-            <TouchableOpacity onPress={handleResend}>
-              <Text style={styles.resendText}>Resend Code</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+          {/* Resend Timer / Link */}
+          <View style={styles.resendContainer}>
+            {timer > 0 ? (
+              <Text style={styles.timerText}>
+                Resend code in <Text style={styles.timerBold}>{timer}s</Text>
+              </Text>
+            ) : (
+              <TouchableOpacity onPress={handleResend} style={styles.resendTouch} activeOpacity={0.7}>
+                <Ionicons name="reload-outline" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
+                <Text style={styles.resendText}>Resend Code</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.BGColor,
+    backgroundColor: '#F8FAFC',
   },
   keyboardView: {
     flex: 1,
   },
   content: {
     flex: 1,
-    padding: Spacing.xl,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xl,
+  },
+  topBar: {
+    marginBottom: Spacing.lg,
   },
   backButton: {
-    marginBottom: Spacing.lg,
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  backIcon: {
-    fontSize: FontSizes['2xl'],
-    color: Colors.TitleColor,
+  header: {
+    marginBottom: Spacing.xl,
   },
   title: {
-    fontSize: FontSizes['2xl'],
+    fontSize: FontSizes['3xl'],
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
-    marginBottom: Spacing.sm,
+    color: '#0F172A',
+    marginBottom: Spacing.xs,
   },
   subtitle: {
     fontSize: FontSizes.md,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextDark,
-    marginBottom: Spacing.xl,
+    color: '#64748B',
+    lineHeight: 22,
+  },
+  phoneHighlight: {
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveMedium,
+    color: Colors.errorViewColor,
+  },
+  autoFillBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#6EE7B7',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  autoFillText: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveMedium,
+    color: '#059669',
   },
   codeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xs,
   },
   codeInput: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.CardColor,
-    backgroundColor: Colors.TextFieldColor,
+    width: 68,
+    height: 68,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
     textAlign: 'center',
     fontSize: FontSizes['2xl'],
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.TitleColor,
+    color: '#0F172A',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  button: {
-    marginTop: Spacing.lg,
+  codeInputFilled: {
+    borderColor: Colors.ButtonPrimaryColor,
+    backgroundColor: '#EEF4FF',
+  },
+  verifyButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 54,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  verifyButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
+  },
+  resendContainer: {
+    alignItems: 'center',
+    marginTop: Spacing.xl,
   },
   timerText: {
-    textAlign: 'center',
-    marginTop: Spacing.lg,
     fontSize: FontSizes.md,
     fontFamily: Fonts.uberMoveRegular,
-    color: Colors.DescriptionTextLight,
+    color: '#64748B',
+  },
+  timerBold: {
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  resendTouch: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   resendText: {
-    textAlign: 'center',
-    marginTop: Spacing.lg,
     fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveMedium,
-    color: Colors.ButtonPrimaryRight,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
   },
 });
 

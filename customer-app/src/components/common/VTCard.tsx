@@ -14,17 +14,15 @@ const VTCard: React.FC<VTCardProps> = ({ children, style }) => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.CardColor,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.BorderColor,
-    padding: Spacing.base,
-    marginVertical: Spacing.sm,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    backgroundColor: Colors.BGColor,
+    borderRadius: BorderRadius.base,
+    padding: Spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
     elevation: 2,
+    marginBottom: Spacing.base,
   },
 });
 

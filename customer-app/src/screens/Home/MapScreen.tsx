@@ -1,359 +1,254 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
   StatusBar,
-  Platform,
+  ActivityIndicator,
 } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import MapView, { Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
-import { HomeStackParamList } from '../../navigation/HomeNavigator';
-import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
-import { Spacing, BorderRadius } from '../../theme/spacing';
-import { Button } from '../../components';
-import { useJobStore } from '../../store';
 import * as Location from 'expo-location';
-import Toast from 'react-native-toast-message';
+import { Colors, Fonts, FontSizes, Spacing, BorderRadius } from '../../theme';
+import { VTButton } from '../../components/common';
 
-type Props = {
-  navigation: NativeStackNavigationProp<HomeStackParamList, 'Map'>;
-};
+const MapScreen = ({ navigation, route }: any) => {
+  const initialLat = route?.params?.initialLat || 37.78825;
+  const initialLng = route?.params?.initialLng || -122.4324;
 
-const MapScreen: React.FC<Props> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
-  const mapRef = useRef<MapView | null>(null);
-  const { createJob, setCreateJobField } = useJobStore();
-
-  const [region, setRegion] = useState({
-    latitude: createJob.latitude || 37.7749,
-    longitude: createJob.longitude || -122.4194,
-    latitudeDelta: 0.015,
-    longitudeDelta: 0.015,
+  const [region, setRegion] = useState<Region>({
+    latitude: initialLat,
+    longitude: initialLng,
+    latitudeDelta: 0.0122,
+    longitudeDelta: 0.0121,
   });
 
-  const [selectedAddress, setSelectedAddress] = useState(
-    createJob.primaryAddress || 'Selected Map Location'
-  );
-  const [city, setCity] = useState(createJob.city || 'San Francisco');
-  const [state, setState] = useState(createJob.state || 'CA');
-  const [country, setCountry] = useState(createJob.country || 'USA');
+  const [addressText, setAddressText] = useState('Move map to pick location');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [country, setCountry] = useState('');
   const [loadingAddress, setLoadingAddress] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    fetchCurrentLocation();
-  }, []);
+  const handleRegionChangeComplete = async (newRegion: Region) => {
+    setRegion(newRegion);
+    setLoadingAddress(true);
 
-  const fetchCurrentLocation = async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        const newRegion = {
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-          latitudeDelta: 0.015,
-          longitudeDelta: 0.015,
-        };
-        setRegion(newRegion);
-        mapRef.current?.animateToRegion(newRegion, 800);
-        reverseGeocodeCoords(loc.coords.latitude, loc.coords.longitude);
-      }
-    } catch (e) {
-      console.log('Map location fetch error:', e);
-    }
-  };
-
-  const reverseGeocodeCoords = async (lat: number, lng: number) => {
-    try {
-      setLoadingAddress(true);
-      const results = await Location.reverseGeocodeAsync({
-        latitude: lat,
-        longitude: lng,
+      const geocode = await Location.reverseGeocodeAsync({
+        latitude: newRegion.latitude,
+        longitude: newRegion.longitude,
       });
 
-      if (results && results[0]) {
-        const p = results[0];
-        const formatted = [p.streetNumber, p.street, p.subregion, p.city, p.region, p.country]
+      if (geocode && geocode[0]) {
+        const place = geocode[0];
+        const formatted = [place.street, place.name, place.city, place.region, place.country]
           .filter(Boolean)
           .join(', ');
-
-        setSelectedAddress(formatted || `${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-        setCity(p.city || p.subregion || 'San Francisco');
-        setState(p.region || 'CA');
-        setCountry(p.country || 'USA');
+        setAddressText(formatted || 'Selected Location');
+        setCity(place.city || '');
+        setState(place.region || '');
+        setCountry(place.country || '');
       } else {
-        setSelectedAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+        setAddressText(`${newRegion.latitude.toFixed(4)}, ${newRegion.longitude.toFixed(4)}`);
       }
-    } catch (err) {
-      setSelectedAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+    } catch (e) {
+      setAddressText('Location on map');
     } finally {
       setLoadingAddress(false);
     }
   };
 
-  const onRegionChangeComplete = (newRegion: any) => {
-    setRegion(newRegion);
-    reverseGeocodeCoords(newRegion.latitude, newRegion.longitude);
-  };
-
   const handleConfirm = () => {
-    setCreateJobField('primaryAddress', selectedAddress);
-    setCreateJobField('city', city);
-    setCreateJobField('state', state);
-    setCreateJobField('country', country);
-    setCreateJobField('latitude', region.latitude);
-    setCreateJobField('longitude', region.longitude);
-
-    Toast.show({
-      type: 'success',
-      text1: 'Pin Location Confirmed',
+    navigation.navigate({
+      name: 'SetLocation',
+      params: {
+        selectedArea: addressText,
+        selectedCity: city,
+        selectedState: state,
+        selectedCountry: country,
+        latitude: region.latitude,
+        longitude: region.longitude,
+      },
+      merge: true,
     });
-    navigation.goBack();
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-      {/* Map Component */}
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_DEFAULT}
-        style={StyleSheet.absoluteFillObject}
-        initialRegion={region}
-        onRegionChangeComplete={onRegionChangeComplete}
-        showsUserLocation
-        showsMyLocationButton={false}
-      />
-
-      {/* Center Fixed Pin */}
-      <View style={styles.centerMarkerWrapper} pointerEvents="none">
-        <View style={styles.pinBubble}>
-          <Ionicons name="cut" size={14} color="#FFFFFF" />
-        </View>
-        <Ionicons name="location" size={40} color={Colors.ButtonPrimaryColor} style={styles.pinIcon} />
-        <View style={styles.pinShadow} />
-      </View>
-
-      {/* Floating Top Bar (Back button & Search) */}
-      <View style={[styles.topBar, { paddingTop: Math.max(insets.top + 10, 20) }]}>
+      {/* Floating Top Header */}
+      <View style={styles.topHeader}>
         <TouchableOpacity
-          style={styles.floatingRoundBtn}
           onPress={() => navigation.goBack()}
+          style={styles.backButton}
           activeOpacity={0.8}
         >
           <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Pin Location on Map</Text>
+        <View style={{ width: 44 }} />
+      </View>
 
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color="#64748B" style={{ marginRight: 8 }} />
-          <TextInput
-            placeholder="Search address or landmark..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor="#94A3B8"
-            style={styles.searchInput}
+      {/* Map View */}
+      <View style={styles.mapContainer}>
+        <MapView
+          style={styles.map}
+          initialRegion={region}
+          onRegionChangeComplete={handleRegionChangeComplete}
+        >
+          <Marker
+            coordinate={{
+              latitude: region.latitude,
+              longitude: region.longitude,
+            }}
+            title="Service Location"
+            description={addressText}
           />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#94A3B8" />
-            </TouchableOpacity>
-          ) : null}
+        </MapView>
+
+        {/* Fixed Center Pin Overlay */}
+        <View pointerEvents="none" style={styles.centerPinContainer}>
+          <Ionicons name="location" size={38} color={Colors.ButtonPrimaryColor} />
+          <View style={styles.pinShadow} />
         </View>
       </View>
 
-      {/* Re-center GPS button */}
-      <TouchableOpacity
-        style={[styles.recenterBtn, { bottom: Math.max(insets.bottom + 180, 200) }]}
-        onPress={fetchCurrentLocation}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="locate" size={22} color={Colors.ButtonPrimaryColor} />
-      </TouchableOpacity>
-
-      {/* Bottom Sheet Card */}
-      <View style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom + 12, 16) }]}>
-        <View style={styles.sheetHandle} />
-
-        <View style={styles.addressInfoRow}>
-          <View style={styles.addressIconCircle}>
-            <Ionicons name="location-outline" size={22} color={Colors.ButtonPrimaryColor} />
-          </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.addressHeading}>Selected Pin Location</Text>
+      {/* Bottom Floating Address Card */}
+      <View style={styles.bottomCard}>
+        <View style={styles.addressHeader}>
+          <Ionicons name="location-sharp" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.addressLabel}>Selected Map Location</Text>
             {loadingAddress ? (
               <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} style={{ alignSelf: 'flex-start', marginTop: 4 }} />
             ) : (
-              <Text style={styles.addressSubtext} numberOfLines={2}>
-                {selectedAddress}
+              <Text style={styles.addressText} numberOfLines={2}>
+                {addressText}
               </Text>
             )}
           </View>
         </View>
 
-        <View style={{ marginTop: 16 }}>
-          <Button title="Confirm This Location" onPress={handleConfirm} />
-        </View>
+        <VTButton
+          title="Confirm Location"
+          onPress={handleConfirm}
+          style={styles.confirmButton}
+          textStyle={styles.confirmButtonText}
+        />
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
   },
-  topBar: {
+  topHeader: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.base,
+    top: 50,
+    left: Spacing.xl,
+    right: Spacing.xl,
     zIndex: 10,
-  },
-  floatingRoundBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  searchBar: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    height: 44,
-    marginLeft: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  searchInput: {
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  mapContainer: {
     flex: 1,
-    fontSize: 13,
-    color: Colors.TitleColor,
-    fontWeight: FontWeights.medium,
+    position: 'relative',
   },
-  centerMarkerWrapper: {
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+  centerPinContainer: {
     position: 'absolute',
     top: '50%',
     left: '50%',
-    marginLeft: -20,
-    marginTop: -40,
+    marginTop: -38,
+    marginLeft: -19,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 5,
-  },
-  pinBubble: {
-    position: 'absolute',
-    top: 6,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: Colors.ButtonPrimaryColor,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 6,
-  },
-  pinIcon: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
   },
   pinShadow: {
     width: 10,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     marginTop: -2,
   },
-  recenterBtn: {
+  bottomCard: {
     position: 'absolute',
-    right: Spacing.base,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    bottom: 24,
+    left: Spacing.xl,
+    right: Spacing.xl,
     backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-    zIndex: 10,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  bottomSheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: Spacing.base,
-    paddingTop: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 10,
-    zIndex: 10,
-  },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#CBD5E1',
-    alignSelf: 'center',
-    marginBottom: 12,
-  },
-  addressInfoRow: {
+  addressHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: Spacing.lg,
   },
-  addressIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addressHeading: {
-    fontSize: 11,
-    fontWeight: FontWeights.bold,
+  addressLabel: {
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
     color: '#64748B',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  addressSubtext: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
+  addressText: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
     marginTop: 2,
+  },
+  confirmButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 52,
+  },
+  confirmButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
 });
 

@@ -1,31 +1,16 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { kBaseUrl } from '../constants';
-import { Storage } from '../utils/storage';
+import { CookieManager } from '../utils/cookies';
 
-import { Platform } from 'react-native';
-import {
-  loadCookies,
-  saveCookiesFromResponse,
-  cookieHeader,
-} from '../utils/cookies';
-
+// Standard API Response Envelope
 export interface ApiResponse<T = any> {
   response: number;
-  success: boolean | number;
+  success: boolean;
   message: string;
   data: T;
   error: string;
 }
-
-const authCookieEndpoints = [
-  'sign-in/verify-verification-code',
-  'sign-up/verify-verification-code',
-  'user/basic-info',
-  'sign-in',
-  'sign-up/guest',
-  'auth/facebook',
-  'auth/apple',
-];
 
 class ApiClient {
   private client: AxiosInstance;
@@ -44,13 +29,44 @@ class ApiClient {
 
     this.client.interceptors.request.use(
       async (config) => {
-        if (Platform.OS !== 'web') {
-          const cookies = await loadCookies();
-          if (cookies.length > 0) {
-            config.headers = config.headers ?? {};
-            config.headers.Cookie = cookieHeader(cookies);
-          }
+        config.headers = config.headers || {};
+
+        // 1. React Native does not automatically persist/send cookies.
+        // Load any cookies the server previously set and send them back.
+        const cookieHeader = await CookieManager.getCookieHeader();
+        if (cookieHeader) {
+          config.headers.Cookie = cookieHeader;
         }
+
+        // 2. Fallback Auth Header: Read auth state from AsyncStorage
+        try {
+          const authStorageStr = await AsyncStorage.getItem('auth-storage');
+          if (authStorageStr) {
+            const parsed = JSON.parse(authStorageStr);
+            const state = parsed?.state;
+            const token =
+              state?.token ||
+              state?.account?.id ||
+              state?.account?.userAccountId ||
+              state?.user?.id;
+
+            if (token) {
+              if (!config.headers.Authorization) {
+                config.headers.Authorization = `Bearer ${token}`;
+              }
+              config.headers['x-access-token'] = token;
+              config.headers['user-id'] = state?.account?.id || state?.user?.id || '';
+
+              // If Cookie header is missing or lacks session, inject token cookie
+              if (!cookieHeader) {
+                config.headers.Cookie = `sessionId=${token}; token=${token}`;
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore storage read error
+        }
+
         return config;
       },
       (error) => Promise.reject(error)
@@ -58,46 +74,26 @@ class ApiClient {
 
     this.client.interceptors.response.use(
       async (response: AxiosResponse<ApiResponse>) => {
-        // Automatically save cookies from ANY response with set-cookie
-        const setCookie = response.headers['set-cookie'];
-        if (setCookie) {
-          await saveCookiesFromResponse(setCookie);
-        }
+        // Capture session cookies (e.g. connect.sid / sessionId) from the
+        // response so they can be sent with subsequent authenticated requests.
+        await CookieManager.setCookieFromHeader(response.headers['set-cookie']);
 
         const { data } = response;
-        if (data) {
-          // Explicit business logic failure from backend
-          if (data.success === 0 || data.success === false || (data as any).status === false) {
-            const errorMsg = data.message || data.error || 'Request failed';
-            return Promise.reject(new Error(errorMsg));
-          }
 
-          // Explicit business logic success
-          if (
-            data.success === true ||
-            (data as any).success === 1 ||
-            (data as any).success === '1' ||
-            (data as any).response === 1
-          ) {
-            return { ...response, data: data.data !== undefined ? data.data : data };
-          }
+        // Fallback: some endpoints return the session identifier in the
+        // response body. Store it as a cookie so it is sent with future calls.
+        await captureSessionIdFromData(data.data);
 
-          // Direct data payload without standard envelope
-          if (data.data !== undefined) {
-            return { ...response, data: data.data };
-          }
-
-          return response;
+        if (data.success) {
+          return { ...response, data: data.data };
         }
-
-        return response;
+        // Business logic error
+        if (data.message) {
+          return Promise.reject(new Error(data.message));
+        }
+        return Promise.reject(new Error(data.error || 'Unknown error'));
       },
       (error) => {
-        const setCookie = error.response?.headers?.['set-cookie'];
-        if (setCookie) {
-          saveCookiesFromResponse(setCookie);
-        }
-
         if (error.response?.data?.message) {
           return Promise.reject(new Error(error.response.data.message));
         }
@@ -150,3 +146,21 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
+/**
+ * If the server returns the session identifier inside the response payload
+ * (e.g. `{ sessionId: "..." }`) instead of a `Set-Cookie` header, store it
+ * as a cookie so it is sent with every subsequent request.
+ */
+async function captureSessionIdFromData(data: any): Promise<void> {
+  if (!data || typeof data !== 'object') return;
+
+  const sessionIdFields = ['sessionId', 'sessionID', 'session_id', 'sid', 'token'];
+  for (const field of sessionIdFields) {
+    const value = data[field];
+    if (value && typeof value === 'string') {
+      await CookieManager.setCookieFromHeader(`${field}=${value}`);
+      return;
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -7,187 +8,208 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Linking,
-  TextInput,
   StatusBar,
+  Linking,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { DrawerActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { Header, Button } from '../../components';
+import { VTButton, VTTextField, VTLoading } from '../../components/common';
 import { ProfileApi } from '../../api';
-import Toast from 'react-native-toast-message';
+import { useApi } from '../../hooks';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'ContactSupport'>;
 };
 
-const CATEGORIES = [
-  'Booking Issue',
-  'Payment & Refund',
-  'Stylist Feedback',
-  'Account Settings',
-  'General Inquiry',
-];
-
 const ContactSupportScreen: React.FC<Props> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
-  const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
   const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
+  const { loading, execute: sendMessage } = useApi(ProfileApi.contactSupport);
 
-  const handleSubmit = async () => {
-    if (!message.trim()) {
+  const handleCallPhone = async () => {
+    const phoneNumber = 'tel:+18005550199';
+    try {
+      const supported = await Linking.canOpenURL(phoneNumber);
+      if (supported) {
+        await Linking.openURL(phoneNumber);
+      } else {
+        Toast.show({
+          type: 'info',
+          text1: 'Phone Dialer',
+          text2: 'Call +1 (800) 555-0199',
+        });
+      }
+    } catch (e) {
+      // Fallback
+    }
+  };
+
+  const handleOpenEmail = async () => {
+    Linking.openURL('mailto:support@hairlines.app');
+  };
+
+  const handleOpenSocial = (url: string) => {
+    Linking.openURL(url).catch(() => {
       Toast.show({
         type: 'error',
-        text1: 'Message Required',
-        text2: 'Please describe how our support team can assist you.',
+        text1: 'Could not open link',
       });
-      return;
-    }
+    });
+  };
+
+  const handleSubmit = async () => {
+    if (!message.trim()) return;
 
     try {
-      setSending(true);
-      const fullMessage = `[Category: ${selectedCategory}]\n${message.trim()}`;
-      await ProfileApi.contactSupport(fullMessage);
+      await sendMessage(message.trim());
       Toast.show({
         type: 'success',
         text1: 'Message Sent!',
-        text2: 'Our customer care team will reply to your registered email shortly.',
+        text2: 'Our customer support team will reply shortly.',
       });
       setMessage('');
     } catch (error: any) {
       Toast.show({
         type: 'error',
         text1: 'Failed to Send',
-        text2: error.message || 'Please check your connection and try again.',
+        text2: error.message || 'Please try again later.',
       });
-    } finally {
-      setSending(false);
     }
   };
 
-  const handleEmailDirect = () => {
-    Linking.openURL('mailto:support@hairlines.app?subject=Customer%20App%20Support');
-  };
-
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-      {/* Header */}
-      <Header
-        title="Contact Support"
-        left={
-          <TouchableOpacity
-            style={styles.headerBtn}
-            onPress={() => {
-              if ((navigation as any).openDrawer) {
-                (navigation as any).openDrawer();
-              } else if ((navigation.getParent() as any)?.openDrawer) {
-                (navigation.getParent() as any).openDrawer();
-              } else {
-                navigation.dispatch(DrawerActions.openDrawer());
-              }
-            }}
-          >
-            <Ionicons name="menu" size={26} color={Colors.TitleColor} />
-          </TouchableOpacity>
-        }
-      />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
       >
+        {/* Header Bar */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => (navigation as any).openDrawer?.()}
+            style={styles.menuButton}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="menu" size={24} color="#0F172A" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Contact Support</Text>
+          <View style={{ width: 44 }} />
+        </View>
+
         <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: Math.max(insets.bottom, 16) + 30 }
-          ]}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Support Hero Card */}
-          <View style={styles.heroCard}>
-            <View style={styles.heroIconCircle}>
-              <Ionicons name="headset" size={32} color={Colors.ButtonPrimaryColor} />
+          {/* Support Info Card */}
+          <View style={styles.infoCard}>
+            <View style={styles.supportIconCircle}>
+              <Ionicons name="headset" size={28} color={Colors.ButtonPrimaryColor} />
             </View>
-            <Text style={styles.heroTitle}>How can we help you today?</Text>
-            <Text style={styles.heroSub}>
-              Our dedicated support team is here to assist with any questions about your bookings, stylists, or account.
+            <Text style={styles.infoTitle}>We're Here to Help</Text>
+            <Text style={styles.infoDesc}>
+              Have questions regarding your booking, payment, or account? Reach out to our dedicated support team.
             </Text>
+
+            {/* Support Hours Banner */}
+            <View style={styles.hoursBanner}>
+              <Ionicons name="time-outline" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 6 }} />
+              <Text style={styles.hoursText}>
+                Support Hours: <Text style={styles.hoursBold}>6:00 AM to 12:00 AM</Text> (Daily)
+              </Text>
+            </View>
           </View>
 
-          {/* Direct Channels */}
-          <View style={styles.channelRow}>
-            <TouchableOpacity style={styles.channelBtn} onPress={handleEmailDirect} activeOpacity={0.8}>
-              <Ionicons name="mail-outline" size={20} color={Colors.ButtonPrimaryColor} />
-              <Text style={styles.channelBtnTitle}>Email Support</Text>
-              <Text style={styles.channelBtnSub}>support@hairlines.app</Text>
-            </TouchableOpacity>
-
+          {/* Quick Contact Chips */}
+          <View style={styles.contactRow}>
             <TouchableOpacity
-              style={styles.channelBtn}
-              onPress={() => Linking.openURL('tel:18005550199')}
+              style={styles.contactChip}
+              onPress={handleOpenEmail}
               activeOpacity={0.8}
             >
-              <Ionicons name="call-outline" size={20} color="#059669" />
-              <Text style={styles.channelBtnTitle}>Phone Line</Text>
-              <Text style={styles.channelBtnSub}>1-800-HAIRLINES</Text>
+              <Ionicons name="mail-outline" size={18} color={Colors.ButtonPrimaryColor} style={{ marginRight: 6 }} />
+              <Text style={styles.contactChipText}>Email Us</Text>
+            </TouchableOpacity>
+
+            {/* Phone Number Chip (Opens Phone Dialer) */}
+            <TouchableOpacity
+              style={styles.contactChipPrimary}
+              onPress={handleCallPhone}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="call" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.contactChipTextPrimary}>1-800-HAIRLINES</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Form Card */}
-          <View style={styles.formCard}>
-            <Text style={styles.formSectionTitle}>Topic or Category</Text>
-            <View style={styles.categoriesWrap}>
-              {CATEGORIES.map((cat) => {
-                const isSelected = selectedCategory === cat;
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.catChip, isSelected && styles.catChipActive]}
-                    onPress={() => setSelectedCategory(cat)}
-                  >
-                    <Text style={[styles.catChipText, isSelected && styles.catChipTextActive]}>
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+          {/* Follow Us on Social Media Section */}
+          <Text style={styles.sectionLabel}>FOLLOW US ON SOCIAL MEDIA</Text>
 
-            <Text style={[styles.formSectionTitle, { marginTop: 16 }]}>Your Message</Text>
-            <View style={styles.textAreaContainer}>
-              <TextInput
-                style={styles.textArea}
-                placeholder="Describe your question, issue, or feedback in detail..."
-                placeholderTextColor="#94A3B8"
-                value={message}
-                onChangeText={setMessage}
-                multiline
-                numberOfLines={5}
-                textAlignVertical="top"
-              />
-            </View>
+          <View style={styles.socialRow}>
+            {/* Facebook */}
+            <TouchableOpacity
+              style={styles.socialCard}
+              onPress={() => handleOpenSocial('https://facebook.com/hairlinesapp')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="logo-facebook" size={22} color="#1877F2" />
+              <Text style={styles.socialText}>Facebook</Text>
+            </TouchableOpacity>
 
-            <View style={{ marginTop: 20 }}>
-              <Button
-                title="Send Message"
-                onPress={handleSubmit}
-                loading={sending}
-                disabled={!message.trim()}
-              />
-            </View>
+            {/* Instagram */}
+            <TouchableOpacity
+              style={styles.socialCard}
+              onPress={() => handleOpenSocial('https://instagram.com/hairlinesapp')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="logo-instagram" size={22} color="#E4405F" />
+              <Text style={styles.socialText}>Instagram</Text>
+            </TouchableOpacity>
+
+            {/* Twitter / X */}
+            <TouchableOpacity
+              style={styles.socialCard}
+              onPress={() => handleOpenSocial('https://x.com/hairlinesapp')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="logo-twitter" size={22} color="#0F172A" />
+              <Text style={styles.socialText}>Twitter / X</Text>
+            </TouchableOpacity>
           </View>
+
+          {/* Form */}
+          <Text style={styles.sectionLabel}>SEND US A DIRECT MESSAGE</Text>
+
+          <VTTextField
+            label="Your Message"
+            placeholder="Type your inquiry or issue details here..."
+            value={message}
+            onChangeText={setMessage}
+            multiline
+            numberOfLines={6}
+            style={styles.messageInput}
+            inputStyle={styles.messageInputText}
+          />
+
+          <VTButton
+            title="Submit Support Request"
+            onPress={handleSubmit}
+            loading={loading}
+            disabled={!message.trim()}
+            style={styles.sendButton}
+            textStyle={styles.sendButtonText}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+
+      <VTLoading visible={loading} />
+    </SafeAreaView>
   );
 };
 
@@ -196,122 +218,179 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  keyboardView: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollContent: {
-    padding: Spacing.base,
-    paddingBottom: 40,
-  },
-  heroCard: {
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  heroIconCircle: {
+  headerTitle: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
+  },
+  infoCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  supportIconCircle: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
-    alignItems: 'center',
+    backgroundColor: '#EEF4FF',
     justifyContent: 'center',
-    marginBottom: 12,
+    alignItems: 'center',
+    marginBottom: Spacing.md,
   },
-  heroTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: '800',
-    color: Colors.TitleColor,
-    marginBottom: 6,
+  infoTitle: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+    marginBottom: Spacing.xs,
   },
-  heroSub: {
-    fontSize: 13,
+  infoDesc: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
+    marginBottom: Spacing.md,
   },
-  channelRow: {
+  hoursBanner: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 14,
-  },
-  channelBtn: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
     alignItems: 'center',
-  },
-  channelBtnTitle: {
-    fontSize: 13,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
-    marginTop: 6,
-  },
-  channelBtnSub: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  formCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.base,
+    backgroundColor: '#EEF4FF',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: 'rgba(34, 45, 99, 0.15)',
   },
-  formSectionTitle: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
-    marginBottom: 10,
+  hoursText: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#334155',
   },
-  categoriesWrap: {
+  hoursBold: {
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  contactRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
   },
-  catChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: BorderRadius.sm,
+  contactChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
   },
-  catChipActive: {
+  contactChipPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: Colors.ButtonPrimaryColor,
-    borderColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
   },
-  catChipText: {
-    fontSize: 12,
-    fontWeight: FontWeights.semibold,
-    color: '#475569',
+  contactChipText: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
   },
-  catChipTextActive: {
+  contactChipTextPrimary: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
     color: '#FFFFFF',
-    fontWeight: FontWeights.bold,
   },
-  textAreaContainer: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: BorderRadius.sm,
+  sectionLabel: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginBottom: Spacing.sm,
+    letterSpacing: 0.5,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
+  },
+  socialCard: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    paddingVertical: Spacing.md,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    padding: 12,
+    borderColor: '#E2E8F0',
   },
-  textArea: {
-    fontSize: 13,
-    color: Colors.TitleColor,
-    minHeight: 100,
+  socialText: {
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginTop: 4,
+  },
+  messageInput: {
+    marginBottom: Spacing.lg,
+  },
+  messageInputText: {
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+  sendButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 54,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  sendButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
 });
 

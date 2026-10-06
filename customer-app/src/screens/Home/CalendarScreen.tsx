@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -7,17 +8,18 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
+import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { Header, Button } from '../../components';
+import { VTButton } from '../../components/common';
 import { useJobStore } from '../../store';
-import Toast from 'react-native-toast-message';
+
+import { parseDate } from '../../utils/helpers';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Calendar'>;
@@ -27,94 +29,72 @@ const TIME_SLOTS = [
   '09:00 AM',
   '10:00 AM',
   '11:00 AM',
-  '12:00 PM',
-  '01:00 PM',
+  '12:30 PM',
   '02:00 PM',
-  '03:00 PM',
-  '04:00 PM',
+  '03:30 PM',
   '05:00 PM',
-  '06:00 PM',
-  '07:00 PM',
-  '08:00 PM',
+  '06:30 PM',
 ];
 
 const CalendarScreen: React.FC<Props> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { createJob, setCreateJobField } = useJobStore();
-
   const todayStr = new Date().toISOString().split('T')[0];
-  const [selectedDate, setSelectedDate] = useState<string>(
-    createJob.jobStartTime ? new Date(createJob.jobStartTime).toISOString().split('T')[0] : todayStr
-  );
-  const [selectedTime, setSelectedTime] = useState<string>('10:00 AM');
+
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [selectedTime, setSelectedTime] = useState('10:00 AM');
 
   const handleConfirm = () => {
-    if (!selectedDate) {
+    if (!selectedDate || !selectedTime) {
       Toast.show({
         type: 'error',
-        text1: 'Date Required',
-        text2: 'Please pick an appointment date',
+        text1: 'Select Date & Time',
+        text2: 'Please pick a booking date and time slot.',
       });
       return;
     }
 
-    // Combine date + time
-    const [time, modifier] = selectedTime.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-    if (modifier === 'PM' && hours < 12) hours += 12;
-    if (modifier === 'AM' && hours === 12) hours = 0;
+    const fullDateStr = `${selectedDate} ${selectedTime}`;
+    const parsedObj = parseDate(fullDateStr) || parseDate(selectedDate);
+    const weekDay = parsedObj
+      ? parsedObj.toLocaleDateString('en-US', { weekday: 'long' })
+      : 'Monday';
 
-    const [year, month, day] = selectedDate.split('-').map(Number);
-    const combinedDate = new Date(year, month - 1, day, hours, minutes, 0);
-
-    const now = new Date();
-    if (combinedDate.getTime() < now.getTime() - 60000) {
-      Toast.show({
-        type: 'error',
-        text1: 'Invalid Time',
-        text2: 'Please select a future appointment time',
-      });
-      return;
-    }
-
-    setCreateJobField('jobStartTime', combinedDate.toISOString());
-
-    // Match iOS: weekDay = getDayOfWeekFC() - 1 (0-based, Sunday=0)
-    const weekDay = combinedDate.getDay(); // 0=Sun, 1=Mon, … 6=Sat
+    setCreateJobField('jobStartTime', fullDateStr);
     setCreateJobField('weekDay', weekDay);
-
-    // Match iOS: TimeZone.current string e.g. "America/New_York"
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    setCreateJobField('timeZone', timeZone);
 
     Toast.show({
       type: 'success',
-      text1: 'Date & Time Scheduled',
+      text1: 'Schedule Saved',
+      text2: `${selectedDate} at ${selectedTime}`,
     });
     navigation.goBack();
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-      {/* Header */}
-      <Header title="Schedule Appointment" onBackPress={() => navigation.goBack()} />
+      {/* Top Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+        </TouchableOpacity>
+        <Text style={styles.title}>Select Date & Time</Text>
+        <View style={{ width: 44 }} />
+      </View>
 
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: 80 + Math.max(insets.bottom, 16) }
-        ]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Calendar Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="calendar-outline" size={20} color={Colors.ButtonPrimaryColor} />
-            <Text style={styles.cardTitle}>Select Date</Text>
-          </View>
+        <Text style={styles.subtitle}>Choose when you need the service</Text>
 
+        {/* Calendar Picker Card */}
+        <View style={styles.calendarCard}>
           <Calendar
             current={selectedDate}
             minDate={todayStr}
@@ -122,6 +102,7 @@ const CalendarScreen: React.FC<Props> = ({ navigation }) => {
             markedDates={{
               [selectedDate]: {
                 selected: true,
+                disableTouchEvent: true,
                 selectedColor: Colors.ButtonPrimaryColor,
                 selectedTextColor: '#FFFFFF',
               },
@@ -131,42 +112,39 @@ const CalendarScreen: React.FC<Props> = ({ navigation }) => {
               calendarBackground: '#FFFFFF',
               textSectionTitleColor: '#64748B',
               selectedDayBackgroundColor: Colors.ButtonPrimaryColor,
-              selectedDayTextColor: '#ffffff',
+              selectedDayTextColor: '#FFFFFF',
               todayTextColor: Colors.ButtonPrimaryColor,
-              dayTextColor: '#1E293B',
+              dayTextColor: '#0F172A',
               textDisabledColor: '#CBD5E1',
               arrowColor: Colors.ButtonPrimaryColor,
-              monthTextColor: Colors.TitleColor,
-              textDayFontWeight: '600',
-              textMonthFontWeight: '800',
-              textDayHeaderFontWeight: '700',
-              textDayFontSize: 14,
-              textMonthFontSize: 16,
-              textDayHeaderFontSize: 12,
+              monthTextColor: '#0F172A',
+              textDayFontFamily: Fonts.uberMoveMedium,
+              textMonthFontFamily: Fonts.uberMoveBold,
+              textDayHeaderFontFamily: Fonts.uberMoveBold,
             }}
-            style={styles.calendarWidget}
           />
         </View>
 
-        {/* Time Slot Picker */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="time-outline" size={20} color={Colors.ButtonPrimaryColor} />
-            <Text style={styles.cardTitle}>Select Time Slot</Text>
-          </View>
-          <Text style={styles.cardSubtitle}>Available starting times for stylists</Text>
-
-          <View style={styles.timeSlotsGrid}>
+        {/* Available Time Slots */}
+        <View style={styles.timeSection}>
+          <Text style={styles.sectionLabel}>AVAILABLE TIME SLOTS</Text>
+          <View style={styles.timeGrid}>
             {TIME_SLOTS.map((slot) => {
               const isSelected = selectedTime === slot;
               return (
                 <TouchableOpacity
                   key={slot}
-                  style={[styles.slotPill, isSelected && styles.slotPillActive]}
+                  style={[styles.timeChip, isSelected && styles.timeChipActive]}
                   onPress={() => setSelectedTime(slot)}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.slotText, isSelected && styles.slotTextActive]}>
+                  <Ionicons
+                    name="time-outline"
+                    size={16}
+                    color={isSelected ? '#FFFFFF' : '#64748B'}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={[styles.timeText, isSelected && styles.timeTextActive]}>
                     {slot}
                   </Text>
                 </TouchableOpacity>
@@ -174,16 +152,27 @@ const CalendarScreen: React.FC<Props> = ({ navigation }) => {
             })}
           </View>
         </View>
-      </ScrollView>
 
-      {/* Footer */}
-      <View style={[styles.footerBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <Button
-          title={`Confirm ${selectedDate} at ${selectedTime}`}
+        {/* Selected Summary Card */}
+        <View style={styles.summaryCard}>
+          <Ionicons name="calendar-outline" size={24} color={Colors.ButtonPrimaryColor} style={{ marginRight: 12 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.summaryLabel}>Selected Appointment</Text>
+            <Text style={styles.summaryValue}>
+              {selectedDate} • {selectedTime}
+            </Text>
+          </View>
+        </View>
+
+        {/* Confirm Button */}
+        <VTButton
+          title="Confirm Schedule"
           onPress={handleConfirm}
+          style={styles.confirmButton}
+          textStyle={styles.confirmButtonText}
         />
-      </View>
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -192,76 +181,135 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  scrollContent: {
-    padding: Spacing.base,
-    paddingBottom: 100,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.base,
-    marginBottom: Spacing.base,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  cardHeader: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  cardTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
-    marginLeft: 8,
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  cardSubtitle: {
-    fontSize: 13,
+  title: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  subtitle: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
-    marginBottom: 14,
+    marginBottom: Spacing.lg,
   },
-  calendarWidget: {
-    borderRadius: BorderRadius.sm,
-    overflow: 'hidden',
+  scrollContent: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
   },
-  timeSlotsGrid: {
+  calendarCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.sm,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  timeSection: {
+    marginBottom: Spacing.xl,
+  },
+  sectionLabel: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginBottom: Spacing.md,
+    letterSpacing: 0.5,
+  },
+  timeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: Spacing.sm,
   },
-  slotPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+  timeChip: {
+    width: '48%',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: '29%',
+    backgroundColor: '#FFFFFF',
+    height: 48,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  slotPillActive: {
+  timeChipActive: {
     backgroundColor: Colors.ButtonPrimaryColor,
     borderColor: Colors.ButtonPrimaryColor,
   },
-  slotText: {
-    fontSize: 13,
-    fontWeight: FontWeights.semibold,
-    color: '#475569',
+  timeText: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveMedium,
+    color: '#334155',
   },
-  slotTextActive: {
+  timeTextActive: {
     color: '#FFFFFF',
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
   },
-  footerBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    padding: Spacing.base,
+  summaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF4FF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 45, 99, 0.15)',
+  },
+  summaryLabel: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#64748B',
+    textTransform: 'uppercase',
+  },
+  summaryValue: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+    marginTop: 2,
+  },
+  confirmButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 54,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  confirmButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
 });
 

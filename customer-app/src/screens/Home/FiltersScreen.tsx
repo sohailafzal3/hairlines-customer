@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -7,228 +8,217 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Slider } from '@miblanchard/react-native-slider';
+import Toast from 'react-native-toast-message';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
 import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { Header, Button } from '../../components';
-import { useJobStore } from '../../store';
-import Toast from 'react-native-toast-message';
+import { VTButton } from '../../components/common';
+import { useJobStore, useUserStore } from '../../store';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Filters'>;
 };
 
+const RATING_OPTIONS = [
+  { label: 'Any Rating', value: 0 },
+  { label: '3.5 ★ & above', value: 3.5 },
+  { label: '4.0 ★ & above', value: 4.0 },
+  { label: '4.5 ★ & above', value: 4.5 },
+];
+
+const DISTANCE_OPTIONS = [
+  { label: '5 miles', value: 5 },
+  { label: '10 miles', value: 10 },
+  { label: '25 miles', value: 25 },
+  { label: '50+ miles', value: 50 },
+];
+
+const GENDER_OPTIONS = [
+  { label: 'Any Barber', value: 'any' },
+  { label: 'Male', value: 'male' },
+  { label: 'Female', value: 'female' },
+];
+
+const LOCATION_OPTIONS = [
+  { label: 'At My Location (Mobile)', key: 'user' },
+  { label: "At Barber's Salon", key: 'sp' },
+  { label: 'Both Options', key: 'both' },
+];
+
 const FiltersScreen: React.FC<Props> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
-  const { createJob, setCreateJob } = useJobStore();
+  const { createJob, setCreateJobField } = useJobStore();
+  const { filters, setFilters } = useUserStore();
 
-  // Gender: 0 = Both, 1 = Male, 2 = Female
-  const [selectedGender, setSelectedGender] = useState<number>(
-    createJob.barberGender === 'male' || (createJob.barberGender as any) === 1
-      ? 1
-      : createJob.barberGender === 'female' || (createJob.barberGender as any) === 2
-      ? 2
-      : 0
-  );
+  const [minRating, setMinRating] = useState<number>(createJob?.minRating || 0);
+  const [distance, setDistance] = useState<number>(createJob?.distance || 25);
+  const [barberGender, setBarberGender] = useState<string>(createJob?.barberGender || 'any');
+  const [locationType, setLocationType] = useState<string>('both');
 
-  // Distance in miles (0 to 50)
-  const [distance, setDistance] = useState<number>(
-    createJob.distance && createJob.distance > 0 ? createJob.distance : 25
-  );
+  const handleApplyFilters = () => {
+    setCreateJobField('minRating', minRating);
+    setCreateJobField('distance', distance);
+    setCreateJobField('barberGender', barberGender);
+    setCreateJobField('isFilterApplied', true);
 
-  // Minimum rating (0 to 5)
-  const [minRating, setMinRating] = useState<number>(
-    createJob.minRating && createJob.minRating > 0 ? createJob.minRating : 0
-  );
-
-  const handleApply = () => {
-    setCreateJob({
-      barberGender: selectedGender === 1 ? 'male' : selectedGender === 2 ? 'female' : 'any',
-      distance: distance,
-      minRating: minRating,
-      maxRating: 5.0,
-      isFilterApplied: true,
+    setFilters({
+      minAge: 18,
+      maxAge: 65,
+      distance,
     });
 
     Toast.show({
       type: 'success',
       text1: 'Filters Applied',
-      text2: 'Stylist results have been updated',
+      text2: 'Search results updated with your preferences.',
     });
-
     navigation.goBack();
   };
 
-  const handleClearAll = () => {
-    setSelectedGender(0);
-    setDistance(25);
+  const handleReset = () => {
     setMinRating(0);
-
-    setCreateJob({
-      barberGender: 'any',
-      distance: 0,
-      minRating: 0,
-      maxRating: 5.0,
-      isFilterApplied: false,
-    });
+    setDistance(25);
+    setBarberGender('any');
+    setLocationType('both');
+    setCreateJobField('isFilterApplied', false);
+    setFilters(null);
 
     Toast.show({
       type: 'info',
       text1: 'Filters Reset',
     });
-
-    navigation.goBack();
   };
 
-  const ratingOptions = [
-    { label: 'All Ratings', value: 0 },
-    { label: '3.5 ★ & above', value: 3.5 },
-    { label: '4.0 ★ & above', value: 4.0 },
-    { label: '4.5 ★ & above', value: 4.5 },
-    { label: '5.0 ★ Only', value: 5.0 },
-  ];
-
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-      {/* Header */}
-      <Header
-        title="Filter Stylists"
-        onBackPress={() => navigation.goBack()}
-        right={
-          <TouchableOpacity onPress={handleClearAll} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={styles.resetText}>Reset</Text>
-          </TouchableOpacity>
-        }
-      />
+      {/* Header Bar */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+        </TouchableOpacity>
+        <Text style={styles.title}>Filter Professionals</Text>
+        <TouchableOpacity onPress={handleReset} style={styles.resetTouch}>
+          <Text style={styles.resetText}>Reset</Text>
+        </TouchableOpacity>
+      </View>
 
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: 80 + Math.max(insets.bottom, 16) }
-        ]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Gender Preference */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="people-outline" size={20} color={Colors.ButtonPrimaryColor} />
-            <Text style={styles.sectionTitle}>Stylist Gender</Text>
-          </View>
-          <Text style={styles.sectionSubtitle}>Select your preferred service provider gender</Text>
+        <Text style={styles.subtitle}>Customize your service provider search</Text>
 
-          <View style={styles.genderRow}>
-            {[
-              { label: 'Both / Any', value: 0, icon: 'people' },
-              { label: 'Male', value: 1, icon: 'man' },
-              { label: 'Female', value: 2, icon: 'woman' },
-            ].map((item) => {
-              const isSelected = selectedGender === item.value;
-              return (
-                <TouchableOpacity
-                  key={item.value}
-                  style={[styles.genderCard, isSelected && styles.genderCardActive]}
-                  onPress={() => setSelectedGender(item.value)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name={item.icon as any}
-                    size={22}
-                    color={isSelected ? Colors.ButtonPrimaryColor : '#64748B'}
-                  />
-                  <Text style={[styles.genderLabel, isSelected && styles.genderLabelActive]}>
-                    {item.label}
-                  </Text>
-                  {isSelected && (
-                    <View style={styles.checkBadge}>
-                      <Ionicons name="checkmark-circle" size={16} color={Colors.ButtonPrimaryColor} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Distance Range */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="navigate-outline" size={20} color={Colors.ButtonPrimaryColor} />
-            <Text style={styles.sectionTitle}>Maximum Distance</Text>
-          </View>
-          <View style={styles.distanceValueRow}>
-            <Text style={styles.sectionSubtitle}>Show stylists within radius</Text>
-            <View style={styles.distanceBadge}>
-              <Text style={styles.distanceBadgeText}>{Math.round(distance)} miles</Text>
-            </View>
-          </View>
-
-          <View style={styles.sliderWrapper}>
-            <Slider
-              value={distance}
-              onValueChange={(val: any) => setDistance(Array.isArray(val) ? val[0] : val)}
-              minimumValue={1}
-              maximumValue={50}
-              step={1}
-              minimumTrackTintColor={Colors.ButtonPrimaryColor}
-              maximumTrackTintColor="#E2E8F0"
-              thumbTintColor={Colors.ButtonPrimaryColor}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderMinMax}>1 mi</Text>
-              <Text style={styles.sliderMinMax}>25 mi</Text>
-              <Text style={styles.sliderMinMax}>50 mi</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Minimum Rating */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="star-outline" size={20} color={Colors.ButtonPrimaryColor} />
-            <Text style={styles.sectionTitle}>Minimum Rating</Text>
-          </View>
-          <Text style={styles.sectionSubtitle}>Filter by customer satisfaction score</Text>
-
-          <View style={styles.ratingChipsContainer}>
-            {ratingOptions.map((opt) => {
-              const isSelected = minRating === opt.value;
+        {/* 1. Rating Filter */}
+        <View style={styles.filterSection}>
+          <Text style={styles.sectionTitle}>Minimum Rating</Text>
+          <View style={styles.chipRow}>
+            {RATING_OPTIONS.map((opt) => {
+              const isActive = minRating === opt.value;
               return (
                 <TouchableOpacity
                   key={opt.value}
-                  style={[styles.ratingChip, isSelected && styles.ratingChipActive]}
+                  style={[styles.chip, isActive && styles.chipActive]}
                   onPress={() => setMinRating(opt.value)}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.ratingChipText, isSelected && styles.ratingChipTextActive]}>
+                  <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
                     {opt.label}
                   </Text>
-                  {isSelected && (
-                    <Ionicons
-                      name="checkmark"
-                      size={14}
-                      color="#FFFFFF"
-                      style={{ marginLeft: 6 }}
-                    />
-                  )}
                 </TouchableOpacity>
               );
             })}
           </View>
         </View>
-      </ScrollView>
 
-      {/* Footer Buttons */}
-      <View style={[styles.footerBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <Button title="Apply Filters" onPress={handleApply} />
-      </View>
-    </View>
+        {/* 2. Distance Radius Filter */}
+        <View style={styles.filterSection}>
+          <Text style={styles.sectionTitle}>Maximum Distance</Text>
+          <View style={styles.chipRow}>
+            {DISTANCE_OPTIONS.map((opt) => {
+              const isActive = distance === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.chip, isActive && styles.chipActive]}
+                  onPress={() => setDistance(opt.value)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* 3. Provider Gender Preference */}
+        <View style={styles.filterSection}>
+          <Text style={styles.sectionTitle}>Provider Gender</Text>
+          <View style={styles.chipRow}>
+            {GENDER_OPTIONS.map((opt) => {
+              const isActive = barberGender === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.chip, isActive && styles.chipActive]}
+                  onPress={() => setBarberGender(opt.value)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* 4. Service Location Mode */}
+        <View style={styles.filterSection}>
+          <Text style={styles.sectionTitle}>Service Location Preference</Text>
+          <View style={styles.columnStack}>
+            {LOCATION_OPTIONS.map((opt) => {
+              const isActive = locationType === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.locationCard, isActive && styles.locationCardActive]}
+                  onPress={() => setLocationType(opt.key)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={isActive ? 'radio-button-on' : 'radio-button-off'}
+                    size={20}
+                    color={isActive ? Colors.ButtonPrimaryColor : '#94A3B8'}
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text style={[styles.locationCardText, isActive && styles.locationCardTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Apply Button */}
+        <VTButton
+          title="Apply Filters"
+          onPress={handleApplyFilters}
+          style={styles.applyButton}
+          textStyle={styles.applyButtonText}
+        />
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -237,141 +227,128 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  title: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  resetTouch: {
+    padding: 6,
+  },
   resetText: {
     fontSize: FontSizes.sm,
-    fontWeight: FontWeights.bold,
-    color: '#DC2626',
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
   },
   scrollContent: {
-    padding: Spacing.base,
-    paddingBottom: 100,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
   },
-  sectionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.base,
-    marginBottom: Spacing.base,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  subtitle: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#64748B',
+    marginBottom: Spacing.xl,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
+  filterSection: {
+    marginBottom: Spacing.xl,
   },
   sectionTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
-    marginLeft: 8,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginBottom: Spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  sectionSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    marginBottom: 16,
-  },
-  genderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  genderCard: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-    position: 'relative',
-  },
-  genderCardActive: {
-    borderColor: Colors.ButtonPrimaryColor,
-    backgroundColor: `${Colors.ButtonPrimaryColor}0C`,
-  },
-  genderLabel: {
-    fontSize: 13,
-    fontWeight: FontWeights.semibold,
-    color: '#475569',
-    marginTop: 6,
-  },
-  genderLabelActive: {
-    color: Colors.ButtonPrimaryColor,
-    fontWeight: FontWeights.bold,
-  },
-  checkBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-  },
-  distanceValueRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  distanceBadge: {
-    backgroundColor: `${Colors.ButtonPrimaryColor}14`,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  distanceBadgeText: {
-    fontSize: 13,
-    fontWeight: FontWeights.bold,
-    color: Colors.ButtonPrimaryColor,
-  },
-  sliderWrapper: {
-    marginTop: 10,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  sliderMinMax: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontWeight: FontWeights.medium,
-  },
-  ratingChipsContainer: {
+  chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: Spacing.sm,
   },
-  ratingChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: BorderRadius.sm,
+  chip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
   },
-  ratingChipActive: {
+  chipActive: {
     backgroundColor: Colors.ButtonPrimaryColor,
     borderColor: Colors.ButtonPrimaryColor,
   },
-  ratingChipText: {
-    fontSize: 13,
-    fontWeight: FontWeights.semibold,
-    color: '#475569',
+  chipText: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveMedium,
+    color: '#334155',
   },
-  ratingChipTextActive: {
+  chipTextActive: {
     color: '#FFFFFF',
-    fontWeight: FontWeights.bold,
+    fontFamily: Fonts.uberMoveBold,
   },
-  footerBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  columnStack: {
+    gap: Spacing.sm,
+  },
+  locationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    padding: Spacing.base,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  locationCardActive: {
+    borderColor: Colors.ButtonPrimaryColor,
+    backgroundColor: '#EEF4FF',
+  },
+  locationCardText: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveMedium,
+    color: '#334155',
+  },
+  locationCardTextActive: {
+    color: Colors.ButtonPrimaryColor,
+    fontFamily: Fonts.uberMoveBold,
+  },
+  applyButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 54,
+    marginTop: Spacing.lg,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  applyButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
 });
 

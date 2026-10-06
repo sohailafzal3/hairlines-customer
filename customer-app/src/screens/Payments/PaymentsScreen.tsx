@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -6,75 +7,80 @@ import {
   TouchableOpacity,
   FlatList,
   Alert,
-  Modal,
-  ScrollView,
-  ActivityIndicator,
   StatusBar,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { DrawerActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
-import { FontSizes, FontWeights } from '../../theme/fonts';
+import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
-import { Header, Button, Input } from '../../components';
+import { VTButton, VTLoading } from '../../components/common';
 import { PaymentsApi } from '../../api';
-import { CreditCards } from '../../models';
-import { VTLoading } from '../../components/common';
-import Toast from 'react-native-toast-message';
+import { useApi } from '../../hooks';
+import { StripeCustomer, CreditCards } from '../../models';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'Payments'>;
 };
 
-const PaymentsScreen: React.FC<Props> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
-  const [cards, setCards] = useState<CreditCards[]>([]);
-  const [loading, setLoading] = useState(true);
+const getCardIcon = (brand: string) => {
+  switch (brand?.toLowerCase()) {
+    case 'visa':
+      return 'card';
+    case 'mastercard':
+      return 'card-outline';
+    case 'amex':
+      return 'card-sharp';
+    default:
+      return 'card-outline';
+  }
+};
 
-  // Add Card Modal State
-  const [isAddCardVisible, setIsAddCardVisible] = useState(false);
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvc, setCvc] = useState('');
-  const [cardHolder, setCardHolder] = useState('');
-  const [addingCard, setAddingCard] = useState(false);
+const PaymentsScreen: React.FC<Props> = ({ navigation }) => {
+  const [customer, setCustomer] = useState<StripeCustomer | null>(null);
+
+  const {
+    data: stripeCustomer,
+    loading,
+    execute: fetchCustomer,
+  } = useApi<StripeCustomer>(PaymentsApi.fetchCustomer);
+
+  const { execute: setupCustomer } = useApi(PaymentsApi.setupCustomer);
+  const { execute: setDefaultCard, loading: settingDefault } = useApi(PaymentsApi.setDefaultCard);
+  const { execute: deleteCard, loading: deleting } = useApi(PaymentsApi.deleteCard);
 
   useEffect(() => {
-    loadCards();
+    loadCustomer();
   }, []);
 
-  const loadCards = async () => {
-    try {
-      setLoading(true);
-      const res: any = await PaymentsApi.fetchCustomer();
-      const list = res?.customer?.cards || res?.cards || [];
-      if (Array.isArray(list)) {
-        setCards(list);
-      }
-    } catch (e: any) {
-      console.log('Fetch cards error:', e);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (stripeCustomer) {
+      setCustomer(stripeCustomer);
+    }
+  }, [stripeCustomer]);
+
+  const loadCustomer = async () => {
+    const result = await fetchCustomer();
+    if (!result) {
+      await setupCustomer();
+      await fetchCustomer();
     }
   };
 
   const handleSetDefault = async (cardId: string) => {
     try {
-      await PaymentsApi.setDefaultCard(cardId);
-      Toast.show({ type: 'success', text1: 'Default Card Updated' });
-      await loadCards();
+      await setDefaultCard(cardId);
+      await loadCustomer();
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to set default card');
+      console.error('Set default error:', error.message);
     }
   };
 
   const handleDeleteCard = (cardId: string) => {
     Alert.alert(
-      'Remove Card',
-      'Are you sure you want to remove this payment card?',
+      'Remove Payment Method',
+      'Are you sure you want to remove this card?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -82,11 +88,10 @@ const PaymentsScreen: React.FC<Props> = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await PaymentsApi.deleteCard(cardId);
-              Toast.show({ type: 'success', text1: 'Card Removed' });
-              await loadCards();
+              await deleteCard(cardId);
+              await loadCustomer();
             } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to remove card');
+              console.error('Delete card error:', error.message);
             }
           },
         },
@@ -94,252 +99,87 @@ const PaymentsScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
-  const handleAddCardSubmit = async () => {
-    if (!cardNumber.trim() || !expiry.trim() || !cvc.trim()) {
-      Alert.alert('Required Fields', 'Please fill in all card details');
-      return;
-    }
-
-    try {
-      setAddingCard(true);
-      const [expMonth, expYear] = expiry.split('/').map((s) => s.trim());
-      await PaymentsApi.addCard({
-        number: cardNumber.replace(/\s+/g, ''),
-        expMonth: parseInt(expMonth, 10),
-        expYear: parseInt(expYear.length === 2 ? `20${expYear}` : expYear, 10),
-        cvc: cvc.trim(),
-        name: cardHolder.trim() || 'Cardholder',
-      });
-
-      setIsAddCardVisible(false);
-      setCardNumber('');
-      setExpiry('');
-      setCvc('');
-      setCardHolder('');
-      Toast.show({ type: 'success', text1: 'Card Added Successfully!' });
-      await loadCards();
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Could not add card');
-    } finally {
-      setAddingCard(false);
-    }
-  };
-
-  const formatCardNumberInput = (text: string) => {
-    const cleaned = text.replace(/\D/g, '').substring(0, 16);
-    const parts = [];
-    for (let i = 0; i < cleaned.length; i += 4) {
-      parts.push(cleaned.substring(i, i + 4));
-    }
-    setCardNumber(parts.join(' '));
-  };
-
-  const formatExpiryInput = (text: string) => {
-    const cleaned = text.replace(/\D/g, '').substring(0, 4);
-    if (cleaned.length >= 2) {
-      setExpiry(`${cleaned.substring(0, 2)}/${cleaned.substring(2)}`);
-    } else {
-      setExpiry(cleaned);
-    }
-  };
-
-  const renderCardItem = ({ item }: { item: CreditCards }) => {
-    const isDefault = item.isDefault || item.isDefaultCard;
-
-    return (
-      <View style={[styles.cardItem, isDefault && styles.cardItemDefault]}>
-        <View style={styles.cardHeaderRow}>
-          <View style={styles.cardBrandBadge}>
-            <Ionicons name="card" size={20} color={Colors.ButtonPrimaryColor} />
-            <Text style={styles.cardBrandText}>{item.brand || 'Card'}</Text>
-          </View>
-          {isDefault && (
-            <View style={styles.defaultPill}>
-              <Ionicons name="checkmark-circle" size={12} color="#059669" style={{ marginRight: 3 }} />
-              <Text style={styles.defaultPillText}>Default</Text>
-            </View>
-          )}
-        </View>
-
-        <Text style={styles.cardNumberText}>•••• •••• •••• {item.last4 || item.lastFour}</Text>
-
-        <View style={styles.cardFooterRow}>
-          <Text style={styles.cardExpiryText}>
-            Expires {item.expMonth || '12'}/{item.expYear ? String(item.expYear).slice(-2) : '28'}
-          </Text>
-
-          <View style={styles.cardActionsRow}>
-            {!isDefault && (
-              <TouchableOpacity
-                style={styles.setDefaultBtn}
-                onPress={() => handleSetDefault(item.cardId || (item as any).id)}
-              >
-                <Text style={styles.setDefaultBtnText}>Set Default</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={styles.deleteBtn}
-              onPress={() => handleDeleteCard(item.cardId || (item as any).id)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="trash-outline" size={18} color="#DC2626" />
-            </TouchableOpacity>
-          </View>
-        </View>
+  const renderCard = ({ item }: { item: CreditCards }) => (
+    <View style={[styles.cardItem, item.isDefaultCard && styles.cardItemDefault]}>
+      <View style={styles.cardIconCircle}>
+        <Ionicons name={getCardIcon(item.brand) as any} size={22} color={Colors.ButtonPrimaryColor} />
       </View>
-    );
-  };
+
+      <View style={styles.cardInfo}>
+        <Text style={styles.cardBrand}>{item.brand?.toUpperCase() || 'CARD'} •••• {item.lastFour}</Text>
+        <Text style={styles.cardExpiry}>Expires {item.expMonth}/{item.expYear}</Text>
+      </View>
+
+      <View style={styles.cardActions}>
+        {item.isDefaultCard ? (
+          <View style={styles.defaultBadge}>
+            <Text style={styles.defaultText}>Default</Text>
+          </View>
+        ) : (
+          <TouchableOpacity onPress={() => handleSetDefault(item.cardId)} style={styles.actionButton}>
+            <Text style={styles.actionText}>Set Default</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity onPress={() => handleDeleteCard(item.cardId)} style={styles.deleteButton}>
+          <Ionicons name="trash-outline" size={18} color="#EF4444" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const cards = customer?.cards || [];
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-      {/* Header */}
-      <Header
-        title="Payment Methods"
-        left={
-          <TouchableOpacity
-            style={styles.headerBtn}
-            onPress={() => {
-              if ((navigation as any).openDrawer) {
-                (navigation as any).openDrawer();
-              } else if ((navigation.getParent() as any)?.openDrawer) {
-                (navigation.getParent() as any).openDrawer();
-              } else {
-                navigation.dispatch(DrawerActions.openDrawer());
-              }
-            }}
-          >
-            <Ionicons name="menu" size={26} color={Colors.TitleColor} />
-          </TouchableOpacity>
-        }
-        right={
-          <TouchableOpacity
-            style={styles.headerAddBtn}
-            onPress={() => setIsAddCardVisible(true)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="add" size={24} color={Colors.ButtonPrimaryColor} />
-          </TouchableOpacity>
-        }
-      />
+      {/* Header Bar */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => (navigation as any).openDrawer?.()}
+          style={styles.menuButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="menu" size={24} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Payment Methods</Text>
+        <View style={{ width: 44 }} />
+      </View>
 
       <FlatList
         data={cards}
-        keyExtractor={(item, index) => item.cardId || `card_${index}`}
-        renderItem={renderCardItem}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: 80 + Math.max(insets.bottom, 16) }
-        ]}
+        keyExtractor={(item) => item.cardId}
+        renderItem={renderCard}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <Text style={styles.sectionTitle}>SAVED CREDIT / DEBIT CARDS</Text>
+        }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="card-outline" size={40} color="#94A3B8" />
-              </View>
-              <Text style={styles.emptyTitle}>No Saved Cards</Text>
+              <Ionicons name="card-outline" size={48} color="#CBD5E1" />
+              <Text style={styles.emptyTitle}>No payment methods saved</Text>
               <Text style={styles.emptySubtitle}>
-                Add a debit or credit card to easily book and pay for grooming appointments.
+                Add a card for fast, secure one-tap booking checkout.
               </Text>
-              <TouchableOpacity
-                style={styles.addCardEmptyBtn}
-                onPress={() => setIsAddCardVisible(true)}
-              >
-                <Ionicons name="add" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.addCardEmptyBtnText}>Add Payment Method</Text>
-              </TouchableOpacity>
             </View>
           ) : null
         }
+        ListFooterComponent={
+          <VTButton
+            title="+ Add New Card"
+            onPress={() => navigation.navigate('AddCard')}
+            disabled={cards.length >= 5}
+            style={styles.addButton}
+            textStyle={styles.addButtonText}
+          />
+        }
       />
 
-      {/* Bottom Button if cards exist */}
-      {cards.length > 0 && (
-        <View style={[styles.footerBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-          <Button
-            title="+ Add New Payment Card"
-            onPress={() => setIsAddCardVisible(true)}
-          />
-        </View>
-      )}
-
-      {/* Modal: Add New Card */}
-      <Modal
-        visible={isAddCardVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setIsAddCardVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Add Payment Card</Text>
-              <TouchableOpacity onPress={() => setIsAddCardVisible(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Input
-                label="Cardholder Name"
-                placeholder="e.g. John Doe"
-                value={cardHolder}
-                onChangeText={setCardHolder}
-                leftIcon="person-outline"
-              />
-
-              <Input
-                label="Card Number"
-                placeholder="0000 0000 0000 0000"
-                value={cardNumber}
-                onChangeText={formatCardNumberInput}
-                keyboardType="numeric"
-                maxLength={19}
-                leftIcon="card-outline"
-              />
-
-              <View style={styles.twoColRow}>
-                <View style={{ flex: 1 }}>
-                  <Input
-                    label="Expiry Date"
-                    placeholder="MM/YY"
-                    value={expiry}
-                    onChangeText={formatExpiryInput}
-                    keyboardType="numeric"
-                    maxLength={5}
-                    leftIcon="calendar-outline"
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Input
-                    label="CVC / CVV"
-                    placeholder="123"
-                    value={cvc}
-                    onChangeText={(t) => setCvc(t.substring(0, 4))}
-                    keyboardType="numeric"
-                    maxLength={4}
-                    secureTextEntry
-                    leftIcon="lock-closed-outline"
-                  />
-                </View>
-              </View>
-
-              <View style={{ marginTop: 20 }}>
-                <Button
-                  title="Save Card"
-                  onPress={handleAddCardSubmit}
-                  loading={addingCard}
-                />
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      <VTLoading visible={loading} />
-    </View>
+      <VTLoading visible={loading || settingDefault || deleting} />
+    </SafeAreaView>
   );
 };
 
@@ -348,188 +188,150 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerAddBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listContent: {
-    padding: Spacing.base,
-    paddingBottom: 100,
-  },
-  cardItem: {
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.md,
-    padding: 18,
-    marginBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
+  },
+  headerTitle: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  listContent: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
+  },
+  sectionTitle: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginBottom: Spacing.md,
+    letterSpacing: 0.5,
+  },
+  cardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md + 2,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 1,
   },
   cardItemDefault: {
     borderColor: Colors.ButtonPrimaryColor,
-    borderWidth: 1.5,
+    backgroundColor: '#EEF4FF',
   },
-  cardHeaderRow: {
-    flexDirection: 'row',
+  cardIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    marginRight: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  cardBrandBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  cardInfo: {
+    flex: 1,
   },
-  cardBrandText: {
-    fontSize: 14,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
-    marginLeft: 6,
-    textTransform: 'capitalize',
+  cardBrand: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
   },
-  defaultPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  defaultPillText: {
-    fontSize: 11,
-    fontWeight: FontWeights.bold,
-    color: '#059669',
-  },
-  cardNumberText: {
-    fontSize: 18,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
-    letterSpacing: 2,
-    marginBottom: 14,
-  },
-  cardFooterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F8FAFC',
-  },
-  cardExpiryText: {
-    fontSize: 12,
+  cardExpiry: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
-    fontWeight: FontWeights.medium,
+    marginTop: 2,
   },
-  cardActionsRow: {
+  cardActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.xs,
   },
-  setDefaultBtn: {
-    paddingHorizontal: 10,
+  actionButton: {
     paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: `${Colors.ButtonPrimaryColor}10`,
+    paddingHorizontal: Spacing.sm,
   },
-  setDefaultBtnText: {
-    fontSize: 11,
-    fontWeight: FontWeights.bold,
+  actionText: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
   },
-  deleteBtn: {
-    padding: 4,
+  defaultBadge: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    paddingVertical: 4,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.sm,
   },
-  footerBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    padding: Spacing.base,
+  defaultText: {
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+  },
+  deleteButton: {
+    padding: 6,
+  },
+  addButton: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
+    minHeight: 54,
+    marginTop: Spacing.lg,
+    shadowColor: Colors.ButtonPrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  addButtonText: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#FFFFFF',
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 24,
-  },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    paddingVertical: Spacing['3xl'],
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.TitleColor,
-    marginBottom: 6,
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#334155',
+    marginTop: Spacing.md,
   },
   emptySubtitle: {
-    fontSize: 13,
-    color: '#64748B',
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#94A3B8',
     textAlign: 'center',
-    lineHeight: 18,
-  },
-  addCardEmptyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.ButtonPrimaryColor,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 20,
-    marginTop: 20,
-  },
-  addCardEmptyBtnText: {
-    fontSize: 13,
-    fontWeight: FontWeights.bold,
-    color: '#FFFFFF',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    maxHeight: '85%',
-  },
-  modalHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: '800',
-    color: Colors.TitleColor,
-  },
-  twoColRow: {
-    flexDirection: 'row',
-    gap: 12,
+    marginTop: 4,
+    paddingHorizontal: Spacing.xl,
   },
 });
 

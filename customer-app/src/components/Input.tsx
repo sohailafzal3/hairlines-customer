@@ -11,7 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 import { BorderRadius, Spacing } from "../theme/spacing";
-import { FontSizes, FontWeights } from "../theme/fonts";
+import { FontSizes } from "../theme/fonts";
 
 export interface InputProps extends TextInputProps {
   label?: string;
@@ -116,13 +116,13 @@ const styles = StyleSheet.create({
   container: { marginBottom: Spacing.base },
   label: {
     fontSize: FontSizes.sm,
-    fontWeight: FontWeights.medium,
+    fontWeight: '500',
     color: "#334155",
     marginBottom: Spacing.xs,
   },
   labelFocused: {
     color: Colors.ButtonPrimaryColor,
-    fontWeight: FontWeights.bold,
+    fontWeight: '700',
   },
   labelError: {
     color: Colors.errorViewColor,
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: BorderRadius.lg,
     borderWidth: 1.5,
-    borderColor: Colors.BorderColor,
+    borderColor: '#E2E8F0',
     paddingHorizontal: Spacing.md,
     minHeight: 52,
     shadowColor: "#0F172A",
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   error: {
     color: Colors.errorViewColor,
     fontSize: FontSizes.xs,
-    fontWeight: FontWeights.regular,
+    fontWeight: '400',
   },
 });
 

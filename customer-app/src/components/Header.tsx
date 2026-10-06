@@ -9,7 +9,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "../theme/colors";
-import { FontSizes, FontWeights } from "../theme/fonts";
+import { FontSizes } from "../theme/fonts";
 import { Spacing } from "../theme/spacing";
 
 interface Props {
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
     backgroundColor: Colors.BGColor,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.BorderColor,
+    borderBottomColor: '#E2E8F0',
   },
   side: { width: 44, alignItems: "flex-start", justifyContent: "center" },
   sideRight: { width: "auto", minWidth: 44, alignItems: "flex-end" },
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: "center",
     fontSize: FontSizes.lg,
-    fontWeight: FontWeights.bold,
+    fontWeight: '700',
     color: Colors.NavigationTitle,
   },
 });
