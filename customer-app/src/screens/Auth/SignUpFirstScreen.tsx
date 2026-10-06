@@ -113,14 +113,14 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
   const { account, setAccount, setLoggedIn } = useAuthStore();
 
   // Personal Info
-  const [profileImage, setProfileImage] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
+  const [profileImage, setProfileImage] = useState(account?.profileImage || '');
+  const [firstName, setFirstName] = useState(account?.firstName || account?.name?.split(' ')[0] || '');
+  const [lastName, setLastName] = useState(account?.lastName || (account?.name?.includes(' ') ? account.name.split(' ').slice(1).join(' ') : '') || '');
+  const [email, setEmail] = useState(account?.email || '');
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [disability, setDisability] = useState<number>(0);
-  const [referralCode, setReferralCode] = useState('');
+  const [referralCode, setReferralCode] = useState(account?.referralCode || '');
 
   // Address Info
   const [address, setAddress] = useState('');
