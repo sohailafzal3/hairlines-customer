@@ -17,6 +17,9 @@ import { ContactSupportScreen } from "../screens/main/settings/ContactSupportScr
 import { WorkersListScreen } from "../screens/main/workers/WorkersListScreen";
 import { CreateWorkerScreen } from "../screens/main/workers/CreateWorkerScreen";
 import { HistoryScreen } from "../screens/main/history/HistoryScreen";
+import { WorkModeScreen } from "../screens/main/workmode/WorkModeScreen";
+import { AvailabilityScreen } from "../screens/onboarding/AvailabilityScreen";
+import { CleanerAvailabilityScreen } from "../screens/main/availability/CleanerAvailabilityScreen";
 import { useUser } from "../context/UserContext";
 import { api } from "../services/api";
 import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
@@ -244,6 +247,9 @@ export function DrawerNavigator() {
       }}
     >
       <Drawer.Screen name="HomeTab" component={HomeTabNavigator} />
+      <Drawer.Screen name="WorkMode" component={WorkModeScreen} />
+      <Drawer.Screen name="Availability" component={AvailabilityScreen} />
+      <Drawer.Screen name="CleanerAvailability" component={CleanerAvailabilityScreen} />
       <Drawer.Screen name="Notifications" component={NotificationsScreen} />
       <Drawer.Screen name="Profile" component={MyProfileScreen} />
       <Drawer.Screen name="Wallet" component={WalletScreen} />
@@ -301,7 +307,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   avatarText: {
-    color: "#FFFFFF",
+    color: Colors.ButtonTextColor,
     fontSize: FontSizes.lg,
     fontWeight: FontWeights.bold,
   },
@@ -339,15 +345,17 @@ const styles = StyleSheet.create({
   proTag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#FEF9EE",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: "rgba(229, 182, 82, 0.35)",
   },
   proTagText: {
     fontSize: 9,
     fontWeight: FontWeights.bold,
-    color: Colors.ButtonPrimaryColor,
+    color: "#854D0E",
     textTransform: "uppercase",
   },
   ratingBadge: {
@@ -380,7 +388,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   menuItemActive: {
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#FEF9EE",
   },
   iconContainer: {
     width: 34,
@@ -407,7 +415,7 @@ const styles = StyleSheet.create({
   },
   menuLabelActive: {
     fontWeight: FontWeights.bold,
-    color: Colors.ButtonPrimaryColor,
+    color: "#854D0E",
   },
   badgeContainer: {
     backgroundColor: Colors.errorViewColor,

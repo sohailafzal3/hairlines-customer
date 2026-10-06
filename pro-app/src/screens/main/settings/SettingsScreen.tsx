@@ -43,10 +43,21 @@ export function SettingsScreen({ navigation }: Props) {
       sub: "Configure working days and daily hours",
       icon: "calendar-outline",
       action: () =>
-        (navigation as any).navigate("Onboarding", {
-          screen: "Availability",
-          params: { isFromSettings: true },
-        }),
+        (navigation as any).navigate("Availability", { isFromSettings: true }),
+    },
+    {
+      label: "Cleaner Availability",
+      sub: "Multi-slot shifts, schedule builder & slot toggles",
+      icon: "time-outline",
+      action: () =>
+        (navigation as any).navigate("CleanerAvailability", { isFromSettings: true }),
+    },
+    {
+      label: "Work Mode & Location",
+      sub: "Salon premises vs mobile premises mode, travel radius & online dispatch",
+      icon: "briefcase-outline",
+      action: () =>
+        (navigation as any).navigate("WorkMode", { isFromSettings: true }),
     },
     {
       label: "Tools & Equipment",

@@ -10,17 +10,18 @@ import {
   ScrollView,
   StatusBar,
   TextInput,
-  Modal,
+  Linking,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthStackParamList } from "../../navigation/types";
 import { Colors } from "../../theme/colors";
-import { FontSizes, FontWeights } from "../../theme/fonts";
+import { Fonts, FontSizes, FontWeights } from "../../theme/fonts";
 import { Spacing, BorderRadius } from "../../theme/spacing";
 import { Button } from "../../components/Button";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
 import { api } from "../../services/api";
+import { TERMS_URL, PRIVACY_URL } from "../../constants";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "SignUp">;
 
@@ -28,22 +29,10 @@ export function SignUpScreen({ route, navigation }: Props) {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [countryCode, setCountryCode] = useState(route.params?.selectedCountryCode || "+1");
   const [flagEmoji, setFlagEmoji] = useState(route.params?.selectedFlag || "🇺🇸");
-  const [isTermsAccepted, setIsTermsAccepted] = useState(true);
-  const [termsModalVisible, setTermsModalVisible] = useState(false);
-  const [termsDescription, setTermsDescription] = useState<string>("");
+  const [isTermsAccepted, setIsTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
-    api
-      .getTermsConditions()
-      .then((res) => {
-        if (res?.termAndConditionDescription) {
-          setTermsDescription(res.termAndConditionDescription);
-        }
-      })
-      .catch((e) => console.log("Failed to fetch terms:", e.message));
-  }, []);
 
   useEffect(() => {
     if (route.params?.selectedCountryCode) {
@@ -174,31 +163,36 @@ export function SignUpScreen({ route, navigation }: Props) {
                 </View>
               </View>
 
-              {/* Agreement Checkbox & Text */}
-              <View style={styles.agreementRow}>
+              {/* Terms & Marketing Consent Checkbox */}
+              <View style={styles.termsContainer}>
                 <TouchableOpacity
                   onPress={() => setIsTermsAccepted(!isTermsAccepted)}
+                  style={styles.checkboxTouch}
                   activeOpacity={0.8}
-                  style={[
-                    styles.checkbox,
-                    isTermsAccepted && styles.checkboxActive,
-                  ]}
                 >
-                  {isTermsAccepted && (
-                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                  )}
-                </TouchableOpacity>
-                <View style={styles.agreementTextWrapper}>
-                  <Text style={styles.agreementText}>
-                    I've read & agree with{" "}
-                    <Text
-                      style={styles.termsLink}
-                      onPress={() => setTermsModalVisible(true)}
-                    >
-                      Terms & Conditions.
+                  <View style={[styles.checkbox, isTermsAccepted && styles.checkboxActive]}>
+                    {isTermsAccepted && <Ionicons name="checkmark" size={14} color={Colors.ButtonTextColor} />}
+                  </View>
+                  <View style={styles.termsTextContainer}>
+                    <Text style={styles.termsNormalText}>
+                      I agree to receive promotional and personalized marketing texts at the phone number provided above. Message frequency may vary. Standard message and data rates may apply. By opting in, you also agree to our{" "}
+                      <Text
+                        onPress={() => Linking.openURL(PRIVACY_URL)}
+                        style={styles.termsLink}
+                      >
+                        Privacy Policy
+                      </Text>{" "}
+                      and{" "}
+                      <Text
+                        onPress={() => Linking.openURL(TERMS_URL)}
+                        style={styles.termsLink}
+                      >
+                        Terms
+                      </Text>{" "}
+                      and Reply STOP to opt out.
                     </Text>
-                  </Text>
-                </View>
+                  </View>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -206,10 +200,10 @@ export function SignUpScreen({ route, navigation }: Props) {
           {/* Bottom Section - Submit Button & Footer Link */}
           <View style={styles.bottomSection}>
             <Button
-              title="Continue to Sign Up"
+              title="SIGN UP NOW"
               onPress={handleSubmit}
               loading={loading}
-              disabled={phoneNumber.replace(/\D/g, "").length !== 10}
+              disabled={phoneNumber.replace(/\D/g, "").length !== 10 || !isTermsAccepted}
               style={styles.submitButton}
               textStyle={styles.submitButtonText}
             />
@@ -221,53 +215,12 @@ export function SignUpScreen({ route, navigation }: Props) {
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Text style={styles.footerLinkText}>Sign In</Text>
+                <Text style={styles.footerLinkText}>SIGN IN</Text>
               </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* Terms & Conditions Modal */}
-      <Modal
-        visible={termsModalVisible}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={() => setTermsModalVisible(false)}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Terms & Conditions</Text>
-            <TouchableOpacity
-              onPress={() => setTermsModalVisible(false)}
-              style={styles.modalCloseBtn}
-            >
-              <Ionicons name="close" size={24} color={Colors.TitleColor} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView
-            style={styles.modalScroll}
-            contentContainerStyle={styles.modalScrollContent}
-            showsVerticalScrollIndicator={true}
-          >
-            <Text style={styles.modalBodyText}>
-              {termsDescription
-                ? termsDescription.replace(/<[^>]+>/g, "").trim()
-                : "Welcome to Hairlines Pro. By registering and offering services through our platform, you agree to provide professional, safe, and quality salon/barbering services in compliance with all local regulations, maintain valid licensing and certifications, adhere to transparent appointment pricing and cancellation guidelines, and respect client confidentiality and booking agreements. All payouts are processed according to our stated fee structure."}
-            </Text>
-          </ScrollView>
-          <View style={styles.modalFooter}>
-            <Button
-              title="I Understand & Accept"
-              onPress={() => {
-                setIsTermsAccepted(true);
-                setTermsModalVisible(false);
-              }}
-              style={styles.modalAcceptBtn}
-            />
-          </View>
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -398,6 +351,45 @@ const styles = StyleSheet.create({
     color: "#0F172A",
     padding: 0,
   },
+  termsContainer: {
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  checkboxTouch: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: "#94A3B8",
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: Spacing.sm,
+    marginTop: 2,
+  },
+  checkboxActive: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderColor: Colors.ButtonPrimaryColor,
+  },
+  termsTextContainer: {
+    flex: 1,
+  },
+  termsNormalText: {
+    fontSize: 14,
+    color: "#475569",
+    lineHeight: 21,
+    fontWeight: "400",
+    textAlign: "justify",
+  },
+  termsLink: {
+    fontWeight: "bold",
+    color: "#0F172A",
+    textDecorationLine: "underline",
+  },
   bottomSection: {
     width: "100%",
     marginTop: Spacing.xl,
@@ -415,7 +407,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: FontSizes.base,
     fontWeight: FontWeights.bold,
-    color: "#FFFFFF",
+    color: Colors.ButtonTextColor,
   },
   footerRow: {
     flexDirection: "row",
@@ -431,83 +423,6 @@ const styles = StyleSheet.create({
   footerLinkText: {
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
-    color: Colors.ButtonPrimaryColor,
-  },
-  agreementRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: Spacing.md,
-    marginBottom: Spacing.xs,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: Spacing.sm,
-  },
-  checkboxActive: {
-    backgroundColor: Colors.ButtonPrimaryColor,
-    borderColor: Colors.ButtonPrimaryColor,
-  },
-  agreementTextWrapper: {
-    flex: 1,
-  },
-  agreementText: {
-    fontSize: FontSizes.sm,
-    color: "#334155",
-    lineHeight: 20,
-  },
-  termsLink: {
-    color: Colors.ButtonPrimaryColor,
-    fontWeight: FontWeights.bold,
-    textDecorationLine: "underline",
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-  },
-  modalTitle: {
-    fontSize: FontSizes.xl,
-    fontWeight: FontWeights.bold,
-    color: Colors.TitleColor,
-  },
-  modalCloseBtn: {
-    padding: Spacing.xs,
-  },
-  modalScroll: {
-    flex: 1,
-    paddingHorizontal: Spacing.xl,
-  },
-  modalScrollContent: {
-    paddingVertical: Spacing.xl,
-  },
-  modalBodyText: {
-    fontSize: FontSizes.sm,
-    color: "#475569",
-    lineHeight: 24,
-  },
-  modalFooter: {
-    padding: Spacing.xl,
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
-    backgroundColor: "#FFFFFF",
-  },
-  modalAcceptBtn: {
-    width: "100%",
-    minHeight: 52,
+    color: "#854D0E",
   },
 });

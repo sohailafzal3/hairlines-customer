@@ -4,12 +4,33 @@ import { BASE_URL, API_TIMEOUT, UploadImageType } from "../constants";
 import {
   loadCookies,
   saveCookiesFromResponse,
+  setCookieDirect,
   removeCookies,
   cookieHeader,
 } from "./cookies";
 import { storage } from "../utils/storage";
 import { StorageKeys, DEFAULT_LANGUAGE_CODE, DUMMY_DEVICE_TOKEN } from "../constants";
 import { getDeviceToken } from "./notifications";
+
+async function captureSessionIdFromData(data: any): Promise<void> {
+  if (!data || typeof data !== "object") return;
+  const sessionIdFields = [
+    "sessionId",
+    "sessionID",
+    "session_id",
+    "sid",
+    "token",
+    "connect.sid",
+  ];
+  for (const field of sessionIdFields) {
+    const value = data[field];
+    if (value && typeof value === "string") {
+      await setCookieDirect("connect.sid", value);
+      await setCookieDirect("sessionId", value);
+      return;
+    }
+  }
+}
 import {
   ApiResponse,
   Account,
@@ -34,15 +55,29 @@ import {
   TermsCondition,
 } from "../types/models";
 
-const authCookieEndpoints = [
-  "sign-in/verify-verification-code",
-  "sign-up/verify-verification-code",
-  "sp/basic-info",
-  "sign-in",
-];
-
 class ApiClient {
   private client: AxiosInstance;
+  private authToken: string = "";
+
+  setAuthToken(token: string) {
+    this.authToken = token;
+    if (token) {
+      this.client.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      this.client.defaults.headers.common["x-access-token"] = token;
+      this.client.defaults.headers.common["token"] = token;
+      setCookieDirect("connect.sid", token).catch(() => {});
+      setCookieDirect("sessionId", token).catch(() => {});
+      setCookieDirect("token", token).catch(() => {});
+    } else {
+      delete this.client.defaults.headers.common["Authorization"];
+      delete this.client.defaults.headers.common["x-access-token"];
+      delete this.client.defaults.headers.common["token"];
+    }
+  }
+
+  getAuthToken(): string {
+    return this.authToken;
+  }
 
   constructor() {
     this.client = axios.create({
@@ -60,23 +95,99 @@ class ApiClient {
         DEFAULT_LANGUAGE_CODE;
       const base = BASE_URL.endsWith("/") ? BASE_URL : `${BASE_URL}/`;
       config.baseURL = `${base}${lang}`;
-      if (Platform.OS !== "web") {
-        const cookies = await loadCookies();
-        if (cookies.length > 0) {
-          config.headers = config.headers ?? {};
-          config.headers.Cookie = cookieHeader(cookies);
+      config.headers = config.headers ?? {};
+
+      // 1. Load and attach cookies
+      const cookies = await loadCookies();
+      let headerCookie = cookieHeader(cookies);
+
+      // 2. Token auth headers (in-memory or stored user)
+      let token = this.authToken;
+      if (!token) {
+        try {
+          const user = await storage.get<any>(StorageKeys.userData);
+          token =
+            user?.token ||
+            user?.sessionId;
+          if (token) {
+            this.authToken = token;
+          }
+        } catch {
+          // Ignore storage read error
         }
       }
+
+      if (token) {
+        if (!config.headers.Authorization) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        config.headers["x-access-token"] = token;
+        config.headers["token"] = token;
+        try {
+          const user = await storage.get<any>(StorageKeys.userData);
+          config.headers["user-id"] =
+            user?.id || user?._id || user?.userAccountId || "";
+        } catch {
+          // Ignore
+        }
+
+        // Ensure token cookies are present in Cookie header
+        if (!headerCookie) {
+          headerCookie = `connect.sid=${token}; sessionId=${token}; token=${token}`;
+        } else {
+          if (!headerCookie.includes("connect.sid=")) {
+            headerCookie += `; connect.sid=${token}`;
+          }
+          if (!headerCookie.includes("sessionId=")) {
+            headerCookie += `; sessionId=${token}`;
+          }
+          if (!headerCookie.includes("token=")) {
+            headerCookie += `; token=${token}`;
+          }
+        }
+      }
+
+      if (headerCookie) {
+        config.headers.Cookie = headerCookie;
+      }
+
       return config;
     });
 
     this.client.interceptors.response.use(
       async (response: AxiosResponse<ApiResponse>) => {
-        const endpoint = response.config.url ?? "";
-        if (authCookieEndpoints.some((e) => endpoint.includes(e))) {
-          const setCookie = response.headers["set-cookie"];
-          if (setCookie) await saveCookiesFromResponse(setCookie);
+        // 1. Capture cookies from all responses
+        const setCookie =
+          response.headers["set-cookie"] ||
+          response.headers["Set-Cookie"] ||
+          (response.headers as any)?.get?.("set-cookie");
+        if (setCookie) {
+          await saveCookiesFromResponse(setCookie);
         }
+
+        // 2. Capture session ID / auth token from response payload if present
+        const body = response.data;
+        if (body) {
+          const rawBody = body as any;
+          await captureSessionIdFromData(body);
+          if (body.data) {
+            await captureSessionIdFromData(body.data);
+          }
+          const token =
+            rawBody.token ||
+            rawBody.data?.token ||
+            rawBody.data?.userData?.token ||
+            rawBody.userData?.token ||
+            rawBody.sessionId ||
+            rawBody.data?.sessionId;
+          if (token && typeof token === "string") {
+            this.setAuthToken(token);
+            await setCookieDirect("connect.sid", token);
+            await setCookieDirect("sessionId", token);
+            await setCookieDirect("token", token);
+          }
+        }
+
         return response;
       },
       (error) => {
@@ -110,7 +221,11 @@ class ApiClient {
       ...config,
     });
     const body = response.data;
+    const rawBody = body as any;
     if (body.success) {
+      if (rawBody.token && rawBody.data && typeof rawBody.data === "object" && !rawBody.data.token) {
+        rawBody.data.token = rawBody.token;
+      }
       return (body.data ?? (true as unknown as T)) as T;
     }
     throw new Error(body.message || body.error || "Request failed");
@@ -120,7 +235,7 @@ class ApiClient {
   async signIn(phoneNumber: string, password: string, countryCode: string) {
     const deviceToken = await getDeviceToken();
     const deviceType = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
-    return this.request<Account>("POST", "sign-in", {
+    const res: any = await this.request<any>("POST", "sign-in", {
       phoneNumber,
       password,
       countryCode,
@@ -128,6 +243,15 @@ class ApiClient {
       deviceToken,
       deviceType,
     });
+    const token =
+      res?.token ||
+      res?.userData?.token ||
+      res?.account?.token ||
+      res?.data?.token;
+    if (token) {
+      this.setAuthToken(token);
+    }
+    return res as Account;
   }
 
   sendVerificationCode(phoneNumber: string, countryCode: string) {
@@ -149,7 +273,7 @@ class ApiClient {
     const url = isSignUp
       ? "sign-up/verify-verification-code"
       : "sign-in/verify-verification-code";
-    return this.request<Account>("POST", url, {
+    const res: any = await this.request<any>("POST", url, {
       phoneNumber,
       countryCode,
       code,
@@ -157,6 +281,15 @@ class ApiClient {
       deviceToken,
       deviceType,
     });
+    const token =
+      res?.token ||
+      res?.userData?.token ||
+      res?.account?.token ||
+      res?.data?.token;
+    if (token) {
+      this.setAuthToken(token);
+    }
+    return res as Account;
   }
 
   forgotPassword(phoneNumber: string) {
@@ -666,7 +799,10 @@ class ApiClient {
       }
       return { tools };
     } catch (e: any) {
-      console.warn("fetchTools error:", e?.message);
+      if (axios.isAxiosError(e) && e.response?.status === 401) {
+        // Expected when user is not logged in or session is unauthenticated
+        return { tools: [] };
+      }
       return { tools: [] };
     }
   }

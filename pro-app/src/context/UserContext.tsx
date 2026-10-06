@@ -9,11 +9,13 @@ import React, {
 import { storage } from "../utils/storage";
 import { StorageKeys, DEFAULT_LANGUAGE_CODE } from "../constants";
 import { Account, UserState } from "../types/models";
+import { api } from "../services/api";
 
 export const defaultUserState: UserState = {
   languageCode: DEFAULT_LANGUAGE_CODE,
   isLoggedIn: false,
   deviceToken: "",
+  token: "",
   id: "",
   firstName: "",
   lastName: "",
@@ -47,7 +49,7 @@ export const defaultUserState: UserState = {
   tools: [],
   serviceFor: -1,
   isApproved: false,
-  signUpStepCompleted: -1,
+  signUpStepCompleted: 0,
   isSignUpCompleted: false,
 };
 
@@ -77,6 +79,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
           (await storage.get<string>(StorageKeys.languageCode)) ??
           DEFAULT_LANGUAGE_CODE;
         if (saved) {
+          if (saved.token) {
+            api.setAuthToken(saved.token);
+          }
           setUser({
             ...defaultUserState,
             ...saved,
@@ -133,6 +138,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
         // If it's a different user, start strictly from defaultUserState to prevent data leakage
         const base = isSameUser ? prev : defaultUserState;
 
+        // Resolve auth token
+        const resolvedToken =
+          raw.token ??
+          userObj.token ??
+          raw.data?.token ??
+          base.token ??
+          "";
+
+        if (resolvedToken) {
+          api.setAuthToken(resolvedToken);
+        }
+
         const resolvedPhoneCode =
           userObj.phoneCode ??
           userObj.phoneNumberPrefix ??
@@ -150,14 +167,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
           "+1";
 
         // Extract Step Completed from all possible keys & sources
-        let resolvedStep: number = base.signUpStepCompleted;
+        let resolvedStep = 0;
         const rawStep =
           raw.signUpStepCompleted ??
           raw.stepCompleted ??
           userObj.signUpStepCompleted ??
           userObj.stepCompleted;
-        if (rawStep !== undefined && rawStep !== null) {
+        if (rawStep !== undefined && rawStep !== null && rawStep !== -1) {
           resolvedStep = Number(rawStep);
+        } else if (isSameUser && base.signUpStepCompleted > 0) {
+          resolvedStep = base.signUpStepCompleted;
         }
 
         // Extract isSignUpCompleted from all possible keys & sources
@@ -171,28 +190,39 @@ export function UserProvider({ children }: { children: ReactNode }) {
           raw.isSpProfileCompleted ??
           userObj.isSpProfileCompleted;
 
-        let resolvedSignUpCompleted = base.isSignUpCompleted;
+        let resolvedSignUpCompleted = false;
         if (rawCompleted !== undefined && rawCompleted !== null) {
           resolvedSignUpCompleted =
             rawCompleted === true ||
             rawCompleted === "true" ||
             rawCompleted === 1 ||
             rawCompleted === "1";
-        } else if (resolvedStep >= 7 || resolvedStep === -1) {
-          // If step 7 (Thank You) was reached or -1, onboarding is completed
+        } else if (resolvedStep >= 7) {
+          // If step 7 (Thank You) was reached, onboarding is completed
+          resolvedSignUpCompleted = true;
+        } else if (isSameUser && base.isSignUpCompleted) {
           resolvedSignUpCompleted = true;
         }
 
-        // If the account has administrative verification / approval, mark signup complete
-        if (
-          userObj.isVerifiedByAdmin ||
-          raw.isVerifiedByAdmin ||
-          userObj.isApproved ||
-          raw.isApproved ||
-          userObj.isSpApproved ||
-          raw.isSpApproved
-        ) {
-          resolvedSignUpCompleted = true;
+        const isExplicitlyIncomplete =
+          rawCompleted === false ||
+          rawCompleted === "false" ||
+          rawCompleted === 0 ||
+          rawCompleted === "0" ||
+          (rawStep !== undefined && rawStep !== null && Number(rawStep) >= 0 && Number(rawStep) < 7);
+
+        // If the account has administrative verification / approval, mark signup complete only if not explicitly incomplete
+        if (!isExplicitlyIncomplete) {
+          if (
+            userObj.isVerifiedByAdmin === true ||
+            raw.isVerifiedByAdmin === true ||
+            userObj.isApproved === true ||
+            raw.isApproved === true ||
+            userObj.isSpApproved === true ||
+            raw.isSpApproved === true
+          ) {
+            resolvedSignUpCompleted = true;
+          }
         }
 
         const resolvedFirstName =
@@ -289,6 +319,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         nextState = {
           ...base,
           id: resolvedId || base.id,
+          token: resolvedToken || base.token || "",
           firstName: resolvedFirstName,
           lastName: resolvedLastName,
           name: resolvedName,
@@ -348,6 +379,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       let nextState: UserState = defaultUserState;
       setUser((prev) => {
         nextState = { ...prev, ...patch };
+        if (patch.token) {
+          api.setAuthToken(patch.token);
+        }
         return nextState;
       });
       await storage.set(StorageKeys.userData, nextState);
@@ -383,6 +417,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   );
 
   const clearUser = useCallback(async () => {
+    api.setAuthToken("");
     await storage.remove(StorageKeys.userData);
     await storage.remove(StorageKeys.isUserLoggedIn);
     await storage.remove(StorageKeys.isSPLoggedIn);

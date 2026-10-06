@@ -33,7 +33,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, "IdentityDocuments
 export function IdentityDocumentsScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [types, setTypes] = useState<Document[]>([]);
@@ -170,6 +170,10 @@ export function IdentityDocumentsScreen({ route, navigation }: Props) {
         frontImage: frontUrl,
         backImage: backUrl,
       });
+
+      if (!isFromSettings) {
+        await updateUser({ signUpStepCompleted: Math.max(user.signUpStepCompleted, 5) });
+      }
 
       if (isFromSettings) {
         showAlert("Success", "Your Documents has been updated.");

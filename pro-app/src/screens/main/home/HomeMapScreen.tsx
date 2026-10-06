@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, DrawerActions } from "@react-navigation/native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -200,21 +200,25 @@ export function HomeMapScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
+      let isMounted = true;
       if (user.tools && user.tools.length > 0) {
         setToolsList(user.tools);
       }
       api
         .fetchTools()
         .then((res) => {
+          if (!isMounted) return;
           const fetched = res?.tools ?? [];
           if (fetched.length > 0) {
             setToolsList(fetched);
-            updateUser({ tools: fetched });
             storage.set(StorageKeys.userTools, fetched);
           }
         })
         .catch(() => {});
-    }, [user.tools])
+      return () => {
+        isMounted = false;
+      };
+    }, [])
   );
 
   const handleRecenterLocation = async () => {
@@ -377,7 +381,7 @@ export function HomeMapScreen({ navigation }: Props) {
     <View style={styles.container}>
       <Header
         title="Appointments"
-        onMenuPress={() => (navigation.getParent() as any)?.openDrawer()}
+        onMenuPress={() => navigation.dispatch(DrawerActions.openDrawer())}
         right={
           <View style={styles.headerToggleWrap}>
             <View
@@ -762,6 +766,44 @@ const styles = StyleSheet.create({
     fontWeight: FontWeights.bold,
     color: Colors.ButtonPrimaryColor,
   },
+  floatingWorkModeFab: {
+    position: "absolute",
+    left: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+    gap: 5,
+    zIndex: 10,
+  },
+  floatingAvailabilityFab: {
+    position: "absolute",
+    left: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+    gap: 5,
+    zIndex: 10,
+  },
   slidingSheet: {
     position: "absolute",
     bottom: 0,
@@ -951,7 +993,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   addToolBtnText: {
-    color: "#FFFFFF",
+    color: Colors.ButtonTextColor,
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.bold,
   },

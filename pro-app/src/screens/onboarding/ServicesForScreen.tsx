@@ -61,7 +61,10 @@ export function ServicesForScreen({ route, navigation }: Props) {
   const submit = async () => {
     try {
       setLoading(true);
-      await updateUser({ serviceFor: selected });
+      await updateUser({
+        serviceFor: selected,
+        signUpStepCompleted: isFromSettings ? user.signUpStepCompleted : Math.max(user.signUpStepCompleted, 2),
+      });
 
       // Non-blocking sync to backend (matches iOS where this call is non-blocking / bundled into certificates)
       try {

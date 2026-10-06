@@ -46,8 +46,10 @@ export function Button({
       {loading ? (
         <ActivityIndicator
           color={
-            variant === "primary" || variant === "danger"
+            variant === "primary"
               ? Colors.ButtonTextColor
+              : variant === "danger"
+              ? "#FFFFFF"
               : Colors.ButtonPrimaryColor
           }
         />
@@ -73,7 +75,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.ButtonPrimaryColor,
     shadowColor: Colors.ButtonPrimaryColor,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.25,
     shadowRadius: 5,
     elevation: 3,
   },
@@ -102,11 +104,11 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: FontSizes.base,
-    fontWeight: FontWeights.semibold,
+    fontWeight: FontWeights.bold,
   },
   primaryText: { color: Colors.ButtonTextColor },
   secondaryText: { color: Colors.TitleColor },
-  dangerText: { color: Colors.ButtonTextColor },
-  ghostText: { color: Colors.ButtonPrimaryColor },
+  dangerText: { color: "#FFFFFF" },
+  ghostText: { color: "#0F172A" },
 });
 

@@ -29,7 +29,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, "BankingLanguages"
 export function BankingLanguagesScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [routingNumber, setRoutingNumber] = useState("");
@@ -115,6 +115,10 @@ export function BankingLanguagesScreen({ route, navigation }: Props) {
 
       const bankToken = await createStripeBankToken();
       await api.addBankInfo(bankToken, ssn.trim());
+
+      if (!isFromSettings) {
+        await updateUser({ signUpStepCompleted: Math.max(user.signUpStepCompleted, 6) });
+      }
 
       if (isFromSettings) {
         showAlert("Success", "Bank details are updated successfully!");

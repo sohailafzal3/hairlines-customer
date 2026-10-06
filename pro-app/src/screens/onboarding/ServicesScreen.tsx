@@ -43,7 +43,7 @@ interface SelectedServiceItem {
 export function ServicesScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const scrollViewRef = useRef<ScrollView>(null);
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<Service[]>([]);
@@ -493,6 +493,9 @@ export function ServicesScreen({ route, navigation }: Props) {
       await api.selectServices(payload);
       await storage.set(userServicesKey, selectedMap);
       await storage.set(StorageKeys.userServices, selectedMap);
+      if (!isFromSettings) {
+        await updateUser({ signUpStepCompleted: Math.max(user.signUpStepCompleted, 3) });
+      }
 
       if (isFromSettings) {
         showAlert("Success", "Your services and pricing have been updated.");

@@ -1,74 +1,20 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { useTranslation } from "react-i18next";
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { MaterialCommunityIcons, Ionicons, FontAwesome } from "@expo/vector-icons";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
-import { LoadingOverlay } from "../../components/LoadingOverlay";
-import { useUser } from "../../context/UserContext";
-import { api } from "../../services/api";
-import { showAlert } from "../../utils/helpers";
-import {
-  signInWithApple,
-  signInWithFacebook,
-  signInWithGoogle,
-} from "../../services/socialAuth";
 import { Colors } from "../../theme/colors";
-import { FontSizes, FontWeights } from "../../theme/fonts";
+import { Fonts, FontSizes, FontWeights } from "../../theme/fonts";
 import { BorderRadius, Spacing } from "../../theme/spacing";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Landing">;
 
 export function LandingScreen({ navigation }: Props) {
-  const { t } = useTranslation();
-  const { setAccount, setLoggedIn } = useUser();
-  const [loading, setLoading] = React.useState(false);
-
-  const continueAsGuest = async () => {
-    try {
-      setLoading(true);
-      const account = await api.signUpGuest();
-      await setAccount(account, true);
-    } catch (e: any) {
-      showAlert("Error", e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const socialSignIn = async (provider: "apple" | "facebook" | "google") => {
-    try {
-      setLoading(true);
-      let result;
-      if (provider === "apple") result = await signInWithApple();
-      else if (provider === "facebook") result = await signInWithFacebook();
-      else result = await signInWithGoogle();
-
-      const account =
-        provider === "apple"
-          ? await api.appleSignup({
-              identityToken: result.token,
-              email: result.email,
-              name: result.name,
-              userType: 2,
-            })
-          : await api.facebookSignup({
-              accessToken: result.token,
-              userType: 2,
-            });
-
-      await setAccount(account, true);
-    } catch (e: any) {
-      showAlert("Social Sign-In", e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <View style={styles.container}>
-      <LoadingOverlay visible={loading} />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
       {/* Decorative Background Ambient Circles */}
       <View style={styles.ambientCircleTopRight} />
@@ -93,9 +39,9 @@ export function LandingScreen({ navigation }: Props) {
           {/* Feature Pill */}
           <View style={styles.featurePill}>
             <Ionicons
-              name="shield-checkmark"
+              name="sparkles-sharp"
               size={12}
-              color={Colors.ButtonPrimaryColor}
+              color="#854D0E"
               style={{ marginRight: 4 }}
             />
             <Text style={styles.featurePillText}>PROFESSIONAL PARTNER NETWORK</Text>
@@ -103,7 +49,7 @@ export function LandingScreen({ navigation }: Props) {
 
           {/* Tagline */}
           <Text style={styles.tagline}>
-            Manage your clients, appointments, and earnings seamlessly. Join thousands of verified stylists & barbers.
+            Manage your clients, appointments, and earnings seamlessly. Join top barbers & salon professionals.
           </Text>
         </View>
 
@@ -113,67 +59,38 @@ export function LandingScreen({ navigation }: Props) {
         {/* Bottom Actions Section */}
         <View style={styles.bottomSection}>
           <Button
-            title="SIGN IN TO PRO"
-            onPress={() => navigation.navigate("SignIn", { mode: "signIn" })}
-            style={styles.signInButton}
+            title="SIGN UP NOW"
+            onPress={() => navigation.navigate("SignIn", { mode: "signUp", isSignUp: true })}
+            style={styles.signUpButton}
           />
 
-          <View style={{ height: 10 }} />
+          <View style={{ height: 12 }} />
 
           <Button
-            title="JOIN AS A PARTNER"
-            variant="secondary"
-            onPress={() => navigation.navigate("SignIn", { mode: "signUp" })}
+            title="SIGN IN"
+            variant="ghost"
+            onPress={() => navigation.navigate("SignIn", { mode: "signIn", isSignUp: false })}
           />
 
-          {/* Social Sign In Options */}
-          <View style={styles.socialRow}>
-            <TouchableOpacity
-              style={styles.socialIconBtn}
-              onPress={() => socialSignIn("google")}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="logo-google" size={18} color="#EA4335" />
-              <Text style={styles.socialBtnText}>Google</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.socialIconBtn}
-              onPress={() => socialSignIn("apple")}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="logo-apple" size={18} color="#0F172A" />
-              <Text style={styles.socialBtnText}>Apple</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.socialIconBtn}
-              onPress={() => socialSignIn("facebook")}
-              activeOpacity={0.8}
-            >
-              <FontAwesome name="facebook" size={18} color="#1877F2" />
-              <Text style={styles.socialBtnText}>Facebook</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Guest Mode */}
+          {/* Existing account link */}
           <TouchableOpacity
-            style={styles.guestLink}
-            onPress={continueAsGuest}
+            onPress={() => navigation.navigate("SignIn", { mode: "signIn", isSignUp: false })}
+            style={styles.accountTouch}
             activeOpacity={0.7}
           >
-            <Text style={styles.guestLinkText}>Explore as Guest Partner</Text>
+            <Text style={styles.accountPrompt}>Already have a partner account? </Text>
+            <Text style={styles.accountLink}>SIGN IN</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.ScreenBG,
+    backgroundColor: "#F8FAFC",
   },
   ambientCircleTopRight: {
     position: "absolute",
@@ -182,7 +99,7 @@ const styles = StyleSheet.create({
     width: 260,
     height: 260,
     borderRadius: 130,
-    backgroundColor: "rgba(34, 45, 99, 0.08)",
+    backgroundColor: "rgba(229, 182, 82, 0.10)",
   },
   ambientCircleBottomLeft: {
     position: "absolute",
@@ -191,7 +108,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: "rgba(43, 118, 200, 0.07)",
+    backgroundColor: "rgba(34, 45, 99, 0.06)",
   },
   content: {
     flex: 1,
@@ -207,10 +124,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.base,
   },
   logoBadge: {
-    width: 90,
-    height: 90,
-    borderRadius: 26,
-    backgroundColor: Colors.ButtonPrimaryColor,
+    width: 96,
+    height: 96,
+    borderRadius: 28,
+    backgroundColor: "#222D63",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: Colors.ButtonPrimaryColor,
@@ -237,32 +154,37 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: FontSizes["3xl"],
+    fontFamily: Fonts.uberMoveBold,
     fontWeight: FontWeights.heavy,
-    color: Colors.ButtonPrimaryColor,
-    letterSpacing: 2,
+    color: "#0F172A",
+    letterSpacing: 3,
     marginBottom: Spacing.xs,
   },
   featurePill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#FEF9EE",
     borderRadius: BorderRadius.full,
     paddingHorizontal: 12,
     paddingVertical: 4,
     marginBottom: Spacing.base,
+    borderWidth: 1,
+    borderColor: "rgba(229, 182, 82, 0.35)",
   },
   featurePillText: {
-    fontSize: 10,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
     fontWeight: FontWeights.bold,
-    color: Colors.ButtonPrimaryColor,
+    color: "#854D0E",
     letterSpacing: 0.8,
   },
   tagline: {
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveRegular,
     color: Colors.DescriptionTextDark,
     textAlign: "center",
-    lineHeight: 20,
-    paddingHorizontal: Spacing.sm,
+    lineHeight: 22,
+    paddingHorizontal: Spacing.base,
   },
   spacer: {
     flex: 1,
@@ -270,47 +192,30 @@ const styles = StyleSheet.create({
   bottomSection: {
     width: "100%",
   },
-  signInButton: {
-    marginBottom: 2,
+  signUpButton: {
+    minHeight: 54,
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderRadius: BorderRadius.lg,
   },
-  socialRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
-    marginTop: Spacing.base,
-    marginBottom: Spacing.sm,
-  },
-  socialIconBtn: {
-    flex: 1,
+  accountTouch: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.BorderColor,
-    paddingVertical: 11,
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
-    gap: 6,
-  },
-  socialBtnText: {
-    fontSize: FontSizes.xs,
-    fontWeight: FontWeights.semibold,
-    color: Colors.TitleColor,
-  },
-  guestLink: {
-    alignItems: "center",
     paddingVertical: Spacing.sm,
-    marginTop: 4,
+    marginTop: Spacing.base,
   },
-  guestLinkText: {
+  accountPrompt: {
     fontSize: FontSizes.sm,
-    fontWeight: FontWeights.medium,
-    color: Colors.DescriptionTextDark,
+    fontFamily: Fonts.uberMoveRegular,
+    color: "#64748B",
+  },
+  accountLink: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    fontWeight: FontWeights.bold,
+    color: "#854D0E",
+    textDecorationLine: "underline",
   },
 });
+
 

@@ -1,15 +1,15 @@
 export const Colors = {
-  // Primary Brand
-  ButtonPrimaryColor: '#222D63',
-  ButtonPrimaryLeft: '#222D63',
-  ButtonPrimaryRight: '#2B76C8',
-  ButtonTextColor: '#FFFFFF',
+  // Primary Brand (Gold / Yellow - matching native iOS Pro App)
+  ButtonPrimaryColor: '#E5B652',
+  ButtonPrimaryLeft: '#E5B652',
+  ButtonPrimaryRight: '#F0C96F',
+  ButtonTextColor: '#0F172A',
 
   // Controls & Accents
   RadioActive: '#E5B652',
   RadioInactive: '#999999',
   gold: '#E5B652',
-  accent: '#2B76C8',
+  accent: '#222D63',
 
   // Fields
   PlaceholderActive: '#404552',

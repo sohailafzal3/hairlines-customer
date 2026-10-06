@@ -11,6 +11,9 @@ import { VoiceCallScreen } from "../screens/main/call/VoiceCallScreen";
 import { ServicesSelectionScreen } from "../screens/main/home/ServicesSelectionScreen";
 import { ToolsAndEquipmentScreen } from "../screens/main/home/ToolsAndEquipmentScreen";
 import { RateUserScreen } from "../screens/main/home/RateUserScreen";
+import { WorkModeScreen } from "../screens/main/workmode/WorkModeScreen";
+import { AvailabilityScreen } from "../screens/onboarding/AvailabilityScreen";
+import { CleanerAvailabilityScreen } from "../screens/main/availability/CleanerAvailabilityScreen";
 
 const Stack = createNativeStackNavigator<HomeTabParamList>();
 
@@ -34,6 +37,9 @@ export function HomeTabNavigator() {
       <Stack.Screen name="ServicesSelection" component={ServicesSelectionScreen} />
       <Stack.Screen name="ToolsAndEquipment" component={ToolsAndEquipmentScreen} />
       <Stack.Screen name="RateUser" component={RateUserScreen} />
+      <Stack.Screen name="WorkMode" component={WorkModeScreen} />
+      <Stack.Screen name="Availability" component={AvailabilityScreen} />
+      <Stack.Screen name="CleanerAvailability" component={CleanerAvailabilityScreen} />
     </Stack.Navigator>
   );
 }

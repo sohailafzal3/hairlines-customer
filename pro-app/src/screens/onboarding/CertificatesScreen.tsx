@@ -34,7 +34,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, "Certificates">;
 export function CertificatesScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const [loading, setLoading] = useState(false);
 
   // Customer / Service type: 0 = Normal only, 1 = Disabled only, 2 = Both
@@ -204,6 +204,10 @@ export function CertificatesScreen({ route, navigation }: Props) {
           professionalDocsBack: "",
         })),
       });
+
+      if (!isFromSettings) {
+        await updateUser({ signUpStepCompleted: Math.max(user.signUpStepCompleted, 4) });
+      }
 
       if (isFromSettings) {
         showAlert(

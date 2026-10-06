@@ -24,6 +24,7 @@ export type OnboardingStackParamList = {
   IdentityDocuments: { isFromSettings?: boolean } | undefined;
   BankingLanguages: { isFromSettings?: boolean; returnScreen?: "Settings" | "Wallet" } | undefined;
   Availability: { isFromSettings?: boolean } | undefined;
+  WorkMode: { isFromSettings?: boolean } | undefined;
   ThankYou: undefined;
   SetLocation: { currentFormData?: any } | undefined;
 };
@@ -35,6 +36,9 @@ export type MainDrawerParamList = {
   Wallet: undefined;
   Earnings: undefined;
   Settings: undefined;
+  WorkMode: { isFromSettings?: boolean } | undefined;
+  Availability: { isFromSettings?: boolean } | undefined;
+  CleanerAvailability: { isFromSettings?: boolean } | undefined;
   ShareReferral: undefined;
   Terms: { url?: string; title?: string } | undefined;
   Support: undefined;
@@ -54,6 +58,9 @@ export type HomeTabParamList = {
   ServicesSelection: { jobId?: string };
   ToolsAndEquipment: { isFromSettings?: boolean } | undefined;
   RateUser: { jobId: string; userProfileId: string; name?: string; image?: string };
+  WorkMode: { isFromSettings?: boolean } | undefined;
+  Availability: { isFromSettings?: boolean } | undefined;
+  CleanerAvailability: { isFromSettings?: boolean } | undefined;
 };
 
 export type RootStackParamList = {

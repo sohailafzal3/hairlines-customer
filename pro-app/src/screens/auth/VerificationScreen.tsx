@@ -127,7 +127,28 @@ export function VerificationScreen({ route, navigation }: Props) {
         account.countryCode = account.countryCode || countryCode || "+1";
         account.phoneCode = account.phoneCode || countryCode || "+1";
 
-        if (!isSignUp) {
+        if (isSignUp) {
+          // For new signups, ALWAYS start onboarding at Step 0 (PersonalInfo)
+          const raw = account as any;
+          raw.isSignUpCompleted = false;
+          raw.isSignupCompleted = false;
+          raw.isProfileCompleted = false;
+          raw.isSpProfileCompleted = false;
+          raw.signUpStepCompleted = 0;
+          raw.stepCompleted = 0;
+          raw.isApproved = false;
+          raw.isVerifiedByAdmin = false;
+          raw.isSpApproved = false;
+          if (raw.userData) {
+            raw.userData.isSignUpCompleted = false;
+            raw.userData.isSignupCompleted = false;
+            raw.userData.signUpStepCompleted = 0;
+            raw.userData.stepCompleted = 0;
+            raw.userData.isApproved = false;
+            raw.userData.isVerifiedByAdmin = false;
+            raw.userData.isSpApproved = false;
+          }
+        } else {
           const raw = account as any;
           const userObj = raw.userData || raw.user || raw;
           const isExplicitlyIncomplete =
@@ -363,7 +384,7 @@ const styles = StyleSheet.create({
   },
   codeInputFilled: {
     borderColor: Colors.ButtonPrimaryColor,
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "rgba(229, 182, 82, 0.10)",
   },
   verifyButton: {
     backgroundColor: Colors.ButtonPrimaryColor,
@@ -378,7 +399,7 @@ const styles = StyleSheet.create({
   verifyButtonText: {
     fontSize: FontSizes.base,
     fontWeight: FontWeights.bold,
-    color: "#FFFFFF",
+    color: Colors.ButtonTextColor,
   },
   resendContainer: {
     alignItems: "center",
@@ -390,7 +411,7 @@ const styles = StyleSheet.create({
   },
   timerBold: {
     fontWeight: FontWeights.bold,
-    color: Colors.ButtonPrimaryColor,
+    color: "#854D0E",
   },
   resendTouch: {
     flexDirection: "row",
@@ -399,6 +420,6 @@ const styles = StyleSheet.create({
   resendText: {
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
-    color: Colors.ButtonPrimaryColor,
+    color: "#854D0E",
   },
 });

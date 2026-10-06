@@ -9,6 +9,7 @@ import { LoadingOverlay } from "../../../components/LoadingOverlay";
 import { api } from "../../../services/api";
 import { showAlert } from "../../../utils/helpers";
 import { Service, SubServiceDetail } from "../../../types";
+import { Colors } from "../../../theme/colors";
 
 type Props = NativeStackScreenProps<HomeTabParamList, "ServicesSelection">;
 
@@ -92,7 +93,7 @@ export function ServicesSelectionScreen({ route, navigation }: Props) {
                   size={22}
                   color={
                     selected[service._id || ""]?.includes(sub._id || "")
-                      ? "#222D63"
+                      ? Colors.RadioActive
                       : "#94A3B8"
                   }
                 />

@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: FontSizes.base,
     fontWeight: FontWeights.bold,
-    color: "#FFFFFF",
+    color: Colors.ButtonTextColor,
   },
   footerRow: {
     alignItems: "center",
@@ -377,6 +377,6 @@ const styles = StyleSheet.create({
   backToSignInText: {
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
-    color: Colors.ButtonPrimaryColor,
+    color: "#854D0E",
   },
 });

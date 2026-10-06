@@ -111,6 +111,7 @@ export interface UserState {
   isApproved: boolean;
   signUpStepCompleted: number;
   isSignUpCompleted: boolean;
+  token?: string;
   gender?: string;
   dob?: string | number;
   about?: string;
@@ -512,12 +513,15 @@ export interface AvailabilitySlots {
 
 export interface Slot {
   id?: string;
+  _id?: string;
   openingHour?: number;
   openingMinute?: number;
   closingHour?: number;
   closingMinute?: number;
   openingUnixTime?: number;
   closingUnixTime?: number;
+  startTime?: any;
+  endTime?: any;
   isEnabled?: boolean;
   days?: number[];
   isEditting?: boolean;

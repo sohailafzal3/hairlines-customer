@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   labelFocused: {
-    color: Colors.ButtonPrimaryColor,
+    color: "#854D0E",
     fontWeight: FontWeights.bold,
   },
   labelError: {

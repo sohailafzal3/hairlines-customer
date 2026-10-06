@@ -540,7 +540,7 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
                 ]}
               >
                 {isTermsAccepted && (
-                  <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                  <Ionicons name="checkmark" size={16} color={Colors.ButtonTextColor} />
                 )}
               </TouchableOpacity>
               <View style={styles.agreementTextWrapper}>
@@ -751,7 +751,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   dateConfirmBtnText: {
-    color: "#FFFFFF",
+    color: Colors.ButtonTextColor,
     fontWeight: FontWeights.bold,
     fontSize: FontSizes.xs,
   },
@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
   },
   genderCardActive: {
     borderColor: Colors.ButtonPrimaryColor,
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "rgba(229, 182, 82, 0.12)",
   },
   genderCardText: {
     fontSize: FontSizes.sm,
@@ -787,7 +787,7 @@ const styles = StyleSheet.create({
     color: "#64748B",
   },
   genderCardTextActive: {
-    color: Colors.ButtonPrimaryColor,
+    color: "#854D0E",
     fontWeight: FontWeights.bold,
   },
   agreementRow: {
@@ -819,7 +819,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   termsLink: {
-    color: Colors.ButtonPrimaryColor,
+    color: "#854D0E",
     fontWeight: FontWeights.bold,
     textDecorationLine: "underline",
   },
@@ -837,7 +837,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: FontSizes.base,
     fontWeight: FontWeights.bold,
-    color: "#FFFFFF",
+    color: Colors.ButtonTextColor,
   },
   modalContainer: {
     flex: 1,
