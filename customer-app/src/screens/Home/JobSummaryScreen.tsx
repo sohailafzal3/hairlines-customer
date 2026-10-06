@@ -132,7 +132,11 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.cardTitle}>SELECTED BARBER</Text>
             </View>
             <Text style={styles.cardValue}>{createJob.selectedSp.name}</Text>
-            <Text style={styles.cardSub}>⭐ {createJob.selectedSp.avgRating?.toFixed(1) || '5.0'} Rating</Text>
+            <Text style={styles.cardSub}>
+              {createJob.selectedSp.avgRating && createJob.selectedSp.avgRating > 0
+                ? `⭐ ${createJob.selectedSp.avgRating.toFixed(1)} Rating`
+                : '⭐ New Stylist'}
+            </Text>
           </View>
         )}
 

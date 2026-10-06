@@ -39,9 +39,93 @@ const DISABILITY_OPTIONS = [
   { id: 2, label: 'Physical disability' },
 ];
 
-// Helper to reliably format Unix timestamp, ISO string, or date string into MM/DD/YYYY
+// Helper to format Date of Birth into continuous 8-digit MMDDYYYY string (e.g. 12121996)
+export const formatDOBForApi = (dobStr: string, dateObj?: Date): string => {
+  if (dateObj && !isNaN(dateObj.getTime())) {
+    const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const dd = String(dateObj.getDate()).padStart(2, '0');
+    const yyyy = dateObj.getFullYear();
+    return `${mm}${dd}${yyyy}`;
+  }
+  if (!dobStr) return '';
+  const clean = dobStr.replace(/\D/g, '');
+  if (clean.length === 8) {
+    return clean;
+  }
+  if (dobStr.includes('/') || dobStr.includes('-')) {
+    const parts = dobStr.includes('/') ? dobStr.split('/') : dobStr.split('-');
+    if (dobStr.includes('/')) {
+      const mm = (parts[0] || '01').padStart(2, '0');
+      const dd = (parts[1] || '01').padStart(2, '0');
+      const yyyy = parts[2] || '2000';
+      return `${mm}${dd}${yyyy}`;
+    } else {
+      const yyyy = parts[0] || '2000';
+      const mm = (parts[1] || '01').padStart(2, '0');
+      const dd = (parts[2] || '01').padStart(2, '0');
+      return `${mm}${dd}${yyyy}`;
+    }
+  }
+  const parsed = new Date(dobStr);
+  if (!isNaN(parsed.getTime())) {
+    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+    const dd = String(parsed.getDate()).padStart(2, '0');
+    const yyyy = parsed.getFullYear();
+    return `${mm}${dd}${yyyy}`;
+  }
+  return clean || dobStr;
+};
+
+// Helper to parse any DOB string (MMDDYYYY, MM/DD/YYYY, timestamp, ISO) into Date object
+export const parseDOBToDate = (val: any): Date | null => {
+  if (!val) return null;
+  if (val instanceof Date && !isNaN(val.getTime())) return val;
+  const str = String(val).trim();
+  const digits = str.replace(/\D/g, '');
+  if (digits.length === 8 && !str.includes('-') && !str.includes('T')) {
+    const mm = parseInt(digits.slice(0, 2), 10) - 1;
+    const dd = parseInt(digits.slice(2, 4), 10);
+    const yyyy = parseInt(digits.slice(4, 8), 10);
+    const d = new Date(yyyy, mm, dd);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (str.includes('/')) {
+    const parts = str.split('/');
+    if (parts.length === 3) {
+      const mm = parseInt(parts[0], 10) - 1;
+      const dd = parseInt(parts[1], 10);
+      const yyyy = parseInt(parts[2], 10);
+      const d = new Date(yyyy, mm, dd);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  if (typeof val === 'number' && val > 0) {
+    const ms = val < 10000000000 ? val * 1000 : val;
+    const d = new Date(ms);
+    if (!isNaN(d.getTime())) return d;
+  }
+  const d = new Date(val);
+  if (!isNaN(d.getTime())) return d;
+  return null;
+};
+
+// Helper to reliably format Unix timestamp, ISO string, continuous MMDDYYYY (12121996), or date string into MM/DD/YYYY
 export const formatDOB = (val: any): string => {
   if (!val) return '';
+  const str = String(val).trim();
+  const cleanDigits = str.replace(/\D/g, '');
+
+  // If it's an 8-digit MMDDYYYY string like "12121996"
+  if (cleanDigits.length === 8 && !str.includes('-') && !str.includes('T')) {
+    const mm = parseInt(cleanDigits.slice(0, 2), 10);
+    const dd = parseInt(cleanDigits.slice(2, 4), 10);
+    const yyyy = parseInt(cleanDigits.slice(4, 8), 10);
+    if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31 && yyyy >= 1900 && yyyy <= 2100) {
+      return `${cleanDigits.slice(0, 2)}/${cleanDigits.slice(2, 4)}/${cleanDigits.slice(4, 8)}`;
+    }
+  }
+
+  // Unix timestamp (number)
   if (typeof val === 'number' && val > 0) {
     const ms = val < 10000000000 ? val * 1000 : val;
     const d = new Date(ms);
@@ -52,16 +136,19 @@ export const formatDOB = (val: any): string => {
       return `${mm}/${dd}/${yyyy}`;
     }
   }
+
   if (typeof val === 'string' && val.trim().length > 0) {
-    const num = Number(val);
-    if (!isNaN(num) && num > 10000) {
-      const ms = num < 10000000000 ? num * 1000 : num;
-      const d = new Date(ms);
-      if (!isNaN(d.getTime())) {
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        const yyyy = d.getFullYear();
-        return `${mm}/${dd}/${yyyy}`;
+    if (cleanDigits.length >= 9 && cleanDigits.length <= 13) {
+      const num = Number(cleanDigits);
+      if (!isNaN(num) && num > 10000) {
+        const ms = num < 10000000000 ? num * 1000 : num;
+        const d = new Date(ms);
+        if (!isNaN(d.getTime())) {
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          const yyyy = d.getFullYear();
+          return `${mm}/${dd}/${yyyy}`;
+        }
       }
     }
     if (val.includes('-') || val.includes('T')) {
@@ -79,7 +166,7 @@ export const formatDOB = (val: any): string => {
 };
 
 const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
-  const { user, account, setAccount, setUser, logout } = useAuthStore();
+  const { user, account, setAccount, setUser, logout, updateUserField } = useAuthStore();
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -152,13 +239,22 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState<Date>(() => {
     if (initialDOB) {
-      const p = new Date(initialDOB);
-      if (!isNaN(p.getTime())) return p;
+      const p = parseDOBToDate(initialDOB);
+      if (p) return p;
     }
     const d = new Date();
     d.setFullYear(d.getFullYear() - 18);
     return d;
   });
+
+  const openDatePicker = () => {
+    if (!isEditing) return;
+    if (dateOfBirth) {
+      const parsed = parseDOBToDate(dateOfBirth);
+      if (parsed) setPickerDate(parsed);
+    }
+    setShowDatePicker(true);
+  };
 
   const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === 'android') {
@@ -286,7 +382,10 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
           setResidenceName(data.residanceName || data.residenceName);
         }
         if (data.instituteName) setInstituteName(data.instituteName);
-        if (data.avgRating) setAvgRating(data.avgRating);
+        if (typeof data.avgRating === 'number') {
+          setAvgRating(data.avgRating);
+          updateUserField('avgRating', data.avgRating);
+        }
       }
     } catch (err) {
       console.log('Profile fetch notice:', err);
@@ -375,13 +474,8 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
 
     setSaving(true);
     try {
-      let dobTimestamp = 0;
-      if (dateOfBirth.trim()) {
-        const parsed = new Date(dateOfBirth).getTime();
-        if (!isNaN(parsed)) {
-          dobTimestamp = Math.floor(parsed / 1000);
-        }
-      }
+      // Format Date of Birth as continuous 8-digit MMDDYYYY string (e.g. 12121996)
+      const formattedDOB = formatDOBForApi(dateOfBirth, pickerDate);
 
       await ProfileApi.editProfile({
         firstName: firstName.trim(),
@@ -390,7 +484,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
         email: email.trim().toLowerCase(),
         isPhysicallyDisabled: disability,
         gender,
-        dateOfBirth: dobTimestamp > 0 ? dobTimestamp : dateOfBirth.trim(),
+        dateOfBirth: formattedDOB || dateOfBirth.trim(),
         residanceName: residenceName.trim(),
         instituteName: instituteName.trim(),
         residanceAddress: address.trim(),
@@ -409,7 +503,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
         email: email.trim().toLowerCase(),
         profileImage: profileImage || '',
         gender,
-        dateOfBirth: dateOfBirth.trim(),
+        dateOfBirth: formattedDOB || dateOfBirth.trim(),
         isPhysicallyDisabled: disability,
         address: address.trim(),
         primaryAddress: address.trim(),
@@ -530,17 +624,28 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
 
             <Text style={styles.nameText}>{displayName}</Text>
 
-            {avgRating > 0 ? (
-              <View style={styles.ratingBadge}>
-                <Ionicons name="star" size={14} color="#EAB308" style={{ marginRight: 4 }} />
-                <Text style={styles.ratingText}>{avgRating.toFixed(1)} Rating</Text>
+            <View style={styles.ratingRow}>
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Ionicons
+                    key={star}
+                    name={
+                      avgRating >= star
+                        ? 'star'
+                        : avgRating >= star - 0.5
+                        ? 'star-half'
+                        : 'star-outline'
+                    }
+                    size={16}
+                    color="#E5B652"
+                    style={{ marginRight: 2 }}
+                  />
+                ))}
               </View>
-            ) : (
-              <View style={styles.memberBadge}>
-                <Ionicons name="shield-checkmark" size={13} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
-                <Text style={styles.memberText}>Verified Customer</Text>
-              </View>
-            )}
+              <Text style={styles.ratingText}>
+                {avgRating > 0 ? avgRating.toFixed(1) : '0.0'}
+              </Text>
+            </View>
           </View>
 
           {/* Card 1: Personal Information */}
@@ -620,7 +725,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
             </View>
 
             <TouchableOpacity
-              onPress={() => isEditing && setShowDatePicker(true)}
+              onPress={openDatePicker}
               activeOpacity={isEditing ? 0.8 : 1}
             >
               <VTTextField
@@ -631,7 +736,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
                 placeholder="MM/DD/YYYY"
                 leftIcon={<Ionicons name="calendar-outline" size={18} color="#64748B" />}
                 rightIcon={isEditing ? <Ionicons name="calendar" size={18} color={Colors.ButtonPrimaryColor} /> : undefined}
-                onRightIconPress={() => isEditing && setShowDatePicker(true)}
+                onRightIconPress={openDatePicker}
               />
             </TouchableOpacity>
 
@@ -956,19 +1061,20 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.uberMoveBold,
     color: '#0F172A',
   },
-  ratingBadge: {
+  ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF9C3',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.full,
     marginTop: 6,
   },
+  starsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   ratingText: {
-    fontSize: FontSizes.xs,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.uberMoveBold,
     color: '#854D0E',
+    marginLeft: 6,
   },
   memberBadge: {
     flexDirection: 'row',

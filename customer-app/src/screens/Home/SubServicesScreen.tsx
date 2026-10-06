@@ -119,6 +119,14 @@ const SubServicesScreen: React.FC<Props> = ({ navigation, route }) => {
     setCreateJobField('subServiceName', style.name);
     setCreateJobField('subServiceTypeId', style.id);
     setCreateJobField('jobDuration', style.duration);
+    setCreateJobField('descriptionText', '');
+    setCreateJobField('specialInstruction', '');
+    setCreateJobField('stylePreferenceImage', '');
+    setCreateJobField('referenceImages', []);
+    setCreateJobField('jobStartTime', '');
+    setCreateJobField('jobEndTime', '');
+    setCreateJobField('selectedSp', undefined);
+    setCreateJobField('worker', undefined);
 
     const info: SubServiceInfo = {
       id: style.id,

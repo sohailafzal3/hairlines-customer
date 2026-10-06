@@ -107,4 +107,16 @@ export const AuthApi = {
 
   checkVersion: (versionCode: string, deviceType: string, userType: string = 'user') =>
     apiClient.put('check-version', { versionCode, deviceType, userType }),
+
+  getTermsConditions: () =>
+    apiClient.get<any>('privacy-term-conditions?userType=user'),
+
+  checkTermsConditions: () =>
+    apiClient.get<any>('current/privacy-termConditions?userType=user'),
+
+  updateTermsConditions: (isTermAndConditionUpdate = true, isPrivacyPolicyUpdate = true) =>
+    apiClient.put('update/privacy-termConditions?userType=user', {
+      isTermAndConditionUpdate,
+      isPrivacyPolicyUpdate,
+    }),
 };

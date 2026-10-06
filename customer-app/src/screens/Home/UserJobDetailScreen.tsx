@@ -38,11 +38,16 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [styleImage, setStyleImage] = useState(createJob.stylePreferenceImage || '');
 
   useEffect(() => {
-    // Sanitize any stale invalid date string stored in Zustand / AsyncStorage
+    setDescription(createJob.descriptionText || '');
+    setSpecialInstructions(createJob.specialInstruction || '');
+    setLocationMode(createJob.atSpLocation ? 'sp' : 'user');
+    setStyleImage(createJob.stylePreferenceImage || '');
+
+    // Sanitize any stale invalid date string stored in store
     if (createJob.jobStartTime && !parseDate(createJob.jobStartTime)) {
       setCreateJobField('jobStartTime', '');
     }
-  }, []);
+  }, [route.params?.subServiceId]);
 
   const handleOpenDatePicker = () => {
     navigation.navigate('Calendar');

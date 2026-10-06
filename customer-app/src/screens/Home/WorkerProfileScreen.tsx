@@ -106,8 +106,14 @@ const WorkerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
               <Text style={styles.profileName}>{profile.name}</Text>
 
               <View style={styles.ratingBadge}>
-                <Ionicons name="star" size={14} color="#854D0E" style={{ marginRight: 4 }} />
-                <Text style={styles.ratingText}>{profile.avgRating?.toFixed(1) || '5.0'}</Text>
+                {profile.avgRating && profile.avgRating > 0 ? (
+                  <>
+                    <Ionicons name="star" size={14} color="#854D0E" style={{ marginRight: 4 }} />
+                    <Text style={styles.ratingText}>{profile.avgRating.toFixed(1)}</Text>
+                  </>
+                ) : (
+                  <Text style={styles.ratingText}>New Stylist</Text>
+                )}
                 <Text style={styles.jobCountText}>({profile.jobCount || 0} bookings completed)</Text>
               </View>
 

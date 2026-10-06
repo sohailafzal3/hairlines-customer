@@ -17,8 +17,8 @@ export const AWSSecretKey = process.env.EXPO_PUBLIC_AWS_SECRET_KEY || '';
 export const kiOSUserAppUrl = 'https://itunes.apple.com/us/app/id1563168738';
 export const kAndroidUserAppUrl = 'https://play.google.com/store/apps/details?id=apps.hairlines.user.barber';
 export const kUserAppUrl = 'http://onelink.to/3ekmja';
-export const kTermsLink = 'https://www.hairlines.app/termsAndConditions.html';
-export const kPrivicyPolicyLink = 'https://www.hairlines.app/privacyPolicy.html';
+export const kTermsLink = 'https://hairlinesondemand.com/terms-conditions/';
+export const kPrivicyPolicyLink = 'https://hairlinesondemand.com/privacy-policy/';
 
 // Pagination
 export const kOffSet = 10;

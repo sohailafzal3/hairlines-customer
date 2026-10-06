@@ -6,6 +6,8 @@ import { Storage } from '../utils/storage';
 import { CookieManager } from '../utils/cookies';
 import { STORAGE_KEYS } from '../constants';
 
+import { useJobStore } from './useJobStore';
+
 interface AuthState {
   isLoggedIn: boolean;
   isGuest: boolean;
@@ -47,7 +49,12 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         await Storage.removeItem(STORAGE_KEYS.kIsUserLoggedIn);
         await Storage.removeItem(STORAGE_KEYS.kIsGuestUserLoggedIn);
+        await Storage.removeItem(STORAGE_KEYS.kUserId);
+        await Storage.removeItem(STORAGE_KEYS.kUserEmail);
+        await Storage.removeItem(STORAGE_KEYS.kUserMobile);
         await CookieManager.clearCookies();
+        await AsyncStorage.removeItem('job-storage');
+        useJobStore.getState().resetCreateJob();
         set({
           isLoggedIn: false,
           isGuest: false,

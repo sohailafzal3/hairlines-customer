@@ -39,6 +39,76 @@ const DISABILITY_OPTIONS = [
   { id: 2, label: 'Physical disability' },
 ];
 
+// Helper to format Date of Birth into continuous 8-digit MMDDYYYY string (e.g. 12121996)
+export const formatDOBForApi = (dobStr: string, dateObj?: Date): string => {
+  if (dateObj && !isNaN(dateObj.getTime())) {
+    const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const dd = String(dateObj.getDate()).padStart(2, '0');
+    const yyyy = dateObj.getFullYear();
+    return `${mm}${dd}${yyyy}`;
+  }
+  if (!dobStr) return '';
+  const clean = dobStr.replace(/\D/g, '');
+  if (clean.length === 8) {
+    return clean;
+  }
+  if (dobStr.includes('/') || dobStr.includes('-')) {
+    const parts = dobStr.includes('/') ? dobStr.split('/') : dobStr.split('-');
+    if (dobStr.includes('/')) {
+      const mm = (parts[0] || '01').padStart(2, '0');
+      const dd = (parts[1] || '01').padStart(2, '0');
+      const yyyy = parts[2] || '2000';
+      return `${mm}${dd}${yyyy}`;
+    } else {
+      const yyyy = parts[0] || '2000';
+      const mm = (parts[1] || '01').padStart(2, '0');
+      const dd = (parts[2] || '01').padStart(2, '0');
+      return `${mm}${dd}${yyyy}`;
+    }
+  }
+  const parsed = new Date(dobStr);
+  if (!isNaN(parsed.getTime())) {
+    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+    const dd = String(parsed.getDate()).padStart(2, '0');
+    const yyyy = parsed.getFullYear();
+    return `${mm}${dd}${yyyy}`;
+  }
+  return clean || dobStr;
+};
+
+// Helper to parse any DOB string (MMDDYYYY, MM/DD/YYYY, timestamp, ISO) into Date object
+export const parseDOBToDate = (val: any): Date | null => {
+  if (!val) return null;
+  if (val instanceof Date && !isNaN(val.getTime())) return val;
+  const str = String(val).trim();
+  const digits = str.replace(/\D/g, '');
+  if (digits.length === 8 && !str.includes('-') && !str.includes('T')) {
+    const mm = parseInt(digits.slice(0, 2), 10) - 1;
+    const dd = parseInt(digits.slice(2, 4), 10);
+    const yyyy = parseInt(digits.slice(4, 8), 10);
+    const d = new Date(yyyy, mm, dd);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (str.includes('/')) {
+    const parts = str.split('/');
+    if (parts.length === 3) {
+      const mm = parseInt(parts[0], 10) - 1;
+      const dd = parseInt(parts[1], 10);
+      const yyyy = parseInt(parts[2], 10);
+      const d = new Date(yyyy, mm, dd);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  if (typeof val === 'number' && val > 0) {
+    const ms = val < 10000000000 ? val * 1000 : val;
+    const d = new Date(ms);
+    if (!isNaN(d.getTime())) return d;
+  }
+  const d = new Date(val);
+  if (!isNaN(d.getTime())) return d;
+  return null;
+};
+
 const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
   const { account, setAccount, setLoggedIn } = useAuthStore();
 
@@ -68,6 +138,14 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
     return d;
   });
 
+  const openDatePicker = () => {
+    if (dateOfBirth) {
+      const parsed = parseDOBToDate(dateOfBirth);
+      if (parsed) setPickerDate(parsed);
+    }
+    setShowDatePicker(true);
+  };
+
   const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
@@ -85,9 +163,6 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
   // Security
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-
-  // Terms & Conditions Checkbox
-  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Status & Errors
   const [loading, setLoading] = useState(false);
@@ -230,11 +305,6 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
       return false;
     }
 
-    if (!termsAccepted) {
-      setErrorMsg('Please accept the Terms & Conditions to complete your registration.');
-      return false;
-    }
-
     return true;
   };
 
@@ -247,14 +317,8 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
     try {
       const deviceToken = '0000000000000000000000000000000000000000000000000000000000000000';
 
-      // Format Date of Birth (Unix timestamp or string)
-      let dobTimestamp = 0;
-      if (dateOfBirth.trim()) {
-        const parsed = new Date(dateOfBirth).getTime();
-        if (!isNaN(parsed)) {
-          dobTimestamp = Math.floor(parsed / 1000);
-        }
-      }
+      // Format Date of Birth as continuous 8-digit MMDDYYYY string (e.g. 12121996)
+      const formattedDOB = formatDOBForApi(dateOfBirth, pickerDate);
 
       const params = {
         countryCode: (account as any)?.countryCode || (account as any)?.phonePrefix || '+1',
@@ -269,7 +333,7 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
         referralCode: referralCode.trim(),
         isPhysicallyDisabled: disability,
         gender,
-        dateOfBirth: dobTimestamp > 0 ? dobTimestamp : dateOfBirth.trim(),
+        dateOfBirth: formattedDOB || dateOfBirth.trim(),
         password,
         residanceName: residenceName.trim(),
         instituteName: instituteName.trim(),
@@ -295,7 +359,7 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
         },
         residanceName: residenceName.trim(),
         instituteName: instituteName.trim(),
-        dateOfBirth: dateOfBirth.trim(),
+        dateOfBirth: formattedDOB || dateOfBirth.trim(),
         gender,
         isPhysicallyDisabled: disability,
       } as any);
@@ -433,7 +497,7 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
             </View>
 
             <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
+              onPress={openDatePicker}
               activeOpacity={0.8}
             >
               <VTTextField
@@ -444,7 +508,7 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
                 editable={false}
                 leftIcon={<Ionicons name="calendar-outline" size={18} color="#64748B" />}
                 rightIcon={<Ionicons name="calendar" size={18} color={Colors.ButtonPrimaryColor} />}
-                onRightIconPress={() => setShowDatePicker(true)}
+                onRightIconPress={openDatePicker}
               />
             </TouchableOpacity>
 
@@ -562,38 +626,12 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
 
-          {/* Card 4: Terms & Conditions Checkbox */}
-          <View style={styles.termsCard}>
-            <TouchableOpacity
-              onPress={() => setTermsAccepted(!termsAccepted)}
-              style={styles.checkboxTouch}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
-                {termsAccepted && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
-              </View>
-              <View style={styles.termsTextContainer}>
-                <Text style={styles.termsNormalText}>
-                  I have read and agree with the{' '}
-                  <Text onPress={() => handleOpenLink(kTermsLink)} style={styles.termsLink}>
-                    Terms & Conditions
-                  </Text>{' '}
-                  and{' '}
-                  <Text onPress={() => handleOpenLink(kPrivicyPolicyLink)} style={styles.termsLink}>
-                    Privacy Policy
-                  </Text>
-                  .
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
           {/* Complete Registration Button */}
           <VTButton
             title="Create Account"
             onPress={handleSubmit}
             loading={loading}
-            disabled={!firstName || !lastName || !email || !password || !confirmPassword || !address || !termsAccepted}
+            disabled={!firstName || !lastName || !email || !password || !confirmPassword || !address}
             style={styles.submitButton}
             textStyle={styles.submitButtonText}
           />
@@ -949,14 +987,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   termsNormalText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveRegular,
+    fontSize: 14,
     color: '#475569',
-    lineHeight: 20,
+    lineHeight: 21,
+    fontWeight: '400',
+    textAlign: 'justify',
   },
   termsLink: {
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.ButtonPrimaryColor,
+    fontWeight: 'bold',
+    color: '#0F172A',
     textDecorationLine: 'underline',
   },
   submitButton: {

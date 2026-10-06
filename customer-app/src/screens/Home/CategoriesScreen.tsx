@@ -62,7 +62,7 @@ const categoriesList: ServiceCategoryItem[] = [
 const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
   const { user, account, isGuest } = useAuthStore();
   const { notificationBadge } = useUserStore();
-  const { createJob, setCreateJobField } = useJobStore();
+  const { createJob, setCreateJobField, setCreateJob } = useJobStore();
   const [refreshing, setRefreshing] = useState(false);
   const [detectedLocation, setDetectedLocation] = useState('Set your location');
   const [searchQuery, setSearchQuery] = useState('');
@@ -118,6 +118,28 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleCategoryPress = (item: ServiceCategoryItem) => {
+    // Clear previous booking specifications (notes, special instructions, photo, barber, promo, sub-service)
+    setCreateJob({
+      serviceId: item.id,
+      serviceName: item.name,
+      servicesName: item.name,
+      servicesDescription: item.description,
+      subServiceId: '',
+      subServiceName: '',
+      subServiceTypeId: '',
+      subServiceTypeRate: 0,
+      descriptionText: '',
+      specialInstruction: '',
+      stylePreferenceImage: '',
+      referenceImages: [],
+      jobStartTime: '',
+      jobEndTime: '',
+      worker: undefined,
+      selectedSp: undefined,
+      promoCode: '',
+      isOldJob: false,
+    });
+
     navigation.navigate('SubServices', {
       serviceId: item.id,
       serviceName: item.name,

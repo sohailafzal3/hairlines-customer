@@ -49,7 +49,7 @@ export function Button({
         <ActivityIndicator
           color={
             normalizedVariant === "primary" || normalizedVariant === "danger"
-              ? Colors.ButtonTextColor
+              ? "#FFFFFF"
               : Colors.ButtonPrimaryColor
           }
         />
@@ -104,11 +104,12 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: FontSizes.base,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
+    letterSpacing: 0.3,
   },
-  primaryText: { color: Colors.ButtonTextColor },
-  secondaryText: { color: Colors.TitleColor },
-  dangerText: { color: Colors.ButtonTextColor },
+  primaryText: { color: '#FFFFFF' },
+  secondaryText: { color: Colors.ButtonPrimaryColor },
+  dangerText: { color: '#FFFFFF' },
   ghostText: { color: Colors.ButtonPrimaryColor },
 });
 

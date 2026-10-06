@@ -55,12 +55,26 @@ const VTButton: React.FC<VTButtonProps> = ({
           borderColor: Colors.ButtonPrimaryColor,
         },
         style,
+        isDisabled && {
+          backgroundColor: Colors.disabledGray,
+          borderColor: 'transparent',
+          opacity: 0.6,
+          shadowOpacity: 0,
+          elevation: 0,
+        },
       ]}
     >
       {loading ? (
         <ActivityIndicator color={getTextColor()} />
       ) : (
-        <Text style={[styles.text, { color: getTextColor() }, textStyle]}>
+        <Text
+          style={[
+            styles.text,
+            { color: getTextColor() },
+            textStyle,
+            isDisabled && { color: Colors.disabledText },
+          ]}
+        >
           {title}
         </Text>
       )}

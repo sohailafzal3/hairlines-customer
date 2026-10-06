@@ -1,26 +1,32 @@
-import { kGoogleApiKey } from '../../constants';
-import React, { useEffect, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  StatusBar,
+  FlatList,
   ActivityIndicator,
+  TextInput,
+  Platform,
+  KeyboardAvoidingView,
+  StatusBar,
+  ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import MapView, { Marker, Region } from 'react-native-maps';
 import Toast from 'react-native-toast-message';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
-import { Colors, Fonts, FontSizes, Spacing, BorderRadius } from '../../theme';
-import { VTButton, VTTextField } from '../../components/common';
-import { useJobStore, useUserStore } from '../../store';
+import { Colors } from '../../theme/colors';
+import { Fonts, FontSizes } from '../../theme/fonts';
+import { Spacing, BorderRadius } from '../../theme/spacing';
+import { kGoogleApiKey } from '../../constants';
+import { VTButton } from '../../components/common';
+import { useJobStore, useUserStore, useAuthStore } from '../../store';
+import { ProfileApi } from '../../api';
 import { NewAddress } from '../../models';
 
 type Props = {
@@ -28,262 +34,263 @@ type Props = {
   route: RouteProp<HomeStackParamList, 'SetLocation'>;
 };
 
+interface SuggestionItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  lat?: number;
+  lng?: number;
+  fullAddress: string;
+  city?: string;
+  state?: string;
+  country?: string;
+}
+
 const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { createJob, setCreateJobField } = useJobStore();
+  const { createJob, setCreateJob } = useJobStore();
   const { addresses, setAddresses } = useUserStore();
+  const { user, isGuest } = useAuthStore();
 
-  // Address Tag (Home or Work)
-  const [addressTag, setAddressTag] = useState<'Home' | 'Work'>('Home');
+  const searchInputRef = useRef<TextInput>(null);
 
-  // Form Section Visibility (Hidden by default unless Add / Edit is tapped)
-  const [showForm, setShowForm] = useState(false);
-
-  // Field 1: City / Area / Primary Location
-  const [primaryArea, setPrimaryArea] = useState('');
-  // Field 2: Street Address, Apartment / Unit #
-  const [streetAndUnit, setStreetAndUnit] = useState('');
-
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [country, setCountry] = useState('');
-  const [latitude, setLatitude] = useState<number>(0);
-  const [longitude, setLongitude] = useState<number>(0);
-
-  const [loadingLocation, setLoadingLocation] = useState(false);
-  // Autocomplete Search
-  const [searchInput, setSearchInput] = useState('');
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [searching, setSearching] = useState(false);
+  const [detectingGPS, setDetectingGPS] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [settingTag, setSettingTag] = useState<'Home' | 'Work' | null>(null);
 
+  // Map state
+  const initialLat = createJob.latitude || (user as any)?.latitude || 37.78825;
+  const initialLng = createJob.longitude || (user as any)?.longitude || -122.4324;
 
-  // Load saved Home and Work addresses from store
-  const homeAddress = addresses.find((a) => a.type === 'Home');
-  const workAddress = addresses.find((a) => a.type === 'Work');
+  const [mapRegion, setMapRegion] = useState<Region>({
+    latitude: initialLat,
+    longitude: initialLng,
+    latitudeDelta: 0.012,
+    longitudeDelta: 0.012,
+  });
+  const [mapAddress, setMapAddress] = useState(createJob.primaryAddress || '');
+  const [loadingMapAddress, setLoadingMapAddress] = useState(false);
 
-  // Listen to params if returning from MapScreen
+  // Fetch saved addresses from backend on mount if logged in
   useEffect(() => {
-    if (route.params?.selectedArea) {
-      setPrimaryArea(route.params.selectedArea);
-      setShowForm(true);
+    if (!isGuest) {
+      ProfileApi.getAddress()
+        .then((res: any) => {
+          const list = res?.data?.addresses || res?.addresses || [];
+          if (Array.isArray(list) && list.length > 0) {
+            setAddresses(list);
+          }
+        })
+        .catch(() => {});
     }
-    if (route.params?.selectedCity) {
-      setCity(route.params.selectedCity);
-    }
-    if (route.params?.selectedState) {
-      setState(route.params.selectedState);
-    }
-    if (route.params?.selectedCountry) {
-      setCountry(route.params.selectedCountry);
-    }
-    if (route.params?.latitude) {
-      setLatitude(route.params.latitude);
-    }
-    if (route.params?.longitude) {
-      setLongitude(route.params.longitude);
-    }
-  }, [
-    route.params?.selectedArea,
-    route.params?.selectedCity,
-    route.params?.selectedState,
-    route.params?.selectedCountry,
-    route.params?.latitude,
-    route.params?.longitude,
-  ]);
+  }, [isGuest]);
 
-  const requestLocationPermission = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    return status === 'granted';
-  };
+  // Load saved Home and Work / Office addresses
+  const homeAddress =
+    addresses.find((a) => a.type?.toLowerCase() === 'home') ||
+    (user?.address || (user as any)?.permanentAddress?.primaryAddress || (user as any)?.residanceAddress?.primaryAddress
+      ? {
+          primaryAddress:
+            user?.address ||
+            (user as any)?.permanentAddress?.primaryAddress ||
+            (user as any)?.residanceAddress?.primaryAddress,
+          streetAddressLine1: (user as any)?.streetAddressLine1 || '',
+          type: 'Home',
+          latitude: (user as any)?.latitude || 0,
+          longitude: (user as any)?.longitude || 0,
+          city: user?.city || '',
+          state: user?.state || '',
+          country: user?.country || '',
+        }
+      : null);
 
-  const getCurrentLocation = async () => {
-    setLoadingLocation(true);
-    try {
-      const hasPermission = await requestLocationPermission();
-      if (!hasPermission) {
-        Toast.show({
-          type: 'error',
-          text1: 'Permission Denied',
-          text2: 'Please enable location permissions in your device settings.',
-        });
-        setLoadingLocation(false);
-        return;
-      }
+  const workAddress = addresses.find(
+    (a) => a.type?.toLowerCase() === 'work' || a.type?.toLowerCase() === 'office'
+  );
 
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-      const lat = location.coords.latitude;
-      const lng = location.coords.longitude;
-      setLatitude(lat);
-      setLongitude(lng);
-
-      const geocode = await Location.reverseGeocodeAsync({
-        latitude: lat,
-        longitude: lng,
-      });
-
-      if (geocode && geocode[0]) {
-        const place = geocode[0];
-        
-        // Field 1: Area / City / State / Country
-        const areaName = [place.name, place.district, place.city, place.region, place.country]
-          .filter(Boolean)
-          .join(', ');
-
-        // Field 2: Street & House detail
-        const streetDetail = [place.streetNumber, place.street]
-          .filter(Boolean)
-          .join(' ');
-
-        const fullAddr = [streetDetail, areaName].filter(Boolean).join(', ');
-
-        // Instantly set in job store and navigate back
-        setCreateJobField('primaryAddress', fullAddr);
-        setCreateJobField('streetAddressLine1', streetDetail);
-        setCreateJobField('city', place.city || '');
-        setCreateJobField('state', place.region || '');
-        setCreateJobField('country', place.country || '');
-        setCreateJobField('latitude', lat);
-        setCreateJobField('longitude', lng);
-
-        Toast.show({
-          type: 'success',
-          text1: 'Location Detected',
-          text2: fullAddr,
-        });
-        exitLocationFlow();
-      }
-    } catch (error) {
-      console.error('Location error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Location Error',
-        text2: 'Could not fetch your current GPS position.',
-      });
-    } finally {
-      setLoadingLocation(false);
-    }
-  };
-
-  const exitLocationFlow = () => {
-    setShowForm(false);
-    const routes = navigation.getState()?.routes || [];
-    let targetIndex = -1;
-    for (let i = routes.length - 1; i >= 0; i--) {
-      const rName = routes[i].name;
-      if (rName !== 'SetLocation' && rName !== 'Map') {
-        targetIndex = i;
-        break;
-      }
-    }
-
-    if (targetIndex >= 0) {
-      const popCount = (routes.length - 1) - targetIndex;
-      if (popCount > 0) {
-        navigation.pop(popCount);
-        return;
-      }
-    }
-    navigation.goBack();
-  };
-
-
-  // Debounced live autocomplete
+  // Debounced search autocomplete
   useEffect(() => {
-    if (!searchInput.trim() || searchInput.trim().length < 3) {
+    if (!searchQuery.trim() || searchQuery.trim().length < 3) {
       setSuggestions([]);
       return;
     }
 
     const timer = setTimeout(() => {
-      searchAddressSuggestions(searchInput.trim());
+      fetchSuggestions(searchQuery.trim());
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchQuery]);
 
-  const searchAddressSuggestions = async (query: string) => {
+  const fetchSuggestions = async (query: string) => {
     setSearching(true);
     try {
+      // 1. Google Places Autocomplete if API key present
       if (kGoogleApiKey) {
         try {
           const res = await fetch(
-            `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${kGoogleApiKey}`
+            `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+              query
+            )}&key=${kGoogleApiKey}`
           );
           const json = await res.json();
-          if (json?.predictions?.length > 0) {
-            setSuggestions(
-              json.predictions.map((p: any) => ({
-                id: p.place_id,
-                title: p.structured_formatting?.main_text || p.description,
-                subtitle: p.structured_formatting?.secondary_text || '',
-                fullAddress: p.description,
-              }))
-            );
+          if (json?.predictions && json.predictions.length > 0) {
+            const list: SuggestionItem[] = json.predictions.map((p: any) => ({
+              id: p.place_id,
+              title: p.structured_formatting?.main_text || p.description,
+              subtitle: p.structured_formatting?.secondary_text || '',
+              fullAddress: p.description,
+            }));
+            setSuggestions(list);
             setSearching(false);
             return;
           }
-        } catch (e) {}
+        } catch (gErr) {
+          console.log('Google Places fallback to geocoding:', gErr);
+        }
       }
 
-      // Nominatim fallback
+      // 2. OpenStreetMap Nominatim Autocomplete
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(query)}&limit=5`,
-          { headers: { 'User-Agent': 'HairlinesApp/1.0' } }
+          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(
+            query
+          )}&limit=6`,
+          {
+            headers: {
+              'User-Agent': 'HairlinesCustomerApp/1.0',
+            },
+          }
         );
         const json = await res.json();
         if (Array.isArray(json) && json.length > 0) {
-          setSuggestions(
-            json.map((item: any) => {
-              const parts = (item.display_name || '').split(', ');
-              return {
-                id: item.place_id,
-                title: parts[0] || item.display_name,
-                subtitle: parts.slice(1).join(', '),
-                lat: parseFloat(item.lat),
-                lng: parseFloat(item.lon),
-                fullAddress: item.display_name,
-              };
-            })
-          );
+          const list: SuggestionItem[] = json.map((item: any, idx: number) => {
+            const parts = (item.display_name || '').split(', ');
+            const title = parts[0] || item.display_name;
+            const subtitle = parts.slice(1).join(', ');
+            return {
+              id: `${item.place_id || idx}`,
+              title,
+              subtitle,
+              lat: parseFloat(item.lat),
+              lng: parseFloat(item.lon),
+              fullAddress: item.display_name,
+            };
+          });
+          setSuggestions(list);
           setSearching(false);
           return;
         }
-      } catch (e) {}
+      } catch (nomErr) {
+        console.log('Nominatim fallback to expo-location:', nomErr);
+      }
 
-      // Native fallback
+      // 3. Fallback: Native Expo Location Geocoding
       const geoResults = await Location.geocodeAsync(query);
       if (geoResults && geoResults.length > 0) {
-        const list: any[] = [];
-        for (let i = 0; i < Math.min(geoResults.length, 4); i++) {
+        const list: SuggestionItem[] = [];
+        for (let i = 0; i < Math.min(geoResults.length, 5); i++) {
           const g = geoResults[i];
-          const rev = await Location.reverseGeocodeAsync({ latitude: g.latitude, longitude: g.longitude });
+          const rev = await Location.reverseGeocodeAsync({
+            latitude: g.latitude,
+            longitude: g.longitude,
+          });
           if (rev && rev[0]) {
-            const p = rev[0];
-            const title = [p.name, p.streetNumber, p.street].filter(Boolean).join(' ');
-            const sub = [p.city, p.region, p.country].filter(Boolean).join(', ');
+            const place = rev[0];
+            const title = [place.name, place.streetNumber, place.street].filter(Boolean).join(' ');
+            const subtitle = [place.city, place.region, place.country].filter(Boolean).join(', ');
             list.push({
               id: `geo_${i}`,
               title: title || query,
-              subtitle: sub,
+              subtitle: subtitle || '',
               lat: g.latitude,
               lng: g.longitude,
-              fullAddress: [title, sub].filter(Boolean).join(', '),
+              fullAddress: [title, subtitle].filter(Boolean).join(', '),
+              city: place.city || '',
+              state: place.region || '',
+              country: place.country || '',
             });
           }
         }
         setSuggestions(list);
       }
     } catch (err) {
-      console.log('Search err:', err);
+      console.log('Suggestion error:', err);
     } finally {
       setSearching(false);
     }
   };
 
-  const handleSelectAutocomplete = async (item: any) => {
+  const applySelectedLocation = (data: {
+    primaryAddress: string;
+    streetAddress?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    latitude: number;
+    longitude: number;
+  }) => {
+    // 1. Update active booking store
+    setCreateJob({
+      primaryAddress: data.primaryAddress,
+      streetAddressLine1: data.streetAddress || '',
+      city: data.city || '',
+      state: data.state || '',
+      country: data.country || '',
+      latitude: data.latitude,
+      longitude: data.longitude,
+    });
+
+    // 2. If user was saving this address as Home or Work, persist it to address store & backend
+    if (settingTag) {
+      const newAddr: NewAddress = {
+        type: settingTag,
+        primaryAddress: data.primaryAddress,
+        streetAddressLine1: data.streetAddress || '',
+        city: data.city || '',
+        state: data.state || '',
+        country: data.country || '',
+        latitude: data.latitude,
+        longitude: data.longitude,
+      };
+
+      const filtered = addresses.filter(
+        (a) => a.type?.toLowerCase() !== settingTag.toLowerCase()
+      );
+      setAddresses([...filtered, newAddr]);
+
+      if (!isGuest) {
+        ProfileApi.addAddress({
+          addressType: settingTag,
+          primaryAddress: data.primaryAddress,
+          streetAddressLine1: data.streetAddress || '',
+          city: data.city || '',
+          state: data.state || '',
+          country: data.country || '',
+          latitude: data.latitude,
+          longitude: data.longitude,
+        }).catch((e) => console.log('Save address notice:', e));
+      }
+
+      Toast.show({
+        type: 'success',
+        text1: `${settingTag} Address Saved`,
+        text2: data.primaryAddress,
+      });
+    } else {
+      Toast.show({
+        type: 'success',
+        text1: 'Location Set',
+        text2: data.primaryAddress,
+      });
+    }
+
+    navigation.goBack();
+  };
+
+  const handleSelectSuggestion = async (item: SuggestionItem) => {
     let lat = item.lat || 0;
     let lng = item.lng || 0;
 
@@ -294,609 +301,628 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
           lat = geo[0].latitude;
           lng = geo[0].longitude;
         }
-      } catch (e) {}
+      } catch (e) {
+        console.log('Geocoding place error:', e);
+      }
     }
 
-    let city = '';
-    let state = '';
-    let country = '';
+    let city = item.city || '';
+    let state = item.state || '';
+    let country = item.country || '';
     let street = '';
 
     try {
       if (lat && lng) {
         const rev = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
         if (rev && rev[0]) {
-          city = rev[0].city || '';
-          state = rev[0].region || '';
-          country = rev[0].country || '';
+          city = rev[0].city || city;
+          state = rev[0].region || state;
+          country = rev[0].country || country;
           street = [rev[0].streetNumber, rev[0].street].filter(Boolean).join(' ');
         }
       }
-    } catch (e) {}
-
-    const fullAddr = item.fullAddress || `${item.title}, ${item.subtitle}`;
-    setCreateJobField('primaryAddress', fullAddr);
-    setCreateJobField('streetAddressLine1', street || item.title);
-    setCreateJobField('city', city || 'City');
-    setCreateJobField('state', state || 'State');
-    setCreateJobField('country', country || 'Country');
-    setCreateJobField('latitude', lat);
-    setCreateJobField('longitude', lng);
-
-    Toast.show({
-      type: 'success',
-      text1: 'Location Selected',
-      text2: fullAddr,
-    });
-    exitLocationFlow();
-  };
-
-  const handleOpenMap = () => {
-    navigation.navigate('Map', {
-      initialLat: latitude || 37.78825,
-      initialLng: longitude || -122.4324,
-    });
-  };
-
-  const handleSelectSavedAddress = (savedAddr: NewAddress) => {
-    setCreateJobField('primaryAddress', savedAddr.primaryAddress);
-    setCreateJobField('streetAddressLine1', savedAddr.streetAddressLine1 || '');
-    setCreateJobField('city', savedAddr.city || '');
-    setCreateJobField('state', savedAddr.state || '');
-    setCreateJobField('country', savedAddr.country || '');
-    setCreateJobField('latitude', savedAddr.latitude || 0);
-    setCreateJobField('longitude', savedAddr.longitude || 0);
-
-    Toast.show({
-      type: 'success',
-      text1: `${savedAddr.type} Address Selected`,
-      text2: savedAddr.primaryAddress,
-    });
-    exitLocationFlow();
-  };
-
-  const handleStartAddOrEdit = (tag: 'Home' | 'Work', savedAddr?: NewAddress) => {
-    setAddressTag(tag);
-    setShowForm(true);
-
-    if (savedAddr) {
-      setPrimaryArea(savedAddr.primaryAddress || '');
-      setStreetAndUnit(savedAddr.streetAddressLine1 || '');
-      setCity(savedAddr.city || '');
-      setState(savedAddr.state || '');
-      setCountry(savedAddr.country || '');
-      setLatitude(savedAddr.latitude || 0);
-      setLongitude(savedAddr.longitude || 0);
-    } else {
-      setPrimaryArea('');
-      setStreetAndUnit('');
-      setCity('');
-      setState('');
-      setCountry('');
-      setLatitude(0);
-      setLongitude(0);
+    } catch (e) {
+      // Ignored
     }
+
+    applySelectedLocation({
+      primaryAddress: item.fullAddress || `${item.title}, ${item.subtitle}`,
+      streetAddress: street || item.title,
+      city,
+      state,
+      country,
+      latitude: lat,
+      longitude: lng,
+    });
   };
 
-  const handleSaveForm = () => {
-    if (!primaryArea.trim() && !streetAndUnit.trim()) {
+  const handleUseCurrentLocation = async () => {
+    setDetectingGPS(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Toast.show({
+          type: 'error',
+          text1: 'Permission Required',
+          text2: 'Location permission is needed to detect your current position.',
+        });
+        setDetectingGPS(false);
+        return;
+      }
+
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      const lat = loc.coords.latitude;
+      const lng = loc.coords.longitude;
+
+      const rev = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+      if (rev && rev[0]) {
+        const p = rev[0];
+        const street = [p.streetNumber, p.street].filter(Boolean).join(' ');
+        const fullAddr = [street, p.district, p.city, p.region, p.country].filter(Boolean).join(', ');
+
+        applySelectedLocation({
+          primaryAddress: fullAddr || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+          streetAddress: street,
+          city: p.city || '',
+          state: p.region || '',
+          country: p.country || '',
+          latitude: lat,
+          longitude: lng,
+        });
+      } else {
+        applySelectedLocation({
+          primaryAddress: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+          latitude: lat,
+          longitude: lng,
+        });
+      }
+    } catch (err: any) {
       Toast.show({
         type: 'error',
-        text1: 'Address Required',
-        text2: 'Please enter a city, area, or street address.',
+        text1: 'GPS Error',
+        text2: err?.message || 'Could not fetch current GPS location.',
       });
-      return;
+    } finally {
+      setDetectingGPS(false);
+    }
+  };
+
+  // Map Region Change
+  const handleMapRegionChange = async (region: Region) => {
+    setMapRegion(region);
+    setLoadingMapAddress(true);
+    try {
+      const rev = await Location.reverseGeocodeAsync({
+        latitude: region.latitude,
+        longitude: region.longitude,
+      });
+      if (rev && rev[0]) {
+        const p = rev[0];
+        const street = [p.streetNumber, p.street].filter(Boolean).join(' ');
+        const fullAddr = [street, p.city, p.region, p.country].filter(Boolean).join(', ');
+        setMapAddress(fullAddr || `${region.latitude.toFixed(4)}, ${region.longitude.toFixed(4)}`);
+      } else {
+        setMapAddress(`${region.latitude.toFixed(4)}, ${region.longitude.toFixed(4)}`);
+      }
+    } catch (e) {
+      setMapAddress(`${region.latitude.toFixed(4)}, ${region.longitude.toFixed(4)}`);
+    } finally {
+      setLoadingMapAddress(false);
+    }
+  };
+
+  const handleConfirmMapLocation = async () => {
+    let city = '';
+    let state = '';
+    let country = '';
+    let street = '';
+
+    try {
+      const rev = await Location.reverseGeocodeAsync({
+        latitude: mapRegion.latitude,
+        longitude: mapRegion.longitude,
+      });
+      if (rev && rev[0]) {
+        const p = rev[0];
+        city = p.city || '';
+        state = p.region || '';
+        country = p.country || '';
+        street = [p.streetNumber, p.street].filter(Boolean).join(' ');
+      }
+    } catch (e) {
+      // Ignored
     }
 
-    const fullAddress = [streetAndUnit.trim(), primaryArea.trim()]
-      .filter(Boolean)
-      .join(', ');
-
-    // 1. Update Job Store for booking
-    setCreateJobField('primaryAddress', fullAddress);
-    setCreateJobField('streetAddressLine1', streetAndUnit.trim());
-    setCreateJobField('city', city || 'City');
-    setCreateJobField('state', state || 'State');
-    setCreateJobField('country', country || 'Country');
-    setCreateJobField('latitude', latitude);
-    setCreateJobField('longitude', longitude);
-
-    // 2. Persist in User Store (Saved Addresses list)
-    const newAddressObj: NewAddress = {
-      type: addressTag,
-      primaryAddress: fullAddress,
-      streetAddressLine1: streetAndUnit.trim(),
-      city: city || 'City',
-      state: state || 'State',
-      country: country || 'Country',
-      latitude: latitude || 0,
-      longitude: longitude || 0,
-    };
-
-    const existingIndex = addresses.findIndex((a) => a.type === addressTag);
-    let updatedAddressesList = [...addresses];
-    if (existingIndex >= 0) {
-      updatedAddressesList[existingIndex] = newAddressObj;
-    } else {
-      updatedAddressesList.push(newAddressObj);
-    }
-    setAddresses(updatedAddressesList);
-
-    Toast.show({
-      type: 'success',
-      text1: 'Address Saved',
-      text2: `${addressTag} address saved successfully.`,
+    applySelectedLocation({
+      primaryAddress: mapAddress || `${mapRegion.latitude.toFixed(4)}, ${mapRegion.longitude.toFixed(4)}`,
+      streetAddress: street,
+      city,
+      state,
+      country,
+      latitude: mapRegion.latitude,
+      longitude: mapRegion.longitude,
     });
-    exitLocationFlow();
+  };
+
+  const handleSelectSavedAddress = (saved: any, defaultType: 'Home' | 'Work') => {
+    if (saved && saved.primaryAddress) {
+      applySelectedLocation({
+        primaryAddress: saved.primaryAddress,
+        streetAddress: saved.streetAddressLine1 || '',
+        city: saved.city || '',
+        state: saved.state || '',
+        country: saved.country || '',
+        latitude: saved.latitude || 0,
+        longitude: saved.longitude || 0,
+      });
+    } else {
+      setSettingTag(defaultType);
+      setSearchQuery('');
+      Toast.show({
+        type: 'info',
+        text1: `Set ${defaultType} Address`,
+        text2: `Search your address below or use GPS / Map to save your ${defaultType} location.`,
+      });
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 150);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+      {/* Top Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => {
+            if (showMapPicker) {
+              setShowMapPicker(false);
+            } else {
+              navigation.goBack();
+            }
+          }}
+          style={styles.backButton}
+          activeOpacity={0.8}
         >
-          {/* Top Bar Header */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
-            </TouchableOpacity>
-            <Text style={styles.title}>Set Location</Text>
-            <View style={{ width: 44 }} />
-          </View>
+          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{showMapPicker ? 'Pin on Map' : 'Set Location'}</Text>
+        <View style={{ width: 40 }} />
+      </View>
 
-          <Text style={styles.subtitle}>
-            Select or enter your service location
-          </Text>
+      {!showMapPicker ? (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          {/* Active Tag Indicator if user clicked to set Home / Work */}
+          {settingTag && (
+            <View style={styles.activeTagBanner}>
+              <Ionicons
+                name={settingTag === 'Home' ? 'home' : 'briefcase'}
+                size={16}
+                color={Colors.ButtonPrimaryColor}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.activeTagText}>
+                Setting your <Text style={{ fontWeight: '700' }}>{settingTag}</Text> address
+              </Text>
+              <TouchableOpacity
+                onPress={() => setSettingTag(null)}
+                style={styles.cancelTagButton}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={16} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+          )}
 
-          {/* Search Bar with Live Suggestions Dropdown */}
+          {/* Search Input Bar */}
           <View style={styles.searchBarContainer}>
             <Ionicons name="search" size={20} color="#64748B" style={{ marginRight: 8 }} />
-            <VTTextField
-              placeholder="Search address or area..."
-              value={searchInput}
-              onChangeText={setSearchInput}
-              style={{ flex: 1, marginBottom: 0 }}
-              inputStyle={{ fontSize: 15 }}
+            <TextInput
+              ref={searchInputRef}
+              style={styles.searchInput}
+              placeholder={
+                settingTag
+                  ? `Search for your ${settingTag} address...`
+                  : 'Search address, city, or place...'
+              }
+              placeholderTextColor="#94A3B8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              clearButtonMode="while-editing"
             />
-            {searching && <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} style={{ marginLeft: 8 }} />}
+            {searching && <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} />}
+            {searchQuery.length > 0 && !searching && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
+                <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            )}
           </View>
 
-          {suggestions.length > 0 && (
-            <View style={styles.suggestionsDropdown}>
-              {suggestions.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.suggestionRow}
-                  onPress={() => handleSelectAutocomplete(item)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="location-outline" size={18} color={Colors.ButtonPrimaryColor} style={{ marginRight: 10 }} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.suggestionTitle}>{item.title}</Text>
-                    {!!item.subtitle && <Text style={styles.suggestionSubtitle} numberOfLines={1}>{item.subtitle}</Text>}
-                  </View>
-                  <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-
-          {/* Quick Action Options */}
-          <View style={styles.actionGrid}>
-            {/* Option 1: Use Current Location */}
+          {/* Action Buttons Row */}
+          <View style={styles.actionRow}>
+            {/* GPS Button */}
             <TouchableOpacity
-              style={styles.actionCardPrimary}
-              onPress={getCurrentLocation}
-              disabled={loadingLocation}
+              style={styles.actionButtonPrimary}
+              onPress={handleUseCurrentLocation}
+              disabled={detectingGPS}
               activeOpacity={0.85}
             >
-              <View style={styles.actionIconContainer}>
-                {loadingLocation ? (
-                  <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} />
+              {detectingGPS ? (
+                <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} />
+              ) : (
+                <Ionicons name="locate" size={20} color={Colors.ButtonPrimaryColor} />
+              )}
+              <Text style={styles.actionTextPrimary}>
+                {detectingGPS ? 'Detecting GPS...' : 'Use Current Location'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Map Button */}
+            <TouchableOpacity
+              style={styles.actionButtonSecondary}
+              onPress={() => setShowMapPicker(true)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="map-outline" size={20} color="#0F172A" />
+              <Text style={styles.actionTextSecondary}>Pick on Map</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Suggestions List OR Saved Places Suggestions */}
+          <View style={styles.contentContainer}>
+            {suggestions.length > 0 ? (
+              <FlatList
+                data={suggestions}
+                keyExtractor={(item) => item.id}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.suggestionItem}
+                    onPress={() => handleSelectSuggestion(item)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.suggestionIconCircle}>
+                      <Ionicons name="location-outline" size={20} color={Colors.ButtonPrimaryColor} />
+                    </View>
+                    <View style={styles.suggestionTextWrapper}>
+                      <Text style={styles.suggestionTitle}>{item.title}</Text>
+                      {!!item.subtitle && (
+                        <Text style={styles.suggestionSubtitle} numberOfLines={1}>
+                          {item.subtitle}
+                        </Text>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                  </TouchableOpacity>
+                )}
+              />
+            ) : searchQuery.length > 0 ? (
+              <View style={styles.emptyPrompt}>
+                <Ionicons name="search-outline" size={48} color="#CBD5E1" />
+                <Text style={styles.emptyPromptTitle}>No matching addresses</Text>
+                <Text style={styles.emptyPromptSub}>Try searching with street number, city, or area name.</Text>
+              </View>
+            ) : (
+              /* Saved Address Suggestions: Home & Office */
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: Spacing.lg }}>
+                <Text style={styles.savedSectionHeader}>SAVED PLACES & SUGGESTIONS</Text>
+
+                {/* Home Address Card */}
+                <TouchableOpacity
+                  style={styles.savedCard}
+                  onPress={() => handleSelectSavedAddress(homeAddress, 'Home')}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.savedIconCircle, { backgroundColor: '#EEF4FF' }]}>
+                    <Ionicons name="home" size={20} color={Colors.ButtonPrimaryColor} />
+                  </View>
+                  <View style={styles.savedTextWrapper}>
+                    <View style={styles.savedTitleRow}>
+                      <Text style={styles.savedTitle}>Home</Text>
+                      {homeAddress?.primaryAddress ? (
+                        <View style={styles.savedTagBadge}>
+                          <Text style={styles.savedTagBadgeText}>SAVED</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.addTagBadge}>
+                          <Text style={styles.addTagBadgeText}>+ SET ADDRESS</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.savedSubtitle} numberOfLines={1}>
+                      {homeAddress?.primaryAddress || 'Tap to set and save your Home address'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                </TouchableOpacity>
+
+                {/* Office / Work Address Card */}
+                <TouchableOpacity
+                  style={styles.savedCard}
+                  onPress={() => handleSelectSavedAddress(workAddress, 'Work')}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.savedIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                    <Ionicons name="briefcase" size={20} color="#D97706" />
+                  </View>
+                  <View style={styles.savedTextWrapper}>
+                    <View style={styles.savedTitleRow}>
+                      <Text style={styles.savedTitle}>Office / Work</Text>
+                      {workAddress?.primaryAddress ? (
+                        <View style={styles.savedTagBadge}>
+                          <Text style={styles.savedTagBadgeText}>SAVED</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.addTagBadge}>
+                          <Text style={styles.addTagBadgeText}>+ SET ADDRESS</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.savedSubtitle} numberOfLines={1}>
+                      {workAddress?.primaryAddress || 'Tap to set and save your Work/Office address'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                </TouchableOpacity>
+
+                {/* Helpful Instruction Tip */}
+                <View style={styles.tipCard}>
+                  <Ionicons name="information-circle-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+                  <Text style={styles.tipText}>
+                    Select an address above or search for any location to see stylists available in your area.
+                  </Text>
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      ) : (
+        /* Map View Screen */
+        <View style={styles.mapWrapper}>
+          <MapView
+            style={styles.map}
+            initialRegion={mapRegion}
+            onRegionChangeComplete={handleMapRegionChange}
+          >
+            <Marker
+              coordinate={{
+                latitude: mapRegion.latitude,
+                longitude: mapRegion.longitude,
+              }}
+              title="Service Address"
+            />
+          </MapView>
+
+          {/* Center Pin */}
+          <View pointerEvents="none" style={styles.mapCenterPin}>
+            <Ionicons name="location" size={42} color={Colors.ButtonPrimaryColor} />
+          </View>
+
+          {/* Bottom Card */}
+          <View style={styles.mapBottomCard}>
+            <View style={styles.mapAddressRow}>
+              <Ionicons name="location-sharp" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.mapAddressLabel}>SELECTED PIN LOCATION</Text>
+                {loadingMapAddress ? (
+                  <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} style={{ alignSelf: 'flex-start', marginTop: 4 }} />
                 ) : (
-                  <Ionicons name="location" size={22} color={Colors.ButtonPrimaryColor} />
+                  <Text style={styles.mapAddressValue} numberOfLines={2}>
+                    {mapAddress || 'Move map to pinpoint location'}
+                  </Text>
                 )}
               </View>
-              <View style={styles.actionTextWrapper}>
-                <Text style={styles.actionTitlePrimary}>
-                  {loadingLocation ? 'Detecting Location...' : 'Use Current Location'}
-                </Text>
-                <Text style={styles.actionSub}>Auto-detect using GPS</Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Option 2: Set Location on Map */}
-            <TouchableOpacity
-              style={styles.actionCardSecondary}
-              onPress={handleOpenMap}
-              activeOpacity={0.85}
-            >
-              <View style={styles.actionIconContainerSec}>
-                <Ionicons name="map-outline" size={22} color="#0F172A" />
-              </View>
-              <View style={styles.actionTextWrapper}>
-                <Text style={styles.actionTitleSec}>Set Location on Map</Text>
-                <Text style={styles.actionSub}>Pin location on interactive map</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Saved Addresses Section (Home 🏠 & Work 💼) */}
-          <View style={styles.savedSection}>
-            <Text style={styles.sectionLabel}>Saved Addresses</Text>
-
-            {/* Home Address Card */}
-            <View style={styles.savedCard}>
-              {homeAddress ? (
-                <>
-                  <TouchableOpacity
-                    style={styles.savedCardMain}
-                    onPress={() => handleSelectSavedAddress(homeAddress)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.savedIconCircle}>
-                      <Ionicons name="home" size={20} color={Colors.ButtonPrimaryColor} />
-                    </View>
-                    <View style={styles.savedTextWrapper}>
-                      <Text style={styles.savedCardTitle}>Home Address</Text>
-                      <Text style={styles.savedCardSub} numberOfLines={1}>
-                        {homeAddress.primaryAddress}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <View style={styles.savedCardActions}>
-                    <TouchableOpacity
-                      style={styles.cardActionButton}
-                      onPress={() => handleStartAddOrEdit('Home', homeAddress)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="create-outline" size={16} color={Colors.ButtonPrimaryColor} />
-                      <Text style={styles.cardActionText}>Edit</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.cardActionButton}
-                      onPress={handleOpenMap}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="map-outline" size={16} color="#0F172A" />
-                      <Text style={styles.cardActionTextSec}>Map</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              ) : (
-                <TouchableOpacity
-                  style={styles.addAddressButton}
-                  onPress={() => handleStartAddOrEdit('Home')}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.addIconCircle}>
-                    <Ionicons name="add" size={20} color={Colors.ButtonPrimaryColor} />
-                  </View>
-                  <Text style={styles.addAddressText}>+ Add Home Address</Text>
-                </TouchableOpacity>
-              )}
             </View>
 
-            {/* Work Address Card */}
-            <View style={styles.savedCard}>
-              {workAddress ? (
-                <>
-                  <TouchableOpacity
-                    style={styles.savedCardMain}
-                    onPress={() => handleSelectSavedAddress(workAddress)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.savedIconCircle}>
-                      <Ionicons name="briefcase" size={20} color={Colors.ButtonPrimaryColor} />
-                    </View>
-                    <View style={styles.savedTextWrapper}>
-                      <Text style={styles.savedCardTitle}>Work Address</Text>
-                      <Text style={styles.savedCardSub} numberOfLines={1}>
-                        {workAddress.primaryAddress}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+            <View style={styles.mapButtonRow}>
+              <TouchableOpacity
+                style={styles.mapCancelBtn}
+                onPress={() => setShowMapPicker(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.mapCancelBtnText}>Back</Text>
+              </TouchableOpacity>
 
-                  <View style={styles.savedCardActions}>
-                    <TouchableOpacity
-                      style={styles.cardActionButton}
-                      onPress={() => handleStartAddOrEdit('Work', workAddress)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="create-outline" size={16} color={Colors.ButtonPrimaryColor} />
-                      <Text style={styles.cardActionText}>Edit</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.cardActionButton}
-                      onPress={handleOpenMap}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="map-outline" size={16} color="#0F172A" />
-                      <Text style={styles.cardActionTextSec}>Map</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              ) : (
-                <TouchableOpacity
-                  style={styles.addAddressButton}
-                  onPress={() => handleStartAddOrEdit('Work')}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.addIconCircle}>
-                    <Ionicons name="add" size={20} color={Colors.ButtonPrimaryColor} />
-                  </View>
-                  <Text style={styles.addAddressText}>+ Add Work Address</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
-          {/* Enter / Edit Form Section (Hidden by default until Add/Edit is clicked) */}
-          {showForm && (
-            <View style={styles.formSection}>
-              <View style={styles.formHeaderRow}>
-                <Text style={styles.sectionLabel}>
-                  {`EDIT ${addressTag.toUpperCase()} ADDRESS`}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => setShowForm(false)}
-                  style={styles.closeFormButton}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="close" size={20} color="#64748B" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Tag Selection Chips (Home & Work only) */}
-              <View style={styles.tagRow}>
-                {[
-                  { key: 'Home', label: 'Home 🏠' },
-                  { key: 'Work', label: 'Work 💼' },
-                ].map((tag) => {
-                  const isActive = addressTag === tag.key;
-                  return (
-                    <TouchableOpacity
-                      key={tag.key}
-                      style={[styles.tagChip, isActive && styles.tagChipActive]}
-                      onPress={() => setAddressTag(tag.key as any)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.tagChipText, isActive && styles.tagChipTextActive]}>
-                        {tag.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Field 1: City / Area / Primary Location */}
-              <VTTextField
-                label="City / Area / Primary Location"
-                placeholder="e.g. Downtown, San Francisco, CA"
-                value={primaryArea}
-                onChangeText={setPrimaryArea}
-                leftIcon={<Ionicons name="business-outline" size={18} color="#64748B" />}
-              />
-
-              {/* Field 2: Street Address, Apartment / Unit # */}
-              <VTTextField
-                label="Street Address, Apt / Unit #"
-                placeholder="e.g. 123 Market St, Apt 4B"
-                value={streetAndUnit}
-                onChangeText={setStreetAndUnit}
-                leftIcon={<Ionicons name="home-outline" size={18} color="#64748B" />}
-              />
-
-              {/* Save Address Button */}
               <VTButton
-                title="Save Address"
-                onPress={handleSaveForm}
-                style={styles.saveButton}
-                textStyle={styles.saveButtonText}
+                title="Confirm Location"
+                onPress={handleConfirmMapLocation}
+                style={styles.mapConfirmBtn}
               />
             </View>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  searchBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  suggestionsDropdown: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: Spacing.lg,
-    overflow: 'hidden',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  suggestionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
-  },
-  suggestionTitle: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveBold,
-    color: '#0F172A',
-  },
-  suggestionSubtitle: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.uberMoveRegular,
-    color: '#64748B',
-  },
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
   keyboardView: {
     flex: 1,
-  },
-  scrollContent: {
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing['3xl'],
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.xs,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  title: {
-    fontSize: FontSizes['2xl'],
-    fontFamily: Fonts.uberMoveBold,
-    color: '#0F172A',
-  },
-  subtitle: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveRegular,
-    color: '#64748B',
-    marginBottom: Spacing.xl,
-  },
-  actionGrid: {
-    marginBottom: Spacing.xl,
-    gap: Spacing.md,
-  },
-  actionCardPrimary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EEF4FF',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.md + 2,
-    borderWidth: 1.5,
-    borderColor: 'rgba(34, 45, 99, 0.2)',
-  },
-  actionCardSecondary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.md + 2,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  actionIconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.md,
-  },
-  actionIconContainerSec: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.md,
-  },
-  actionTextWrapper: {
-    flex: 1,
-  },
-  actionTitlePrimary: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.ButtonPrimaryColor,
-  },
-  actionTitleSec: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.uberMoveBold,
-    color: '#0F172A',
-  },
-  actionSub: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.uberMoveRegular,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  savedSection: {
-    marginBottom: Spacing.xl,
-  },
-  sectionLabel: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveBold,
-    color: '#334155',
-    marginBottom: Spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  savedCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  savedCardMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  savedIconCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  headerTitle: {
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  activeTagBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#EEF4FF',
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    marginTop: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 45, 99, 0.15)',
+  },
+  activeTagText: {
+    flex: 1,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
+    color: Colors.ButtonPrimaryColor,
+  },
+  cancelTagButton: {
+    padding: 4,
+  },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: Spacing.md,
+    height: 52,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.md,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveMedium,
+    color: '#0F172A',
+    paddingVertical: Spacing.xs,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  actionButtonPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEF4FF',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 45, 99, 0.15)',
+    gap: 6,
+  },
+  actionTextPrimary: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  actionButtonSecondary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 6,
+  },
+  actionTextSecondary: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    overflow: 'hidden',
+    marginBottom: Spacing.xl,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+  },
+  suggestionIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#EEF4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+  suggestionTextWrapper: {
+    flex: 1,
+  },
+  suggestionTitle: {
+    fontSize: FontSizes.base,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  suggestionSubtitle: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#64748B',
+  },
+  savedSectionHeader: {
+    fontSize: 11,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#94A3B8',
+    letterSpacing: 0.8,
+    marginBottom: Spacing.md,
+  },
+  savedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    marginBottom: Spacing.md,
+  },
+  savedIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.md,
@@ -904,132 +930,148 @@ const styles = StyleSheet.create({
   savedTextWrapper: {
     flex: 1,
   },
-  savedCardTitle: {
-    fontSize: FontSizes.md,
+  savedTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  savedTitle: {
+    fontSize: FontSizes.base,
     fontFamily: Fonts.uberMoveBold,
     color: '#0F172A',
   },
-  savedCardSub: {
-    fontSize: FontSizes.xs + 1,
+  savedTagBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  savedTagBadgeText: {
+    fontSize: 8,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#15803D',
+  },
+  addTagBadge: {
+    backgroundColor: '#EEF4FF',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  addTagBadgeText: {
+    fontSize: 8,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+  },
+  savedSubtitle: {
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.uberMoveRegular,
     color: '#64748B',
-    marginTop: 2,
   },
-  savedCardActions: {
+  tipCard: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: Spacing.sm,
-  },
-  cardActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  cardActionText: {
-    fontSize: FontSizes.xs + 1,
-    fontFamily: Fonts.uberMoveBold,
-    color: Colors.ButtonPrimaryColor,
-    marginLeft: 4,
-  },
-  cardActionTextSec: {
-    fontSize: FontSizes.xs + 1,
-    fontFamily: Fonts.uberMoveBold,
-    color: '#0F172A',
-    marginLeft: 4,
-  },
-  addAddressButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  addIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    alignItems: 'flex-start',
     backgroundColor: '#EEF4FF',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveRegular,
+    color: Colors.ButtonPrimaryColor,
+    lineHeight: 18,
+  },
+  emptyPrompt: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing['3xl'],
   },
-  addAddressText: {
-    fontSize: FontSizes.md,
+  emptyPromptTitle: {
+    fontSize: FontSizes.lg,
     fontFamily: Fonts.uberMoveBold,
-    color: Colors.ButtonPrimaryColor,
+    color: '#0F172A',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
   },
-  formSection: {
+  emptyPromptSub: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  mapWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
+  map: {
     width: '100%',
+    height: '100%',
+  },
+  mapCenterPin: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -42,
+    marginLeft: -21,
+  },
+  mapBottomCard: {
+    position: 'absolute',
+    bottom: 24,
+    left: Spacing.lg,
+    right: Spacing.lg,
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
-    marginTop: Spacing.sm,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  formHeaderRow: {
+  mapAddressRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  closeFormButton: {
-    padding: 4,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
+    alignItems: 'flex-start',
     marginBottom: Spacing.md,
   },
-  tagChip: {
-    flex: 1,
-    alignItems: 'center',
+  mapAddressLabel: {
+    fontSize: 10,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  mapAddressValue: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  mapButtonRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  mapCancelBtn: {
+    paddingHorizontal: Spacing.lg,
     justifyContent: 'center',
-    height: 44,
-    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
   },
-  tagChipActive: {
-    backgroundColor: Colors.ButtonPrimaryColor,
-    borderColor: Colors.ButtonPrimaryColor,
-  },
-  tagChipText: {
+  mapCancelBtnText: {
     fontSize: FontSizes.sm,
-    fontFamily: Fonts.uberMoveMedium,
+    fontFamily: Fonts.uberMoveBold,
     color: '#64748B',
   },
-  tagChipTextActive: {
-    color: '#FFFFFF',
-    fontFamily: Fonts.uberMoveBold,
-  },
-  saveButton: {
-    backgroundColor: Colors.ButtonPrimaryColor,
-    borderRadius: BorderRadius.lg,
-    minHeight: 54,
-    marginTop: Spacing.lg,
-    shadowColor: Colors.ButtonPrimaryColor,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  saveButtonText: {
-    fontSize: FontSizes.base,
-    fontFamily: Fonts.uberMoveBold,
-    color: '#FFFFFF',
+  mapConfirmBtn: {
+    flex: 1,
   },
 });
 

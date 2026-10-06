@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CreateJobData, SP, PromoCode } from '../models';
 
@@ -66,40 +65,32 @@ const initialJobState: CreateJobData = {
   isOldJob: false,
 };
 
-const zustandStorage = {
-  getItem: (name: string) => AsyncStorage.getItem(name),
-  setItem: (name: string, value: string) => AsyncStorage.setItem(name, value),
-  removeItem: (name: string) => AsyncStorage.removeItem(name),
-};
+// Clean up any stale persisted job-storage from previous versions
+AsyncStorage.removeItem('job-storage').catch(() => {});
 
-export const useJobStore = create<JobState>()(
-  persist(
-    (set) => ({
-      createJob: { ...initialJobState },
-      selectedPromoCode: null,
+export const useJobStore = create<JobState>()((set) => ({
+  createJob: { ...initialJobState },
+  selectedPromoCode: null,
 
-      setCreateJobField: (field, value) =>
-        set((state) => ({
-          createJob: { ...state.createJob, [field]: value },
-        })),
+  setCreateJobField: (field, value) =>
+    set((state) => ({
+      createJob: { ...state.createJob, [field]: value },
+    })),
 
-      setCreateJob: (data) =>
-        set((state) => ({
-          createJob: { ...state.createJob, ...data },
-        })),
+  setCreateJob: (data) =>
+    set((state) => ({
+      createJob: { ...state.createJob, ...data },
+    })),
 
-      setSelectedSp: (sp) =>
-        set((state) => ({
-          createJob: { ...state.createJob, selectedSp: sp },
-        })),
+  setSelectedSp: (sp) =>
+    set((state) => ({
+      createJob: { ...state.createJob, selectedSp: sp },
+    })),
 
-      setPromoCode: (promo) => set({ selectedPromoCode: promo }),
+  setPromoCode: (promo) => set({ selectedPromoCode: promo }),
 
-      resetCreateJob: () => set({ createJob: { ...initialJobState }, selectedPromoCode: null }),
-    }),
-    {
-      name: 'job-storage',
-      storage: createJSONStorage(() => zustandStorage),
-    }
-  )
-);
+  resetCreateJob: () => {
+    AsyncStorage.removeItem('job-storage').catch(() => {});
+    set({ createJob: { ...initialJobState }, selectedPromoCode: null });
+  },
+}));

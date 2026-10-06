@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
+  Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +16,8 @@ import { AppDrawerParamList } from '../../navigation/AppNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
+import { AuthApi } from '../../api';
+import { kTermsLink, kPrivicyPolicyLink } from '../../constants';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'Terms'>;
@@ -23,6 +27,39 @@ type ActiveTab = 'terms' | 'privacy';
 
 const TermsScreen: React.FC<Props> = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('terms');
+  const [termsText, setTermsText] = useState('');
+  const [privacyText, setPrivacyText] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadTerms = async () => {
+      setLoading(true);
+      try {
+        const res: any = await AuthApi.getTermsConditions();
+        if (isMounted && res) {
+          const tDesc =
+            res?.termAndConditionDescription ||
+            res?.termAndCondition?.description ||
+            (typeof res?.termAndCondition === 'string' ? res?.termAndCondition : '');
+          const pDesc =
+            res?.privacyPolicyDescription ||
+            res?.privacyPolicy?.description ||
+            (typeof res?.privacyPolicy === 'string' ? res?.privacyPolicy : '');
+          if (tDesc) setTermsText(tDesc);
+          if (pDesc) setPrivacyText(pDesc);
+        }
+      } catch (err) {
+        console.log('Error loading terms from API:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    loadTerms();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -85,8 +122,29 @@ const TermsScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.docCard}>
             <View style={styles.docHeader}>
               <Text style={styles.docTitle}>Terms and Conditions</Text>
-              <Text style={styles.docLastUpdated}>Last updated: July 2026</Text>
+              <Text style={styles.docLastUpdated}>Hairlines Customer Terms</Text>
             </View>
+
+            {loading && (
+              <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} style={{ marginVertical: 12 }} />
+            )}
+
+            {!!termsText && !/<[a-z][\s\S]*>/i.test(termsText) && (
+              <View style={styles.backendSummaryBox}>
+                <Text style={styles.backendSummaryTitle}>Official Notice</Text>
+                <Text style={styles.backendSummaryText}>{termsText}</Text>
+              </View>
+            )}
+
+            {/* Link to live official website terms */}
+            <TouchableOpacity
+              style={styles.openWebButton}
+              onPress={() => Linking.openURL(kTermsLink)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="open-outline" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 6 }} />
+              <Text style={styles.openWebButtonText}>View Full Terms on hairlinesondemand.com</Text>
+            </TouchableOpacity>
 
             <View style={styles.divider} />
 
@@ -130,8 +188,29 @@ const TermsScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.docCard}>
             <View style={styles.docHeader}>
               <Text style={styles.docTitle}>Privacy Policy</Text>
-              <Text style={styles.docLastUpdated}>Last updated: July 2026</Text>
+              <Text style={styles.docLastUpdated}>Hairlines Customer Privacy</Text>
             </View>
+
+            {loading && (
+              <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} style={{ marginVertical: 12 }} />
+            )}
+
+            {!!privacyText && !/<[a-z][\s\S]*>/i.test(privacyText) && (
+              <View style={styles.backendSummaryBox}>
+                <Text style={styles.backendSummaryTitle}>Official Notice</Text>
+                <Text style={styles.backendSummaryText}>{privacyText}</Text>
+              </View>
+            )}
+
+            {/* Link to live official website privacy policy */}
+            <TouchableOpacity
+              style={styles.openWebButton}
+              onPress={() => Linking.openURL(kPrivicyPolicyLink)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="open-outline" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 6 }} />
+              <Text style={styles.openWebButtonText}>View Full Policy on hairlinesondemand.com</Text>
+            </TouchableOpacity>
 
             <View style={styles.divider} />
 
@@ -266,6 +345,45 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 2,
   },
+  backendSummaryBox: {
+    backgroundColor: '#EEF4FF',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  backendSummaryTitle: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  backendSummaryText: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.uberMoveRegular,
+    color: '#1E293B',
+    lineHeight: 20,
+  },
+  openWebButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  openWebButtonText: {
+    fontSize: FontSizes.xs + 1,
+    fontFamily: Fonts.uberMoveBold,
+    color: Colors.ButtonPrimaryColor,
+  },
   divider: {
     height: 1,
     backgroundColor: '#F1F5F9',
@@ -283,6 +401,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.uberMoveRegular,
     color: '#475569',
     lineHeight: 22,
+    textAlign: 'justify',
     marginBottom: Spacing.md,
   },
   appVersionFooter: {

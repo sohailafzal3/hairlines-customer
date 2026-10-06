@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -21,7 +22,7 @@ import { VTButton, VTTextField } from '../../components/common';
 import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
 import { Storage } from '../../utils/storage';
-import { STORAGE_KEYS } from '../../constants';
+import { STORAGE_KEYS, kTermsLink, kPrivicyPolicyLink } from '../../constants';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'SignIn'>;
@@ -37,6 +38,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
   const [password, setPassword] = useState('');
   const [countryCode, setCountryCode] = useState(selectedCountryCode || '+1');
   const [flagEmoji, setFlagEmoji] = useState(selectedFlag || '🇺🇸');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -52,6 +54,11 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleSubmit = async () => {
     if (!phoneNumber.trim()) return;
+
+    if (isSignUp && !termsAccepted) {
+      setErrorMsg('Please accept the Terms & Conditions and Privacy Policy to continue.');
+      return;
+    }
 
     setErrorMsg('');
     setLoading(true);
@@ -237,16 +244,48 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
                   <Text style={styles.forgotText}>Back to Sign In</Text>
                 </TouchableOpacity>
               )}
+
+              {/* Terms & Marketing Consent Checkbox */}
+              {isSignUp && (
+                <View style={styles.termsContainer}>
+                  <TouchableOpacity
+                    onPress={() => setTermsAccepted(!termsAccepted)}
+                    style={styles.checkboxTouch}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
+                      {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                    </View>
+                    <View style={styles.termsTextContainer}>
+                      <Text style={styles.termsNormalText}>
+                        I agree to receive promotional and personalized marketing texts at the phone number provided above. Message frequency may vary. Standard message and data rates may apply. By opting in, you also agree to our{' '}
+                        <Text onPress={() => Linking.openURL(kPrivicyPolicyLink)} style={styles.termsLink}>
+                          Privacy Policy
+                        </Text>{' '}
+                        and{' '}
+                        <Text onPress={() => Linking.openURL(kTermsLink)} style={styles.termsLink}>
+                          Terms
+                        </Text>{' '}
+                        and Reply STOP to opt out.
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
 
           {/* Bottom Section - Submit Button & Footer Link aligned to bottom */}
           <View style={styles.bottomSection}>
             <VTButton
-              title={isForgotPassword ? 'Send Verification Code' : isSignUp ? 'Continue to Sign Up' : 'Sign In'}
+              title={isForgotPassword ? 'SEND VERIFICATION CODE' : isSignUp ? 'SIGN UP NOW' : 'SIGN IN'}
               onPress={handleSubmit}
               loading={loading}
-              disabled={!phoneNumber.trim() || (!isSignUp && !isForgotPassword && !password.trim())}
+              disabled={
+                !phoneNumber.trim() ||
+                (isSignUp && !termsAccepted) ||
+                (!isSignUp && !isForgotPassword && !password.trim())
+              }
               style={styles.submitButton}
               textStyle={styles.submitButtonText}
             />
@@ -265,7 +304,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Text style={styles.footerLinkText}>
-                    {isSignUp ? 'Sign In' : 'Sign Up'}
+                    {isSignUp ? 'SIGN IN' : 'SIGN UP'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -429,6 +468,45 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.base,
     fontFamily: Fonts.uberMoveBold,
     color: '#FFFFFF',
+  },
+  termsContainer: {
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  checkboxTouch: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: '#94A3B8',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.sm,
+    marginTop: 2,
+  },
+  checkboxActive: {
+    backgroundColor: Colors.ButtonPrimaryColor,
+    borderColor: Colors.ButtonPrimaryColor,
+  },
+  termsTextContainer: {
+    flex: 1,
+  },
+  termsNormalText: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 21,
+    fontWeight: '400',
+    textAlign: 'justify',
+  },
+  termsLink: {
+    fontWeight: 'bold',
+    color: '#0F172A',
+    textDecorationLine: 'underline',
   },
   footerRow: {
     flexDirection: 'row',

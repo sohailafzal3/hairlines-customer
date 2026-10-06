@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DrawerContentScrollView, DrawerContentComponentProps } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuthStore } from '../../store';
+import { useAuthStore, useJobStore } from '../../store';
+import { ProfileApi } from '../../api';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
@@ -29,8 +30,21 @@ const menuItems: MenuItem[] = [
 ];
 
 const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
-  const { user, account, isGuest, logout } = useAuthStore();
+  const { user, account, isGuest, logout, updateUserField } = useAuthStore();
   const { navigation, state } = props;
+
+  useEffect(() => {
+    if (!isGuest) {
+      ProfileApi.fetchProfile()
+        .then((res: any) => {
+          const data = res?.data || res;
+          if (data && typeof data.avgRating === 'number') {
+            updateUserField('avgRating', data.avgRating);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isGuest]);
 
   const handleLogout = async () => {
     await logout();
@@ -54,10 +68,11 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
     return 'Member Account';
   };
 
-  const getUserRating = () => {
-    if (user?.avgRating && user.avgRating > 0) return user.avgRating.toFixed(1);
-    if (account?.avgRating && account.avgRating > 0) return account.avgRating.toFixed(1);
-    return '5.0';
+  const getRatingValue = (): number => {
+    const r = user?.avgRating ?? (account as any)?.avgRating;
+    if (typeof r === 'number' && !isNaN(r)) return r;
+    const parsed = parseFloat(String(r));
+    return !isNaN(parsed) ? parsed : 0;
   };
 
   const getInitials = () => {
@@ -68,6 +83,13 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
     }
     return nameStr.charAt(0).toUpperCase() || 'H';
+  };
+
+  const handleMenuItemPress = (route: string) => {
+    if (route === 'HomeStack') {
+      useJobStore.getState().resetCreateJob();
+    }
+    navigation.navigate(route as any);
   };
 
   return (
@@ -90,21 +112,40 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
               {getUserSubText()}
             </Text>
 
-            <View style={styles.tagRow}>
-              <View style={styles.memberTag}>
-                <Ionicons name="sparkles" size={10} color={Colors.ButtonPrimaryColor} style={{ marginRight: 3 }} />
-                <Text style={styles.memberTagText}>
-                  {isGuest ? 'Guest' : 'Customer'}
+            {!isGuest ? (
+              <View style={styles.ratingRow}>
+                <View style={styles.starsRow}>
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const rating = getRatingValue();
+                    return (
+                      <Ionicons
+                        key={star}
+                        name={
+                          rating >= star
+                            ? 'star'
+                            : rating >= star - 0.5
+                            ? 'star-half'
+                            : 'star-outline'
+                        }
+                        size={12}
+                        color="#E5B652"
+                        style={{ marginRight: 2 }}
+                      />
+                    );
+                  })}
+                </View>
+                <Text style={styles.ratingValueText}>
+                  {getRatingValue() > 0 ? getRatingValue().toFixed(1) : '0.0'}
                 </Text>
               </View>
-
-              {!isGuest && (
-                <View style={styles.ratingBadge}>
-                  <Ionicons name="star" size={10} color="#854D0E" style={{ marginRight: 3 }} />
-                  <Text style={styles.ratingText}>{getUserRating()} ★</Text>
+            ) : (
+              <View style={styles.tagRow}>
+                <View style={styles.memberTag}>
+                  <Ionicons name="sparkles" size={10} color={Colors.ButtonPrimaryColor} style={{ marginRight: 3 }} />
+                  <Text style={styles.memberTagText}>Guest</Text>
                 </View>
-              )}
-            </View>
+              </View>
+            )}
           </View>
         </View>
 
@@ -119,7 +160,7 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
               <TouchableOpacity
                 key={index}
                 style={[styles.menuItem, isFocused && styles.menuItemActive]}
-                onPress={() => navigation.navigate(item.route as any)}
+                onPress={() => handleMenuItemPress(item.route)}
                 activeOpacity={0.7}
               >
                 <View style={[styles.iconContainer, isFocused && styles.iconContainerActive]}>
@@ -236,6 +277,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingValueText: {
+    fontSize: 11,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#854D0E',
+    marginRight: 4,
+  },
   memberTag: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -249,19 +307,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.uberMoveBold,
     color: Colors.ButtonPrimaryColor,
     textTransform: 'uppercase',
-  },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF9C3',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.full,
-  },
-  ratingText: {
-    fontSize: 9,
-    fontFamily: Fonts.uberMoveBold,
-    color: '#854D0E',
   },
   divider: {
     height: 1,

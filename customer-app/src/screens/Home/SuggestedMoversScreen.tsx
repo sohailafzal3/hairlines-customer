@@ -86,8 +86,14 @@ const SuggestedMoversScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.spName}>{item.name}</Text>
           <View style={styles.spMetaRow}>
             <View style={styles.ratingBadge}>
-              <Ionicons name="star" size={12} color="#854D0E" style={{ marginRight: 3 }} />
-              <Text style={styles.spRating}>{item.avgRating?.toFixed(1) || '5.0'}</Text>
+              {item.avgRating && item.avgRating > 0 ? (
+                <>
+                  <Ionicons name="star" size={12} color="#854D0E" style={{ marginRight: 3 }} />
+                  <Text style={styles.spRating}>{item.avgRating.toFixed(1)}</Text>
+                </>
+              ) : (
+                <Text style={styles.spRating}>New</Text>
+              )}
             </View>
 
             {item.distanceAway ? (
