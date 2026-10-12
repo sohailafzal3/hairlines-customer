@@ -4,3 +4,7 @@ package-lock.json
 .expo/
 dist/
 web-build/
+customer-app/ios
+customer-app/android
+pro-app/ios
+pro-app/android

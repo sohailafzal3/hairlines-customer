@@ -4,9 +4,10 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "postinstall": "node -e \"const fs = require('fs'); const file = 'node_modules/@stripe/stripe-react-native/ios/StripeSwiftInterop.h'; if (fs.existsSync(file)) { let content = fs.readFileSync(file, 'utf8'); content = content.replace('typedef NS_ENUM(NSUInteger, STPPaymentStatus);', 'typedef NS_ENUM(NSInteger, STPPaymentStatus);'); fs.writeFileSync(file, content); }\""
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
