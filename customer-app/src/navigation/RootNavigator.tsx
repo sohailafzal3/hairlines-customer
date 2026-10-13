@@ -6,6 +6,7 @@ import AppNavigator from './AppNavigator';
 import { useAuthStore } from '../store';
 import { Storage } from '../utils/storage';
 import { STORAGE_KEYS } from '../constants';
+import { SplashScreen } from '../screens/SplashScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -14,9 +15,14 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const RootNavigator = () => {
+interface RootNavigatorProps {
+  fontsLoaded?: boolean;
+}
+
+const RootNavigator: React.FC<RootNavigatorProps> = ({ fontsLoaded = true }) => {
   const { isLoggedIn, setLoggedIn } = useAuthStore();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isSplashDone, setIsSplashDone] = useState(false);
 
   useEffect(() => {
     const checkAuthStatus = async () => {
@@ -26,15 +32,15 @@ const RootNavigator = () => {
       } catch (error) {
         console.error('Auth check error:', error);
       } finally {
-        setIsLoading(false);
+        setIsAuthLoading(false);
       }
     };
 
     checkAuthStatus();
   }, [setLoggedIn]);
 
-  if (isLoading) {
-    return null; // Or a splash screen
+  if (isAuthLoading || !isSplashDone || !fontsLoaded) {
+    return <SplashScreen onFinish={() => setIsSplashDone(true)} minDuration={1000} />;
   }
 
   return (
