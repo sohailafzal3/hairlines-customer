@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DrawerContentScrollView, DrawerContentComponentProps } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore, useJobStore } from '../../store';
+import { useTheme } from '../../context/ThemeContext';
 import { ProfileApi } from '../../api';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
@@ -31,6 +32,13 @@ const menuItems: MenuItem[] = [
 
 const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
   const { user, account, isGuest, logout, updateUserField } = useAuthStore();
+  const {
+    primaryColor,
+    primaryLightColor,
+    primaryDarkColor,
+    setPrimaryColor,
+    colorPresets,
+  } = useTheme();
   const { navigation, state } = props;
 
   useEffect(() => {
@@ -98,7 +106,7 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
         {/* User Profile Header Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarWrapper}>
-            <View style={styles.avatar}>
+            <View style={[styles.avatar, { backgroundColor: primaryColor, shadowColor: primaryColor }]}>
               <Text style={styles.avatarText}>{getInitials()}</Text>
             </View>
             <View style={styles.onlineBadge} />
@@ -128,21 +136,21 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
                             : 'star-outline'
                         }
                         size={12}
-                        color="#E5B652"
+                        color={primaryColor}
                         style={{ marginRight: 2 }}
                       />
                     );
                   })}
                 </View>
-                <Text style={styles.ratingValueText}>
+                <Text style={[styles.ratingValueText, { color: primaryDarkColor }]}>
                   {getRatingValue() > 0 ? getRatingValue().toFixed(1) : '0.0'}
                 </Text>
               </View>
             ) : (
               <View style={styles.tagRow}>
-                <View style={styles.memberTag}>
-                  <Ionicons name="sparkles" size={10} color={Colors.ButtonPrimaryColor} style={{ marginRight: 3 }} />
-                  <Text style={styles.memberTagText}>Guest</Text>
+                <View style={[styles.memberTag, { backgroundColor: primaryLightColor }]}>
+                  <Ionicons name="sparkles" size={10} color={primaryColor} style={{ marginRight: 3 }} />
+                  <Text style={[styles.memberTagText, { color: primaryColor }]}>Guest</Text>
                 </View>
               </View>
             )}
@@ -159,19 +167,19 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
             return (
               <TouchableOpacity
                 key={index}
-                style={[styles.menuItem, isFocused && styles.menuItemActive]}
+                style={[styles.menuItem, isFocused && { backgroundColor: primaryLightColor }]}
                 onPress={() => handleMenuItemPress(item.route)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.iconContainer, isFocused && styles.iconContainerActive]}>
+                <View style={[styles.iconContainer, isFocused && [styles.iconContainerActive, { shadowColor: primaryColor }]]}>
                   <Ionicons
                     name={item.iconName}
                     size={20}
-                    color={isFocused ? Colors.ButtonPrimaryColor : '#64748B'}
+                    color={primaryColor}
                   />
                 </View>
 
-                <Text style={[styles.menuLabel, isFocused && styles.menuLabelActive]}>
+                <Text style={[styles.menuLabel, isFocused && [styles.menuLabelActive, { color: primaryDarkColor }]]}>
                   {item.label}
                 </Text>
 
@@ -184,7 +192,7 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
                 <Ionicons
                   name="chevron-forward"
                   size={16}
-                  color={isFocused ? Colors.ButtonPrimaryColor : '#CBD5E1'}
+                  color={isFocused ? primaryColor : '#CBD5E1'}
                   style={styles.arrowIcon}
                 />
               </TouchableOpacity>
@@ -193,8 +201,43 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
         </View>
       </DrawerContentScrollView>
 
-      {/* Footer Area - Logout Button */}
+      {/* Footer Area - Color Theme Picker & Logout Button */}
       <View style={styles.footerContainer}>
+        {/* Color Palette Selector */}
+        <View style={styles.themeSection}>
+          <View style={styles.themeHeaderRow}>
+            <Ionicons
+              name="color-palette-outline"
+              size={15}
+              color="#64748B"
+              style={{ marginRight: 6 }}
+            />
+            <Text style={styles.themeTitle}>App Theme Accent</Text>
+          </View>
+          <View style={styles.paletteRow}>
+            {colorPresets.map((color) => {
+              const isSelected =
+                primaryColor.toLowerCase() === color.toLowerCase();
+              return (
+                <TouchableOpacity
+                  key={color}
+                  style={[
+                    styles.colorBox,
+                    { backgroundColor: color },
+                    isSelected ? styles.colorBoxSelected : styles.colorBoxUnselected,
+                  ]}
+                  onPress={() => setPrimaryColor(color)}
+                  activeOpacity={0.7}
+                >
+                  {isSelected && (
+                    <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
           <Ionicons name="log-out-outline" size={20} color={Colors.errorViewColor} style={{ marginRight: 10 }} />
           <Text style={styles.logoutText}>Logout Account</Text>
@@ -369,6 +412,56 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+  },
+  themeSection: {
+    marginBottom: Spacing.md,
+    backgroundColor: '#F8FAFC',
+    padding: Spacing.sm + 2,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  themeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  themeTitle: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.uberMoveBold,
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  paletteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  colorBox: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  colorBoxUnselected: {
+    borderRadius: 0,
+    borderWidth: 0,
+  },
+  colorBoxSelected: {
+    borderRadius: 16,
+    borderWidth: 2.5,
+    borderColor: '#0F172A',
+    transform: [{ scale: 1.15 }],
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 4,
   },
   logoutButton: {
     flexDirection: 'row',

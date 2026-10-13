@@ -23,6 +23,7 @@ import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
 import { Storage } from '../../utils/storage';
 import { STORAGE_KEYS, kTermsLink, kPrivicyPolicyLink } from '../../constants';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'SignIn'>;
@@ -30,6 +31,7 @@ type Props = {
 };
 
 const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { primaryColor } = useTheme();
   const { isSignUp: initialIsSignUp, selectedCountryCode, selectedFlag } = route.params || { isSignUp: false };
   const { setAccount, setLoggedIn } = useAuthStore();
 
@@ -160,7 +162,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
                 style={styles.backButton}
                 activeOpacity={0.8}
               >
-                <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+                <Ionicons name="arrow-back" size={22} color={primaryColor} />
               </TouchableOpacity>
             </View>
 
@@ -225,7 +227,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
                     style={styles.forgotButton}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.forgotText}>Forgot Password?</Text>
+                    <Text style={[styles.forgotText, { color: primaryColor }]}>Forgot Password?</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -240,8 +242,8 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
                   style={styles.forgotButtonLeft}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="arrow-back-circle-outline" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
-                  <Text style={styles.forgotText}>Back to Sign In</Text>
+                  <Ionicons name="arrow-back-circle-outline" size={16} color={primaryColor} style={{ marginRight: 4 }} />
+                  <Text style={[styles.forgotText, { color: primaryColor }]}>Back to Sign In</Text>
                 </TouchableOpacity>
               )}
 
@@ -253,7 +255,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
                     style={styles.checkboxTouch}
                     activeOpacity={0.8}
                   >
-                    <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
+                    <View style={[styles.checkbox, termsAccepted && { backgroundColor: primaryColor, borderColor: primaryColor }]}>
                       {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
                     </View>
                     <View style={styles.termsTextContainer}>
@@ -286,7 +288,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
                 (isSignUp && !termsAccepted) ||
                 (!isSignUp && !isForgotPassword && !password.trim())
               }
-              style={styles.submitButton}
+              style={[styles.submitButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
               textStyle={styles.submitButtonText}
             />
 
@@ -303,7 +305,7 @@ const SignInScreen: React.FC<Props> = ({ navigation, route }) => {
                   activeOpacity={0.7}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Text style={styles.footerLinkText}>
+                  <Text style={[styles.footerLinkText, { color: primaryColor }]}>
                     {isSignUp ? 'SIGN IN' : 'SIGN UP'}
                   </Text>
                 </TouchableOpacity>

@@ -10,6 +10,7 @@ import { storage } from "../utils/storage";
 import { StorageKeys, DEFAULT_LANGUAGE_CODE } from "../constants";
 import { Account, UserState } from "../types/models";
 import { api } from "../services/api";
+import { DEFAULT_PRIMARY_COLOR, setThemePrimaryColor } from "../theme/colors";
 
 export const defaultUserState: UserState = {
   languageCode: DEFAULT_LANGUAGE_CODE,

@@ -1,8 +1,9 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, StyleProp } from 'react-native';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
+import { useTheme } from '../../context/ThemeContext';
 
 interface VTButtonProps {
   title: string;
@@ -10,8 +11,8 @@ interface VTButtonProps {
   disabled?: boolean;
   loading?: boolean;
   variant?: 'primary' | 'secondary' | 'outline';
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }
 
 const VTButton: React.FC<VTButtonProps> = ({
@@ -23,6 +24,7 @@ const VTButton: React.FC<VTButtonProps> = ({
   style,
   textStyle,
 }) => {
+  const { primaryColor } = useTheme();
   const isDisabled = disabled || loading;
 
   const getBackgroundColor = () => {
@@ -30,14 +32,14 @@ const VTButton: React.FC<VTButtonProps> = ({
     switch (variant) {
       case 'secondary': return Colors.ButtonPrimaryRight;
       case 'outline': return 'transparent';
-      default: return Colors.ButtonPrimaryColor;
+      default: return primaryColor || Colors.ButtonPrimaryColor;
     }
   };
 
   const getTextColor = () => {
     if (isDisabled) return Colors.disabledText;
     switch (variant) {
-      case 'outline': return Colors.ButtonPrimaryColor;
+      case 'outline': return primaryColor || Colors.ButtonPrimaryColor;
       default: return Colors.BGColor;
     }
   };
@@ -51,8 +53,8 @@ const VTButton: React.FC<VTButtonProps> = ({
         styles.button,
         {
           backgroundColor: getBackgroundColor(),
-          borderWidth: variant === 'outline' ? 1 : 0,
-          borderColor: Colors.ButtonPrimaryColor,
+          borderWidth: variant === 'outline' ? 1.5 : 0,
+          borderColor: primaryColor || Colors.ButtonPrimaryColor,
         },
         style,
         isDisabled && {

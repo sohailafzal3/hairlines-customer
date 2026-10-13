@@ -18,12 +18,14 @@ import { VTLoading } from '../../components/common';
 import { ProfileApi } from '../../api';
 import { useApi } from '../../hooks';
 import { useUserStore } from '../../store';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'Wallet'>;
 };
 
 const WalletScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const { walletAmount, setWalletAmount } = useUserStore();
 
   const {
@@ -50,11 +52,11 @@ const WalletScreen: React.FC<Props> = ({ navigation }) => {
       {/* Header Bar */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (navigation as any).openDrawer?.()}
+          onPress={() => (navigation as any).openDrawer?.() || (navigation.getParent() as any)?.openDrawer?.()}
           style={styles.menuButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="menu" size={24} color="#0F172A" />
+          <Ionicons name="menu" size={24} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Wallet</Text>
         <View style={{ width: 44 }} />
@@ -65,7 +67,7 @@ const WalletScreen: React.FC<Props> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       >
         {/* Luxury Balance Card */}
-        <View style={styles.balanceCard}>
+        <View style={[styles.balanceCard, { backgroundColor: primaryColor, shadowColor: primaryColor }]}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.walletIconCircle}>
               <Ionicons name="wallet" size={22} color="#FFFFFF" />

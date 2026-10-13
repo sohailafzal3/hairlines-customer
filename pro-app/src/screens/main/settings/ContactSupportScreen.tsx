@@ -10,10 +10,12 @@ import { showAlert } from "../../../utils/helpers";
 import { Colors } from "../../../theme/colors";
 import { FontSizes, FontWeights } from "../../../theme/fonts";
 import { BorderRadius, Spacing } from "../../../theme/spacing";
+import { useTheme } from "../../../context/ThemeContext";
 
 type Props = DrawerScreenProps<MainDrawerParamList, "Support">;
 
 export function ContactSupportScreen({ navigation }: Props) {
+  const { primaryColor, primaryLightColor } = useTheme();
   const [loading, setLoading] = useState(true);
   const [info, setInfo] = useState<any>({});
 
@@ -40,20 +42,12 @@ export function ContactSupportScreen({ navigation }: Props) {
       <Header
         title="Contact Support"
         onBackPress={handleBack}
-        right={
-          <TouchableOpacity
-            onPress={() => navigation.openDrawer()}
-            hitSlop={10}
-            style={{ padding: 4 }}
-          >
-            <Ionicons name="menu" size={24} color={Colors.NavigationTitle} />
-          </TouchableOpacity>
-        }
+        onRightMenuPress={() => navigation.openDrawer()}
       />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerBox}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="headset" size={32} color={Colors.ButtonPrimaryColor} />
+          <View style={[styles.iconCircle, { backgroundColor: primaryLightColor }]}>
+            <Ionicons name="headset" size={32} color={primaryColor} />
           </View>
           <Text style={styles.title}>We're Here to Help</Text>
           <Text style={styles.subtitle}>
@@ -66,12 +60,12 @@ export function ContactSupportScreen({ navigation }: Props) {
           onPress={() => open(`tel:${info.phone}`)}
           activeOpacity={0.8}
         >
-          <View style={styles.cardIconBox}>
-            <Ionicons name="call-outline" size={22} color={Colors.ButtonPrimaryColor} />
+          <View style={[styles.cardIconBox, { backgroundColor: primaryLightColor }]}>
+            <Ionicons name="call-outline" size={22} color={primaryColor} />
           </View>
           <View style={styles.cardInfo}>
             <Text style={styles.cardLabel}>Phone Support</Text>
-            <Text style={styles.cardValue}>{info.phone || "1-800-HAIRLINES"}</Text>
+            <Text style={[styles.cardValue, { color: primaryColor }]}>{info.phone || "1-800-HAIRLINES"}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
         </TouchableOpacity>
@@ -81,12 +75,12 @@ export function ContactSupportScreen({ navigation }: Props) {
           onPress={() => open(`mailto:${info.email}`)}
           activeOpacity={0.8}
         >
-          <View style={styles.cardIconBox}>
-            <Ionicons name="mail-outline" size={22} color={Colors.ButtonPrimaryColor} />
+          <View style={[styles.cardIconBox, { backgroundColor: primaryLightColor }]}>
+            <Ionicons name="mail-outline" size={22} color={primaryColor} />
           </View>
           <View style={styles.cardInfo}>
             <Text style={styles.cardLabel}>Email Support</Text>
-            <Text style={styles.cardValue}>{info.email || "support@hairlines.com"}</Text>
+            <Text style={[styles.cardValue, { color: primaryColor }]}>{info.email || "support@hairlines.com"}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
         </TouchableOpacity>
@@ -96,12 +90,12 @@ export function ContactSupportScreen({ navigation }: Props) {
           onPress={() => open(info.website || "https://hairlines.com")}
           activeOpacity={0.8}
         >
-          <View style={styles.cardIconBox}>
-            <Ionicons name="globe-outline" size={22} color={Colors.ButtonPrimaryColor} />
+          <View style={[styles.cardIconBox, { backgroundColor: primaryLightColor }]}>
+            <Ionicons name="globe-outline" size={22} color={primaryColor} />
           </View>
           <View style={styles.cardInfo}>
             <Text style={styles.cardLabel}>Official Website</Text>
-            <Text style={styles.cardValue}>{info.website || "www.hairlines.com"}</Text>
+            <Text style={[styles.cardValue, { color: primaryColor }]}>{info.website || "www.hairlines.com"}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
         </TouchableOpacity>

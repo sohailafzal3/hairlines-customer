@@ -28,6 +28,7 @@ import { VTButton } from '../../components/common';
 import { useJobStore, useUserStore, useAuthStore } from '../../store';
 import { ProfileApi } from '../../api';
 import { NewAddress } from '../../models';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'SetLocation'>;
@@ -47,6 +48,7 @@ interface SuggestionItem {
 }
 
 const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { primaryColor } = useTheme();
   const { createJob, setCreateJob } = useJobStore();
   const { addresses, setAddresses } = useUserStore();
   const { user, isGuest } = useAuthStore();
@@ -489,7 +491,7 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
           style={styles.backButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+          <Ionicons name="arrow-back" size={22} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{showMapPicker ? 'Pin on Map' : 'Set Location'}</Text>
         <View style={{ width: 40 }} />
@@ -506,10 +508,10 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
               <Ionicons
                 name={settingTag === 'Home' ? 'home' : 'briefcase'}
                 size={16}
-                color={Colors.ButtonPrimaryColor}
+                color={primaryColor}
                 style={{ marginRight: 6 }}
               />
-              <Text style={styles.activeTagText}>
+              <Text style={[styles.activeTagText, { color: primaryColor }]}>
                 Setting your <Text style={{ fontWeight: '700' }}>{settingTag}</Text> address
               </Text>
               <TouchableOpacity
@@ -539,7 +541,7 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
               returnKeyType="search"
               clearButtonMode="while-editing"
             />
-            {searching && <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} />}
+            {searching && <ActivityIndicator size="small" color={primaryColor} />}
             {searchQuery.length > 0 && !searching && (
               <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
                 <Ionicons name="close-circle" size={18} color="#94A3B8" />
@@ -557,11 +559,11 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
               activeOpacity={0.85}
             >
               {detectingGPS ? (
-                <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} />
+                <ActivityIndicator size="small" color={primaryColor} />
               ) : (
-                <Ionicons name="locate" size={20} color={Colors.ButtonPrimaryColor} />
+                <Ionicons name="locate" size={20} color={primaryColor} />
               )}
-              <Text style={styles.actionTextPrimary}>
+              <Text style={[styles.actionTextPrimary, { color: primaryColor }]}>
                 {detectingGPS ? 'Detecting GPS...' : 'Use Current Location'}
               </Text>
             </TouchableOpacity>
@@ -591,7 +593,7 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
                     activeOpacity={0.7}
                   >
                     <View style={styles.suggestionIconCircle}>
-                      <Ionicons name="location-outline" size={20} color={Colors.ButtonPrimaryColor} />
+                      <Ionicons name="location-outline" size={20} color={primaryColor} />
                     </View>
                     <View style={styles.suggestionTextWrapper}>
                       <Text style={styles.suggestionTitle}>{item.title}</Text>
@@ -623,7 +625,7 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
                   activeOpacity={0.7}
                 >
                   <View style={[styles.savedIconCircle, { backgroundColor: '#EEF4FF' }]}>
-                    <Ionicons name="home" size={20} color={Colors.ButtonPrimaryColor} />
+                    <Ionicons name="home" size={20} color={primaryColor} />
                   </View>
                   <View style={styles.savedTextWrapper}>
                     <View style={styles.savedTitleRow}>
@@ -634,7 +636,7 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
                         </View>
                       ) : (
                         <View style={styles.addTagBadge}>
-                          <Text style={styles.addTagBadgeText}>+ SET ADDRESS</Text>
+                          <Text style={[styles.addTagBadgeText, { color: primaryColor }]}>+ SET ADDRESS</Text>
                         </View>
                       )}
                     </View>
@@ -663,7 +665,7 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
                         </View>
                       ) : (
                         <View style={styles.addTagBadge}>
-                          <Text style={styles.addTagBadgeText}>+ SET ADDRESS</Text>
+                          <Text style={[styles.addTagBadgeText, { color: primaryColor }]}>+ SET ADDRESS</Text>
                         </View>
                       )}
                     </View>
@@ -676,8 +678,8 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
 
                 {/* Helpful Instruction Tip */}
                 <View style={styles.tipCard}>
-                  <Ionicons name="information-circle-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
-                  <Text style={styles.tipText}>
+                  <Ionicons name="information-circle-outline" size={20} color={primaryColor} style={{ marginRight: 8 }} />
+                  <Text style={[styles.tipText, { color: primaryColor }]}>
                     Select an address above or search for any location to see stylists available in your area.
                   </Text>
                 </View>
@@ -699,22 +701,31 @@ const SetLocationScreen: React.FC<Props> = ({ navigation, route }) => {
                 longitude: mapRegion.longitude,
               }}
               title="Service Address"
+              pinColor={primaryColor}
             />
           </MapView>
 
-          {/* Center Pin */}
+          {/* Center Teardrop Pin */}
           <View pointerEvents="none" style={styles.mapCenterPin}>
-            <Ionicons name="location" size={42} color={Colors.ButtonPrimaryColor} />
+            <View style={styles.teardropMarkerWrap}>
+              <View style={[styles.teardropHead, { backgroundColor: primaryColor }]}>
+                <View style={styles.teardropInnerCircle}>
+                  <Ionicons name="cut" size={15} color={primaryColor} />
+                </View>
+              </View>
+              <View style={[styles.teardropPointer, { borderTopColor: primaryColor }]} />
+              <View style={styles.teardropGroundShadow} />
+            </View>
           </View>
 
           {/* Bottom Card */}
           <View style={styles.mapBottomCard}>
             <View style={styles.mapAddressRow}>
-              <Ionicons name="location-sharp" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+              <Ionicons name="location-sharp" size={20} color={primaryColor} style={{ marginRight: 8 }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.mapAddressLabel}>SELECTED PIN LOCATION</Text>
                 {loadingMapAddress ? (
-                  <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} style={{ alignSelf: 'flex-start', marginTop: 4 }} />
+                  <ActivityIndicator size="small" color={primaryColor} style={{ alignSelf: 'flex-start', marginTop: 4 }} />
                 ) : (
                   <Text style={styles.mapAddressValue} numberOfLines={2}>
                     {mapAddress || 'Move map to pinpoint location'}
@@ -1016,8 +1027,57 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    marginTop: -42,
-    marginLeft: -21,
+    marginTop: -26,
+    marginLeft: -22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  teardropMarkerWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 44,
+    height: 52,
+  },
+  teardropHead: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2.5,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.28,
+    shadowRadius: 3,
+    elevation: 6,
+  },
+  teardropInnerCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  teardropPointer: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    alignSelf: 'center',
+    marginTop: -2,
+  },
+  teardropGroundShadow: {
+    width: 14,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(15, 23, 42, 0.25)',
+    alignSelf: 'center',
+    marginTop: 1,
   },
   mapBottomCard: {
     position: 'absolute',

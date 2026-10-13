@@ -9,6 +9,7 @@ import { LoadingOverlay } from "../../../components/LoadingOverlay";
 import { api } from "../../../services/api";
 import { showAlert } from "../../../utils/helpers";
 import { Avatar } from "../../../components/Avatar";
+import { Colors } from "../../../theme/colors";
 
 type Props = NativeStackScreenProps<HomeTabParamList, "RateUser">;
 
@@ -84,6 +85,6 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, color: "#64748B", marginTop: 20 },
   stars: { flexDirection: "row", marginVertical: 14 },
   star: { fontSize: 42, color: "#CBD5E1", marginHorizontal: 6 },
-  starSelected: { color: "#E5B652" },
+  starSelected: { color: Colors.ButtonPrimaryColor },
 });
 

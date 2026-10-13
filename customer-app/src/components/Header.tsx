@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "../theme/colors";
 import { FontSizes } from "../theme/fonts";
 import { Spacing } from "../theme/spacing";
+import { useTheme } from "../context/ThemeContext";
 
 interface Props {
   title?: string;
@@ -30,6 +31,7 @@ export function Header({
   style,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { primaryColor } = useTheme();
   const displayTitle = title
     ? title.charAt(0).toUpperCase() + title.slice(1)
     : "";
@@ -47,11 +49,11 @@ export function Header({
           left
         ) : onMenuPress ? (
           <TouchableOpacity onPress={onMenuPress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="menu" size={26} color={Colors.NavigationTitle} />
+            <Ionicons name="menu" size={26} color={primaryColor} />
           </TouchableOpacity>
         ) : onBackPress ? (
           <TouchableOpacity onPress={onBackPress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="arrow-back" size={24} color={Colors.NavigationTitle} />
+            <Ionicons name="arrow-back" size={24} color={primaryColor} />
           </TouchableOpacity>
         ) : null}
       </View>

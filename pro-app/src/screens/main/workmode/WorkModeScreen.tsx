@@ -278,7 +278,7 @@ export function WorkModeScreen({ navigation, route }: any) {
               <Switch
                 value={provideInPremises}
                 onValueChange={(val) => setProvideInPremises(val)}
-                trackColor={{ false: "#CBD5E1", true: "#E5B652" }}
+                trackColor={{ false: "#CBD5E1", true: Colors.ButtonPrimaryColor }}
                 thumbColor={provideInPremises ? Colors.ButtonPrimaryColor : "#FFFFFF"}
               />
             </View>
@@ -331,7 +331,7 @@ export function WorkModeScreen({ navigation, route }: any) {
               <Switch
                 value={provideInUserPremises}
                 onValueChange={(val) => setProvideInUserPremises(val)}
-                trackColor={{ false: "#CBD5E1", true: "#E5B652" }}
+                trackColor={{ false: "#CBD5E1", true: Colors.ButtonPrimaryColor }}
                 thumbColor={provideInUserPremises ? Colors.ButtonPrimaryColor : "#FFFFFF"}
               />
             </View>
@@ -447,7 +447,7 @@ export function WorkModeScreen({ navigation, route }: any) {
               <Switch
                 value={autoAccept}
                 onValueChange={(val) => setAutoAccept(val)}
-                trackColor={{ false: "#CBD5E1", true: "#E5B652" }}
+                trackColor={{ false: "#CBD5E1", true: Colors.ButtonPrimaryColor }}
                 thumbColor={autoAccept ? Colors.ButtonPrimaryColor : "#FFFFFF"}
               />
             </View>
@@ -464,7 +464,7 @@ export function WorkModeScreen({ navigation, route }: any) {
               <Switch
                 value={specialCare}
                 onValueChange={(val) => setSpecialCare(val)}
-                trackColor={{ false: "#CBD5E1", true: "#E5B652" }}
+                trackColor={{ false: "#CBD5E1", true: Colors.ButtonPrimaryColor }}
                 thumbColor={specialCare ? Colors.ButtonPrimaryColor : "#FFFFFF"}
               />
             </View>

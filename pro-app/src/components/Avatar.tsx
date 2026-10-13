@@ -2,6 +2,7 @@ import React from "react";
 import { Image, View, Text, StyleSheet } from "react-native";
 import { Colors } from "../theme/colors";
 import { FontWeights } from "../theme/fonts";
+import { useTheme } from "../context/ThemeContext";
 
 interface Props {
   uri?: string;
@@ -10,12 +11,13 @@ interface Props {
 }
 
 export function Avatar({ uri, name, size = 48 }: Props) {
+  const { primaryColor } = useTheme();
   const initial = name ? name.charAt(0).toUpperCase() : "P";
   return (
     <View
       style={[
         styles.container,
-        { width: size, height: size, borderRadius: size / 2 },
+        { width: size, height: size, borderRadius: size / 2, backgroundColor: primaryColor },
       ]}
     >
       {uri ? (
@@ -45,4 +47,3 @@ const styles = StyleSheet.create({
     fontWeight: FontWeights.bold,
   },
 });
-

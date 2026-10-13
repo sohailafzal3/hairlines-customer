@@ -22,6 +22,7 @@ import { JobsApi } from '../../api';
 import { useApi } from '../../hooks';
 import { SubService, SubServiceInfo } from '../../models';
 import { useJobStore } from '../../store';
+import { useTheme } from '../../context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -96,6 +97,7 @@ const defaultHaircutStyles: HaircutStyleSlide[] = [
 ];
 
 const SubServicesScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { primaryColor, primaryLightColor } = useTheme();
   const { serviceId, serviceName } = route.params || {};
   const { setCreateJobField } = useJobStore();
   const [activeIndex, setActiveIndex] = useState(0);
@@ -150,7 +152,7 @@ const SubServicesScreen: React.FC<Props> = ({ navigation, route }) => {
       {/* Large High Quality Style Image */}
       <View style={styles.imageWrapper}>
         <Image source={{ uri: item.image }} style={styles.slideImage} resizeMode="cover" />
-        <View style={styles.priceBadge}>
+        <View style={[styles.priceBadge, { backgroundColor: primaryColor }]}>
           <Text style={styles.priceBadgeText}>${item.price}</Text>
         </View>
         <View style={styles.durationBadge}>
@@ -162,14 +164,14 @@ const SubServicesScreen: React.FC<Props> = ({ navigation, route }) => {
       {/* Content Section */}
       <View style={styles.slideDetails}>
         <Text style={styles.slideHeaderTitle}>{item.name}</Text>
-        <Text style={styles.slideCategory}>{item.category.toUpperCase()}</Text>
+        <Text style={[styles.slideCategory, { color: primaryColor }]}>{item.category.toUpperCase()}</Text>
 
         <Text style={styles.slideParagraph}>{item.description}</Text>
 
         <VTButton
           title="Select This Style →"
           onPress={() => handleSelectStyle(item)}
-          style={styles.selectButton}
+          style={[styles.selectButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
           textStyle={styles.selectButtonText}
         />
       </View>
@@ -187,7 +189,7 @@ const SubServicesScreen: React.FC<Props> = ({ navigation, route }) => {
           style={styles.backButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+          <Ionicons name="arrow-back" size={22} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{serviceName || 'Choose Haircut Style'}</Text>
         <View style={{ width: 44 }} />
@@ -214,7 +216,7 @@ const SubServicesScreen: React.FC<Props> = ({ navigation, route }) => {
             key={idx}
             style={[
               styles.indicatorDot,
-              idx === activeIndex && styles.indicatorDotActive,
+              idx === activeIndex && [styles.indicatorDotActive, { backgroundColor: primaryColor }],
             ]}
           />
         ))}

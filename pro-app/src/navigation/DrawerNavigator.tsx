@@ -21,6 +21,7 @@ import { WorkModeScreen } from "../screens/main/workmode/WorkModeScreen";
 import { AvailabilityScreen } from "../screens/onboarding/AvailabilityScreen";
 import { CleanerAvailabilityScreen } from "../screens/main/availability/CleanerAvailabilityScreen";
 import { useUser } from "../context/UserContext";
+import { useTheme } from "../context/ThemeContext";
 import { api } from "../services/api";
 import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -61,6 +62,14 @@ const menuItems: MenuItem[] = [
 
 function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { user, clearUser } = useUser();
+  const {
+    primaryColor,
+    primaryLightColor,
+    primaryDarkColor,
+    setPrimaryColor,
+    resetPrimaryColor,
+    colorPresets,
+  } = useTheme();
   const { navigation, state } = props;
 
   const handleLogout = async () => {
@@ -115,7 +124,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
             {user.profileImage ? (
               <Image source={{ uri: user.profileImage }} style={styles.avatarImage} />
             ) : (
-              <View style={styles.avatarPlaceholder}>
+              <View style={[styles.avatarPlaceholder, { backgroundColor: primaryColor }]}>
                 <Text style={styles.avatarText}>{getInitials()}</Text>
               </View>
             )}
@@ -131,21 +140,21 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
             </Text>
 
             <View style={styles.tagRow}>
-              <View style={styles.proTag}>
+              <View style={[styles.proTag, { backgroundColor: primaryLightColor, borderColor: primaryColor }]}>
                 <Ionicons
                   name="shield-checkmark"
                   size={10}
-                  color={Colors.ButtonPrimaryColor}
+                  color={primaryColor}
                   style={{ marginRight: 3 }}
                 />
-                <Text style={styles.proTagText}>
+                <Text style={[styles.proTagText, { color: primaryDarkColor }]}>
                   {user.isApproved ? "Verified Pro" : "Pending"}
                 </Text>
               </View>
 
-              <View style={styles.ratingBadge}>
-                <Ionicons name="star" size={10} color="#854D0E" style={{ marginRight: 3 }} />
-                <Text style={styles.ratingText}>{getUserRating()} ★</Text>
+              <View style={[styles.ratingBadge, { backgroundColor: primaryLightColor }]}>
+                <Ionicons name="star" size={10} color={primaryDarkColor} style={{ marginRight: 3 }} />
+                <Text style={[styles.ratingText, { color: primaryDarkColor }]}>{getUserRating()} ★</Text>
               </View>
             </View>
           </View>
@@ -172,25 +181,31 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
               return (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.menuItem, isFocused && styles.menuItemActive]}
+                  style={[
+                    styles.menuItem,
+                    isFocused && { backgroundColor: primaryLightColor },
+                  ]}
                   onPress={() => navigation.navigate(item.route, item.params)}
                   activeOpacity={0.7}
                 >
                   <View
                     style={[
                       styles.iconContainer,
-                      isFocused && styles.iconContainerActive,
+                      isFocused && [styles.iconContainerActive, { shadowColor: primaryColor }],
                     ]}
                   >
                     <Ionicons
                       name={item.iconName}
                       size={20}
-                      color={isFocused ? Colors.ButtonPrimaryColor : "#64748B"}
+                      color={primaryColor}
                     />
                   </View>
 
                   <Text
-                    style={[styles.menuLabel, isFocused && styles.menuLabelActive]}
+                    style={[
+                      styles.menuLabel,
+                      isFocused && [styles.menuLabelActive, { color: primaryDarkColor }],
+                    ]}
                   >
                     {item.label}
                   </Text>
@@ -204,7 +219,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
                   <Ionicons
                     name="chevron-forward"
                     size={16}
-                    color={isFocused ? Colors.ButtonPrimaryColor : "#CBD5E1"}
+                    color={isFocused ? primaryColor : "#CBD5E1"}
                     style={styles.arrowIcon}
                   />
                 </TouchableOpacity>
@@ -213,8 +228,43 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
         </View>
       </DrawerContentScrollView>
 
-      {/* Footer Area - Logout */}
+      {/* Footer Area - Color Theme Picker & Logout */}
       <View style={styles.footerContainer}>
+        {/* Color Palette Selector */}
+        <View style={styles.themeSection}>
+          <View style={styles.themeHeaderRow}>
+            <Ionicons
+              name="color-palette-outline"
+              size={15}
+              color="#64748B"
+              style={{ marginRight: 6 }}
+            />
+            <Text style={styles.themeTitle}>App Theme Accent</Text>
+          </View>
+          <View style={styles.paletteRow}>
+            {colorPresets.map((color) => {
+              const isSelected =
+                primaryColor.toLowerCase() === color.toLowerCase();
+              return (
+                <TouchableOpacity
+                  key={color}
+                  style={[
+                    styles.colorBox,
+                    { backgroundColor: color },
+                    isSelected ? styles.colorBoxSelected : styles.colorBoxUnselected,
+                  ]}
+                  onPress={() => setPrimaryColor(color)}
+                  activeOpacity={0.7}
+                >
+                  {isSelected && (
+                    <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         <TouchableOpacity
           style={styles.logoutButton}
           onPress={handleLogout}
@@ -345,23 +395,23 @@ const styles = StyleSheet.create({
   proTag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FEF9EE",
+    backgroundColor: Colors.accentLight,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    borderColor: "rgba(229, 182, 82, 0.35)",
+    borderColor: Colors.ButtonPrimaryColor,
   },
   proTagText: {
     fontSize: 9,
     fontWeight: FontWeights.bold,
-    color: "#854D0E",
+    color: Colors.accentDark,
     textTransform: "uppercase",
   },
   ratingBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FEF9C3",
+    backgroundColor: Colors.accentLight,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: BorderRadius.full,
@@ -369,7 +419,7 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 9,
     fontWeight: FontWeights.bold,
-    color: "#854D0E",
+    color: Colors.accentDark,
   },
   divider: {
     height: 1,
@@ -388,7 +438,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   menuItemActive: {
-    backgroundColor: "#FEF9EE",
+    backgroundColor: Colors.accentLight,
   },
   iconContainer: {
     width: 34,
@@ -415,7 +465,7 @@ const styles = StyleSheet.create({
   },
   menuLabelActive: {
     fontWeight: FontWeights.bold,
-    color: "#854D0E",
+    color: Colors.accentDark,
   },
   badgeContainer: {
     backgroundColor: Colors.errorViewColor,
@@ -437,6 +487,56 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderTopWidth: 1,
     borderTopColor: "#F1F5F9",
+  },
+  themeSection: {
+    marginBottom: Spacing.md,
+    backgroundColor: "#F8FAFC",
+    padding: Spacing.sm + 2,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  themeHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  themeTitle: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.bold,
+    color: "#64748B",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  paletteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 2,
+  },
+  colorBox: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  colorBoxUnselected: {
+    borderRadius: 0,
+    borderWidth: 0,
+  },
+  colorBoxSelected: {
+    borderRadius: 16,
+    borderWidth: 2.5,
+    borderColor: "#0F172A",
+    transform: [{ scale: 1.15 }],
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 4,
   },
   logoutButton: {
     flexDirection: "row",

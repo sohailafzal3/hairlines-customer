@@ -13,8 +13,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { Colors, Fonts, FontSizes, Spacing, BorderRadius } from '../../theme';
 import { VTButton } from '../../components/common';
+import { useTheme } from '../../context/ThemeContext';
 
 const MapScreen = ({ navigation, route }: any) => {
+  const { primaryColor } = useTheme();
   const initialLat = route?.params?.initialLat || 37.78825;
   const initialLng = route?.params?.initialLng || -122.4324;
 
@@ -86,7 +88,7 @@ const MapScreen = ({ navigation, route }: any) => {
           style={styles.backButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+          <Ionicons name="arrow-back" size={22} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Pin Location on Map</Text>
         <View style={{ width: 44 }} />
@@ -106,24 +108,32 @@ const MapScreen = ({ navigation, route }: any) => {
             }}
             title="Service Location"
             description={addressText}
+            pinColor={primaryColor}
           />
         </MapView>
 
-        {/* Fixed Center Pin Overlay */}
+        {/* Fixed Center Teardrop Pin Overlay */}
         <View pointerEvents="none" style={styles.centerPinContainer}>
-          <Ionicons name="location" size={38} color={Colors.ButtonPrimaryColor} />
-          <View style={styles.pinShadow} />
+          <View style={styles.teardropMarkerWrap}>
+            <View style={[styles.teardropHead, { backgroundColor: primaryColor }]}>
+              <View style={styles.teardropInnerCircle}>
+                <Ionicons name="cut" size={15} color={primaryColor} />
+              </View>
+            </View>
+            <View style={[styles.teardropPointer, { borderTopColor: primaryColor }]} />
+            <View style={styles.teardropGroundShadow} />
+          </View>
         </View>
       </View>
 
       {/* Bottom Floating Address Card */}
       <View style={styles.bottomCard}>
         <View style={styles.addressHeader}>
-          <Ionicons name="location-sharp" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+          <Ionicons name="location-sharp" size={20} color={primaryColor} style={{ marginRight: 8 }} />
           <View style={{ flex: 1 }}>
             <Text style={styles.addressLabel}>Selected Map Location</Text>
             {loadingAddress ? (
-              <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} style={{ alignSelf: 'flex-start', marginTop: 4 }} />
+              <ActivityIndicator size="small" color={primaryColor} style={{ alignSelf: 'flex-start', marginTop: 4 }} />
             ) : (
               <Text style={styles.addressText} numberOfLines={2}>
                 {addressText}
@@ -194,17 +204,57 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    marginTop: -38,
-    marginLeft: -19,
+    marginTop: -26,
+    marginLeft: -22,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pinShadow: {
-    width: 10,
+  teardropMarkerWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 44,
+    height: 52,
+  },
+  teardropHead: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2.5,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.28,
+    shadowRadius: 3,
+    elevation: 6,
+  },
+  teardropInnerCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  teardropPointer: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    alignSelf: 'center',
+    marginTop: -2,
+  },
+  teardropGroundShadow: {
+    width: 14,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    marginTop: -2,
+    backgroundColor: 'rgba(15, 23, 42, 0.25)',
+    alignSelf: 'center',
+    marginTop: 1,
   },
   bottomCard: {
     position: 'absolute',

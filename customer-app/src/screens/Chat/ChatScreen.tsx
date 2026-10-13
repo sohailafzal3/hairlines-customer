@@ -25,6 +25,7 @@ import { useApi, useSocket } from '../../hooks';
 import { Message, Messages } from '../../models';
 import { useAuthStore } from '../../store';
 import { SenderType } from '../../constants';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Chat'>;
@@ -32,6 +33,7 @@ type Props = {
 };
 
 const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { primaryColor } = useTheme();
   const { jobId, spName } = route.params || {};
   const { user } = useAuthStore();
   const { emit, on } = useSocket();
@@ -137,7 +139,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           )
         )}
 
-        <View style={[styles.bubble, isOutgoing ? styles.bubbleOutgoing : styles.bubbleIncoming]}>
+        <View style={[styles.bubble, isOutgoing ? [styles.bubbleOutgoing, { backgroundColor: primaryColor }] : styles.bubbleIncoming]}>
           <Text style={[styles.messageText, isOutgoing ? styles.textOutgoing : styles.textIncoming]}>
             {item.body}
           </Text>
@@ -160,7 +162,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           style={styles.backButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+          <Ionicons name="arrow-back" size={22} color={primaryColor} />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
@@ -203,7 +205,11 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           />
 
           <TouchableOpacity
-            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+            style={[
+              styles.sendButton,
+              { backgroundColor: primaryColor },
+              !inputText.trim() && styles.sendButtonDisabled,
+            ]}
             onPress={handleSend}
             disabled={!inputText.trim() || sending}
             activeOpacity={0.85}

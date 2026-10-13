@@ -10,12 +10,14 @@ import { VTButton } from '../../components/common';
 import { useAuthStore } from '../../store';
 import { Storage } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../constants';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'ThankYou'>;
 };
 
 const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const { setLoggedIn } = useAuthStore();
 
   const handleGoHome = async () => {
@@ -26,7 +28,7 @@ const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.iconContainer}>
+        <View style={[styles.iconContainer, { backgroundColor: `${primaryColor}15` }]}>
           <Text style={styles.icon}>✅</Text>
         </View>
         <Text style={styles.title}>Account Created!</Text>

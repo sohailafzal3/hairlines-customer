@@ -22,12 +22,14 @@ import { ProfileApi } from '../../api';
 import { useApi } from '../../hooks';
 import { PromoCode } from '../../models';
 import { useJobStore } from '../../store';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'PromoCodes'>;
 };
 
 const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const { setPromoCode } = useJobStore();
   const [refreshing, setRefreshing] = useState(false);
   const [manualCode, setManualCode] = useState('');
@@ -96,7 +98,7 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
     <View style={[styles.couponCard, item.isExpired && styles.couponCardExpired]}>
       <View style={styles.couponLeft}>
         <View style={styles.badgeRow}>
-          <Ionicons name="pricetag" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
+          <Ionicons name="pricetag" size={16} color={primaryColor} style={{ marginRight: 4 }} />
           <Text style={styles.couponName}>{item.name || 'Special Discount'}</Text>
         </View>
         <Text style={styles.couponCode}>CODE: {item.code}</Text>
@@ -107,14 +109,14 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
       </View>
 
       <View style={styles.couponRight}>
-        <Text style={styles.discountValue}>
+        <Text style={[styles.discountValue, { color: primaryColor }]}>
           {item.promoType === 'percentage' ? `${item.percentage}%` : `$${item.maxDiscount}`}
         </Text>
         <Text style={styles.discountLabel}>OFF</Text>
 
         {!item.isExpired ? (
           <TouchableOpacity
-            style={styles.applyButton}
+            style={[styles.applyButton, { backgroundColor: primaryColor }]}
             onPress={() => handleApplyCode(item.code)}
             activeOpacity={0.8}
           >
@@ -136,11 +138,11 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
       {/* Header Bar */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (navigation as any).openDrawer?.()}
+          onPress={() => (navigation as any).openDrawer?.() || (navigation.getParent() as any)?.openDrawer?.()}
           style={styles.menuButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="menu" size={24} color="#0F172A" />
+          <Ionicons name="menu" size={24} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Promo Codes</Text>
         <View style={{ width: 44 }} />
@@ -160,7 +162,7 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
           />
         </View>
         <TouchableOpacity
-          style={[styles.inputApplyButton, !manualCode.trim() && styles.inputApplyDisabled]}
+          style={[styles.inputApplyButton, !manualCode.trim() ? styles.inputApplyDisabled : { backgroundColor: primaryColor }]}
           onPress={() => handleApplyCode()}
           disabled={!manualCode.trim() || applying}
           activeOpacity={0.8}
@@ -181,8 +183,8 @@ const PromoCodesScreen: React.FC<Props> = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[Colors.ButtonPrimaryColor]}
-            tintColor={Colors.ButtonPrimaryColor}
+            colors={[primaryColor]}
+            tintColor={primaryColor}
           />
         }
         ListHeaderComponent={

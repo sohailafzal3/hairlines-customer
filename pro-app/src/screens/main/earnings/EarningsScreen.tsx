@@ -236,15 +236,7 @@ export function EarningsScreen({ navigation }: Props) {
       <Header
         title="Payment History"
         onBackPress={handleBack}
-        right={
-          <TouchableOpacity
-            onPress={() => navigation.openDrawer()}
-            hitSlop={10}
-            style={styles.headerRightBtn}
-          >
-            <Ionicons name="menu" size={24} color={Colors.NavigationTitle} />
-          </TouchableOpacity>
-        }
+        onRightMenuPress={() => navigation.openDrawer()}
       />
 
       <FlatList

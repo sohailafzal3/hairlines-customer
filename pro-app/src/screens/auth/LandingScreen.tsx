@@ -8,16 +8,19 @@ import { Button } from "../../components/Button";
 import { Colors } from "../../theme/colors";
 import { Fonts, FontSizes, FontWeights } from "../../theme/fonts";
 import { BorderRadius, Spacing } from "../../theme/spacing";
+import { useTheme } from "../../context/ThemeContext";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Landing">;
 
 export function LandingScreen({ navigation }: Props) {
+  const { primaryColor, primaryLightColor, primaryDarkColor } = useTheme();
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
       {/* Decorative Background Ambient Circles */}
-      <View style={styles.ambientCircleTopRight} />
+      <View style={[styles.ambientCircleTopRight, { backgroundColor: primaryLightColor }]} />
       <View style={styles.ambientCircleBottomLeft} />
 
       <View style={styles.content}>
@@ -25,10 +28,10 @@ export function LandingScreen({ navigation }: Props) {
         <View style={styles.header}>
           {/* Logo Badge */}
           <View style={styles.logoBadgeContainer}>
-            <View style={styles.logoBadge}>
+            <View style={[styles.logoBadge, { backgroundColor: primaryColor, shadowColor: primaryColor }]}>
               <MaterialCommunityIcons name="content-cut" size={40} color="#FFFFFF" />
-              <View style={styles.sparkleBadge}>
-                <Ionicons name="sparkles" size={13} color={Colors.gold} />
+              <View style={[styles.sparkleBadge, { borderColor: primaryColor }]}>
+                <Ionicons name="sparkles" size={13} color={primaryColor} />
               </View>
             </View>
           </View>
@@ -37,14 +40,14 @@ export function LandingScreen({ navigation }: Props) {
           <Text style={styles.appName}>HAIRLINES</Text>
 
           {/* Feature Pill */}
-          <View style={styles.featurePill}>
+          <View style={[styles.featurePill, { backgroundColor: primaryLightColor, borderColor: primaryColor }]}>
             <Ionicons
               name="sparkles-sharp"
               size={12}
-              color="#854D0E"
+              color={primaryDarkColor}
               style={{ marginRight: 4 }}
             />
-            <Text style={styles.featurePillText}>PROFESSIONAL PARTNER NETWORK</Text>
+            <Text style={[styles.featurePillText, { color: primaryDarkColor }]}>PROFESSIONAL PARTNER NETWORK</Text>
           </View>
 
           {/* Tagline */}
@@ -79,7 +82,7 @@ export function LandingScreen({ navigation }: Props) {
             activeOpacity={0.7}
           >
             <Text style={styles.accountPrompt}>Already have a partner account? </Text>
-            <Text style={styles.accountLink}>SIGN IN</Text>
+            <Text style={[styles.accountLink, { color: primaryDarkColor }]}>SIGN IN</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -127,7 +130,7 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 28,
-    backgroundColor: "#222D63",
+    backgroundColor: Colors.ButtonPrimaryColor,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: Colors.ButtonPrimaryColor,
@@ -163,19 +166,19 @@ const styles = StyleSheet.create({
   featurePill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FEF9EE",
+    backgroundColor: Colors.accentLight,
     borderRadius: BorderRadius.full,
     paddingHorizontal: 12,
     paddingVertical: 4,
     marginBottom: Spacing.base,
     borderWidth: 1,
-    borderColor: "rgba(229, 182, 82, 0.35)",
+    borderColor: Colors.ButtonPrimaryColor,
   },
   featurePillText: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.uberMoveBold,
     fontWeight: FontWeights.bold,
-    color: "#854D0E",
+    color: Colors.accentDark,
     letterSpacing: 0.8,
   },
   tagline: {
@@ -194,7 +197,6 @@ const styles = StyleSheet.create({
   },
   signUpButton: {
     minHeight: 54,
-    backgroundColor: Colors.ButtonPrimaryColor,
     borderRadius: BorderRadius.lg,
   },
   accountTouch: {
@@ -213,7 +215,7 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     fontFamily: Fonts.uberMoveBold,
     fontWeight: FontWeights.bold,
-    color: "#854D0E",
+    color: Colors.accentDark,
     textDecorationLine: "underline",
   },
 });

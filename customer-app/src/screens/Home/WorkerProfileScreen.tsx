@@ -21,6 +21,7 @@ import { JobsApi } from '../../api';
 import { useApi } from '../../hooks';
 import { SPProfile } from '../../models';
 import { useJobStore } from '../../store';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'WorkerProfile'>;
@@ -28,6 +29,7 @@ type Props = {
 };
 
 const WorkerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { primaryColor } = useTheme();
   const { spProfileId } = route.params;
   const { setSelectedSp } = useJobStore();
 
@@ -79,7 +81,7 @@ const WorkerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
           style={styles.backButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+          <Ionicons name="arrow-back" size={22} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Professional Profile</Text>
         <View style={{ width: 44 }} />
@@ -96,7 +98,7 @@ const WorkerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
               {profile.profileImage ? (
                 <Image source={{ uri: profile.profileImage }} style={styles.profileImage} />
               ) : (
-                <View style={styles.profileImagePlaceholder}>
+                <View style={[styles.profileImagePlaceholder, { backgroundColor: primaryColor }]}>
                   <Text style={styles.profileImageText}>
                     {profile.firstName?.charAt(0)}{profile.lastName?.charAt(0)}
                   </Text>
@@ -129,7 +131,7 @@ const WorkerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
                 <View style={styles.badgeRow}>
                   {profile.languages.map((lang) => (
                     <View key={lang.id} style={styles.langPill}>
-                      <Ionicons name="chatbubbles-outline" size={14} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
+                      <Ionicons name="chatbubbles-outline" size={14} color={primaryColor} style={{ marginRight: 4 }} />
                       <Text style={styles.langText}>{lang.name}</Text>
                     </View>
                   ))}
@@ -174,7 +176,7 @@ const WorkerProfileScreen: React.FC<Props> = ({ navigation, route }) => {
             <VTButton
               title="Select This Professional"
               onPress={handleSelectWorker}
-              style={styles.selectButton}
+              style={[styles.selectButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
               textStyle={styles.selectButtonText}
             />
           </>

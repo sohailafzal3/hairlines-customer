@@ -10,6 +10,7 @@ import {
 import { Colors } from "../theme/colors";
 import { BorderRadius, Spacing } from "../theme/spacing";
 import { FontSizes } from "../theme/fonts";
+import { useTheme } from "../context/ThemeContext";
 
 export interface ButtonProps {
   title: string;
@@ -30,8 +31,16 @@ export function Button({
   style,
   textStyle,
 }: ButtonProps) {
+  const { primaryColor } = useTheme();
   const isDisabled = disabled || loading;
   const normalizedVariant = variant === "outline" ? "ghost" : variant;
+
+  const dynamicColorStyle =
+    normalizedVariant === "primary"
+      ? { backgroundColor: primaryColor, shadowColor: primaryColor }
+      : normalizedVariant === "ghost"
+      ? { borderColor: primaryColor }
+      : null;
 
   return (
     <TouchableOpacity
@@ -41,8 +50,9 @@ export function Button({
       style={[
         styles.button,
         styles[normalizedVariant],
-        isDisabled && styles.disabled,
         style,
+        dynamicColorStyle,
+        isDisabled && styles.disabled,
       ]}
     >
       {loading ? (
@@ -50,11 +60,19 @@ export function Button({
           color={
             normalizedVariant === "primary" || normalizedVariant === "danger"
               ? "#FFFFFF"
-              : Colors.ButtonPrimaryColor
+              : primaryColor
           }
         />
       ) : (
-        <Text style={[styles.text, styles[`${normalizedVariant}Text`], textStyle]}>
+        <Text
+          style={[
+            styles.text,
+            styles[`${normalizedVariant}Text`],
+            normalizedVariant === "ghost" && { color: primaryColor },
+            normalizedVariant === "secondary" && { color: primaryColor },
+            textStyle,
+          ]}
+        >
           {title}
         </Text>
       )}

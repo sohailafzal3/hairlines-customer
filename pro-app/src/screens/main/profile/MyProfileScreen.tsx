@@ -1076,15 +1076,7 @@ export function MyProfileScreen({ navigation }: Props) {
       <Header
         title={t("drawer:profile")}
         onBackPress={handleBack}
-        right={
-          <TouchableOpacity
-            onPress={() => navigation.openDrawer()}
-            hitSlop={10}
-            style={{ padding: 4 }}
-          >
-            <Ionicons name="menu" size={24} color={Colors.NavigationTitle} />
-          </TouchableOpacity>
-        }
+        onRightMenuPress={() => navigation.openDrawer()}
       />
 
       {/* Profile Segment Tabs */}
@@ -1350,7 +1342,7 @@ export function MyProfileScreen({ navigation }: Props) {
                       style={[
                         styles.starIcon,
                         s <= Math.round(ratingVal)
-                          ? { color: "#F59E0B" }
+                          ? { color: Colors.ButtonPrimaryColor }
                           : { color: "#CBD5E1" },
                       ]}
                     >
@@ -1825,7 +1817,7 @@ const styles = StyleSheet.create({
   },
   starIcon: {
     fontSize: 22,
-    color: "#E5B652",
+    color: Colors.ButtonPrimaryColor,
     marginHorizontal: 2,
   },
   ratingCount: {
@@ -1876,7 +1868,7 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   starMiniActive: {
-    color: "#E5B652",
+    color: Colors.ButtonPrimaryColor,
   },
   reviewText: {
     fontSize: FontSizes.sm,

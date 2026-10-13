@@ -20,12 +20,14 @@ import { NotificationsApi } from '../../api';
 import { useApi } from '../../hooks';
 import { useUserStore } from '../../store';
 import { NotificationModel } from '../../models';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'Notifications'>;
 };
 
 const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const { setNotificationBadge } = useUserStore();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -80,11 +82,11 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
       style={[styles.card, !item.isRead && styles.cardUnread]}
       activeOpacity={0.85}
     >
-      <View style={[styles.iconCircle, !item.isRead && styles.iconCircleUnread]}>
+      <View style={[styles.iconCircle, !item.isRead && [styles.iconCircleUnread, { backgroundColor: primaryColor + '15' }]]}>
         <Ionicons
           name={!item.isRead ? 'notifications' : 'notifications-outline'}
           size={20}
-          color={!item.isRead ? Colors.ButtonPrimaryColor : '#64748B'}
+          color={!item.isRead ? primaryColor : '#64748B'}
         />
       </View>
 
@@ -98,7 +100,7 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
         </Text>
       </View>
 
-      {!item.isRead && <View style={styles.unreadDot} />}
+      {!item.isRead && <View style={[styles.unreadDot, { backgroundColor: primaryColor }]} />}
     </TouchableOpacity>
   );
 
@@ -109,17 +111,17 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
       {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (navigation as any).openDrawer?.()}
+          onPress={() => (navigation as any).openDrawer?.() || (navigation.getParent() as any)?.openDrawer?.()}
           style={styles.menuButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="menu" size={24} color="#0F172A" />
+          <Ionicons name="menu" size={24} color={primaryColor} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>Notifications</Text>
 
         <TouchableOpacity onPress={handleMarkAllRead} activeOpacity={0.7} style={styles.markReadTouch}>
-          <Text style={styles.markReadText}>Mark Read</Text>
+          <Text style={[styles.markReadText, { color: primaryColor }]}>Mark Read</Text>
         </TouchableOpacity>
       </View>
 

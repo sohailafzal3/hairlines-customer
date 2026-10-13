@@ -15,6 +15,7 @@ import { AuthStackParamList } from "../../navigation/types";
 import { Colors } from "../../theme/colors";
 import { FontSizes, FontWeights } from "../../theme/fonts";
 import { Spacing, BorderRadius } from "../../theme/spacing";
+import { useTheme } from "../../context/ThemeContext";
 
 export interface CountryItem {
   id: string;
@@ -55,6 +56,7 @@ export const COUNTRIES_DATA: CountryItem[] = [
 type Props = NativeStackScreenProps<AuthStackParamList, "SelectCountry">;
 
 export function SelectCountryScreen({ navigation, route }: Props) {
+  const { primaryColor, primaryLightColor } = useTheme();
   const selectedCode = route.params?.selectedCode || "+1";
   const returnScreen = route.params?.returnScreen || "SignIn";
   const [searchQuery, setSearchQuery] = useState("");
@@ -149,7 +151,10 @@ export function SelectCountryScreen({ navigation, route }: Props) {
             <TouchableOpacity
               style={[
                 styles.countryItem,
-                isSelected && styles.countryItemActive,
+                isSelected && {
+                  borderColor: primaryColor,
+                  backgroundColor: primaryLightColor,
+                },
               ]}
               onPress={() => handleSelectCountry(item)}
               activeOpacity={0.7}
@@ -163,13 +168,13 @@ export function SelectCountryScreen({ navigation, route }: Props) {
 
               <View style={styles.rightSection}>
                 <View style={styles.phoneCodeBadge}>
-                  <Text style={styles.phoneCodeText}>{item.phoneCode}</Text>
+                  <Text style={[styles.phoneCodeText, isSelected && { color: primaryColor }]}>{item.phoneCode}</Text>
                 </View>
                 {isSelected && (
                   <Ionicons
                     name="checkmark-circle"
                     size={20}
-                    color={Colors.ButtonPrimaryColor}
+                    color={primaryColor}
                     style={{ marginLeft: 8 }}
                   />
                 )}

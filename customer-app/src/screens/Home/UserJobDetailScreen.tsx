@@ -21,6 +21,7 @@ import { Colors, Fonts, FontSizes, Spacing, BorderRadius } from '../../theme';
 import { VTButton, VTTextField } from '../../components/common';
 import { useJobStore } from '../../store';
 import { formatJobDate, parseDate } from '../../utils/helpers';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'UserJobDetail'>;
@@ -28,6 +29,7 @@ type Props = {
 };
 
 const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { primaryColor, primaryLightColor } = useTheme();
   const { serviceInfo } = route.params || {};
   const { createJob, setCreateJobField } = useJobStore();
 
@@ -110,7 +112,7 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             style={styles.backButton}
             activeOpacity={0.8}
           >
-            <Ionicons name="arrow-back" size={22} color="#0F172A" />
+            <Ionicons name="arrow-back" size={22} color={primaryColor} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Booking Specifications</Text>
@@ -126,17 +128,17 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         >
           {/* Selected Service Banner Card */}
           <View style={styles.serviceBanner}>
-            <View style={styles.serviceIconBadge}>
-              <MaterialCommunityIcons name="content-cut" size={26} color={Colors.ButtonPrimaryColor} />
+            <View style={[styles.serviceIconBadge, { backgroundColor: primaryLightColor }]}>
+              <MaterialCommunityIcons name="content-cut" size={26} color={primaryColor} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.serviceCategoryText}>SELECTED SERVICE</Text>
               <Text style={styles.serviceTitle}>{createJob.subServiceName || 'Custom Haircut & Styling'}</Text>
               {serviceInfo && (
                 <View style={styles.serviceMetaRow}>
-                  <View style={styles.metaTag}>
-                    <Ionicons name="time-outline" size={12} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
-                    <Text style={styles.metaTagText}>{serviceInfo.duration} {serviceInfo.durationUnit || 'mins'}</Text>
+                  <View style={[styles.metaTag, { backgroundColor: primaryLightColor }]}>
+                    <Ionicons name="time-outline" size={12} color={primaryColor} style={{ marginRight: 4 }} />
+                    <Text style={[styles.metaTagText, { color: primaryColor }]}>{serviceInfo.duration} {serviceInfo.durationUnit || 'mins'}</Text>
                   </View>
                   <Text style={styles.planNameText}>• {serviceInfo.name}</Text>
                 </View>
@@ -151,15 +153,15 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             onPress={handleOpenDatePicker}
             activeOpacity={0.85}
           >
-            <View style={styles.dateIconCircle}>
-              <Ionicons name="calendar" size={20} color={Colors.ButtonPrimaryColor} />
+            <View style={[styles.dateIconCircle, { backgroundColor: primaryLightColor }]}>
+              <Ionicons name="calendar" size={20} color={primaryColor} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.dateLabel}>Date & Time</Text>
               <Text style={styles.dateValueText}>{getDisplayDateText()}</Text>
             </View>
-            <View style={styles.changePill}>
-              <Text style={styles.changePillText}>Change</Text>
+            <View style={[styles.changePill, { backgroundColor: primaryLightColor }]}>
+              <Text style={[styles.changePillText, { color: primaryColor }]}>Change</Text>
             </View>
           </TouchableOpacity>
 
@@ -167,40 +169,52 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={styles.sectionLabel}>2. SERVICE DELIVERY MODE</Text>
           <View style={styles.locationContainer}>
             <TouchableOpacity
-              style={[styles.locationOptionCard, locationMode === 'user' && styles.locationOptionActive]}
+              style={[
+                styles.locationOptionCard,
+                locationMode === 'user' && [
+                  styles.locationOptionActive,
+                  { borderColor: primaryColor, backgroundColor: primaryLightColor },
+                ],
+              ]}
               onPress={() => setLocationMode('user')}
               activeOpacity={0.85}
             >
               <View style={[styles.locationIconBadge, locationMode === 'user' && styles.locationIconBadgeActive]}>
-                <Ionicons name="home-outline" size={20} color={locationMode === 'user' ? Colors.ButtonPrimaryColor : '#64748B'} />
+                <Ionicons name="home-outline" size={20} color={locationMode === 'user' ? primaryColor : '#64748B'} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.locationOptionTitle, locationMode === 'user' && styles.locationOptionTitleActive]}>
+                <Text style={[styles.locationOptionTitle, locationMode === 'user' && { color: primaryColor }]}>
                   Mobile Barber (At My Location)
                 </Text>
                 <Text style={styles.locationOptionSub}>Barber comes directly to your home, office, or hotel</Text>
               </View>
-              <View style={[styles.radioCircle, locationMode === 'user' && styles.radioCircleActive]}>
-                {locationMode === 'user' && <View style={styles.radioDot} />}
+              <View style={[styles.radioCircle, locationMode === 'user' && { borderColor: primaryColor }]}>
+                {locationMode === 'user' && <View style={[styles.radioDot, { backgroundColor: primaryColor }]} />}
               </View>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.locationOptionCard, locationMode === 'sp' && styles.locationOptionActive]}
+              style={[
+                styles.locationOptionCard,
+                locationMode === 'sp' && [
+                  styles.locationOptionActive,
+                  { borderColor: primaryColor, backgroundColor: primaryLightColor },
+                ],
+              ]}
               onPress={() => setLocationMode('sp')}
               activeOpacity={0.85}
             >
               <View style={[styles.locationIconBadge, locationMode === 'sp' && styles.locationIconBadgeActive]}>
-                <Ionicons name="storefront-outline" size={20} color={locationMode === 'sp' ? Colors.ButtonPrimaryColor : '#64748B'} />
+                <Ionicons name="storefront-outline" size={20} color={locationMode === 'sp' ? primaryColor : '#64748B'} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.locationOptionTitle, locationMode === 'sp' && styles.locationOptionTitleActive]}>
+                <Text style={[styles.locationOptionTitle, locationMode === 'sp' && { color: primaryColor }]}>
                   Barber Shop / Salon Visit
                 </Text>
                 <Text style={styles.locationOptionSub}>You visit the service provider's shop or salon</Text>
               </View>
-              <View style={[styles.radioCircle, locationMode === 'sp' && styles.radioCircleActive]}>
-                {locationMode === 'sp' && <View style={styles.radioDot} />}
+              <View style={[styles.radioCircle, locationMode === 'sp' && { borderColor: primaryColor }]}>
+                {locationMode === 'sp' && <View style={[styles.radioDot, { backgroundColor: primaryColor }]} />}
               </View>
             </TouchableOpacity>
 
@@ -210,7 +224,7 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               onPress={() => navigation.navigate('SetLocation')}
               activeOpacity={0.85}
             >
-              <Ionicons name="location" size={18} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+              <Ionicons name="location" size={18} color={primaryColor} style={{ marginRight: 8 }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.addressPillLabel}>DELIVERY ADDRESS</Text>
                 <Text style={styles.addressPillText} numberOfLines={1}>
@@ -260,11 +274,15 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
             </View>
           ) : (
-            <TouchableOpacity style={styles.uploadCard} onPress={handleImagePick} activeOpacity={0.8}>
-              <View style={styles.uploadIconCircle}>
-                <Ionicons name="camera" size={24} color={Colors.ButtonPrimaryColor} />
+            <TouchableOpacity
+              style={[styles.uploadCard, { borderColor: primaryColor }]}
+              onPress={handleImagePick}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.uploadIconCircle, { backgroundColor: primaryLightColor }]}>
+                <Ionicons name="camera" size={24} color={primaryColor} />
               </View>
-              <Text style={styles.uploadTitle}>Upload Reference Hair Style Photo</Text>
+              <Text style={[styles.uploadTitle, { color: primaryColor }]}>Upload Reference Hair Style Photo</Text>
               <Text style={styles.uploadSub}>Attach a photo of the exact cut or style you want</Text>
             </TouchableOpacity>
           )}
@@ -274,7 +292,7 @@ const UserJobDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             title="Search Available Professionals →"
             onPress={handleContinue}
             disabled={!description.trim()}
-            style={styles.continueButton}
+            style={[styles.continueButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
             textStyle={styles.continueButtonText}
           />
         </ScrollView>

@@ -22,6 +22,7 @@ import { VTButton, VTTextField, VTLoading } from '../../components/common';
 import { PaymentsApi } from '../../api';
 import { useApi } from '../../hooks';
 import { useAuthStore } from '../../store';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'AddCard'>;
@@ -37,6 +38,7 @@ const detectCardBrand = (number: string): string => {
 };
 
 const AddCardScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const { user } = useAuthStore();
   const [cardHolder, setCardHolder] = useState(`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'CARDHOLDER NAME');
   const [cardNumber, setCardNumber] = useState('');
@@ -127,7 +129,7 @@ const AddCardScreen: React.FC<Props> = ({ navigation }) => {
             style={styles.backButton}
             activeOpacity={0.8}
           >
-            <Ionicons name="arrow-back" size={22} color="#0F172A" />
+            <Ionicons name="arrow-back" size={22} color={primaryColor} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Add Credit / Debit Card</Text>
           <View style={{ width: 44 }} />
@@ -222,7 +224,7 @@ const AddCardScreen: React.FC<Props> = ({ navigation }) => {
             <Switch
               value={isDefault}
               onValueChange={setIsDefault}
-              trackColor={{ false: '#E2E8F0', true: Colors.ButtonPrimaryColor }}
+              trackColor={{ false: '#E2E8F0', true: primaryColor }}
               thumbColor="#FFFFFF"
             />
           </View>
@@ -239,7 +241,7 @@ const AddCardScreen: React.FC<Props> = ({ navigation }) => {
             title="Save Card"
             onPress={handleSaveCard}
             loading={loading}
-            style={styles.saveButton}
+            style={[styles.saveButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
             textStyle={styles.saveButtonText}
           />
         </ScrollView>

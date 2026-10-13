@@ -22,12 +22,14 @@ import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
 import { useUser } from "../../context/UserContext";
+import { useTheme } from "../../context/ThemeContext";
 import { api } from "../../services/api";
 import { TERMS_URL, PRIVACY_URL } from "../../constants";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "SignIn">;
 
 export function SignInScreen({ route, navigation }: Props) {
+  const { primaryColor, primaryDarkColor } = useTheme();
   const initialMode = route.params?.mode ?? (route.params?.isSignUp ? "signUp" : "signIn");
   const { setAccount, setLoggedIn } = useUser();
 
@@ -245,7 +247,7 @@ export function SignInScreen({ route, navigation }: Props) {
                     style={styles.forgotButton}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.forgotText}>Forgot Password?</Text>
+                    <Text style={[styles.forgotText, { color: primaryDarkColor }]}>Forgot Password?</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -258,7 +260,7 @@ export function SignInScreen({ route, navigation }: Props) {
                     style={styles.checkboxTouch}
                     activeOpacity={0.8}
                   >
-                    <View style={[styles.checkbox, isTermsAccepted && styles.checkboxActive]}>
+                    <View style={[styles.checkbox, isTermsAccepted && { backgroundColor: primaryColor, borderColor: primaryColor }]}>
                       {isTermsAccepted && <Ionicons name="checkmark" size={14} color={Colors.ButtonTextColor} />}
                     </View>
                     <View style={styles.termsTextContainer}>
@@ -266,14 +268,14 @@ export function SignInScreen({ route, navigation }: Props) {
                         I agree to receive promotional and personalized marketing texts at the phone number provided above. Message frequency may vary. Standard message and data rates may apply. By opting in, you also agree to our{" "}
                         <Text
                           onPress={() => Linking.openURL(PRIVACY_URL)}
-                          style={styles.termsLink}
+                          style={[styles.termsLink, { color: primaryDarkColor }]}
                         >
                           Privacy Policy
                         </Text>{" "}
                         and{" "}
                         <Text
                           onPress={() => Linking.openURL(TERMS_URL)}
-                          style={styles.termsLink}
+                          style={[styles.termsLink, { color: primaryDarkColor }]}
                         >
                           Terms
                         </Text>{" "}
@@ -297,10 +299,10 @@ export function SignInScreen({ route, navigation }: Props) {
                   <Ionicons
                     name="arrow-back-circle-outline"
                     size={16}
-                    color={Colors.ButtonPrimaryColor}
+                    color={primaryColor}
                     style={{ marginRight: 4 }}
                   />
-                  <Text style={styles.forgotText}>Back to Sign In</Text>
+                  <Text style={[styles.forgotText, { color: primaryDarkColor }]}>Back to Sign In</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -323,7 +325,7 @@ export function SignInScreen({ route, navigation }: Props) {
                 (isSignUp && !isTermsAccepted) ||
                 (!isSignUp && !isForgotPassword && !password.trim())
               }
-              style={styles.submitButton}
+              style={[styles.submitButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
               textStyle={styles.submitButtonText}
             />
 
@@ -342,7 +344,7 @@ export function SignInScreen({ route, navigation }: Props) {
                   activeOpacity={0.7}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Text style={styles.footerLinkText}>
+                  <Text style={[styles.footerLinkText, { color: primaryDarkColor }]}>
                     {isSignUp ? "SIGN IN" : "SIGN UP"}
                   </Text>
                 </TouchableOpacity>
@@ -499,7 +501,7 @@ const styles = StyleSheet.create({
   forgotText: {
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.bold,
-    color: "#854D0E",
+    color: Colors.accentDark,
   },
   termsContainer: {
     marginTop: Spacing.sm,
@@ -545,10 +547,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
   },
   submitButton: {
-    backgroundColor: Colors.ButtonPrimaryColor,
     borderRadius: BorderRadius.lg,
     minHeight: 54,
-    shadowColor: Colors.ButtonPrimaryColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -573,6 +573,6 @@ const styles = StyleSheet.create({
   footerLinkText: {
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
-    color: "#854D0E",
+    color: Colors.accentDark,
   },
 });

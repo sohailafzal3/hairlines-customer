@@ -23,6 +23,7 @@ import { JobsApi } from '../../api';
 import { useApi } from '../../hooks';
 import { Service } from '../../models';
 import { useAuthStore } from '../../store';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Services'>;
@@ -66,6 +67,7 @@ const defaultMainServices: Service[] = [
 ];
 
 const ServicesScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { primaryColor } = useTheme();
   const { serviceTypeName } = route.params || {};
   const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
@@ -130,7 +132,7 @@ const ServicesScreen: React.FC<Props> = ({ navigation, route }) => {
           <Image source={{ uri: item.serviceImage }} style={styles.image} />
         ) : (
           <View style={styles.imagePlaceholder}>
-            <MaterialCommunityIcons name="content-cut" size={28} color={Colors.ButtonPrimaryColor} />
+            <MaterialCommunityIcons name="content-cut" size={28} color={primaryColor} />
           </View>
         )}
       </View>
@@ -141,14 +143,14 @@ const ServicesScreen: React.FC<Props> = ({ navigation, route }) => {
           {item.serviceDescription || 'Professional grooming service.'}
         </Text>
         {item.serviceHourlyRate ? (
-          <View style={styles.ratePill}>
-            <Text style={styles.rateText}>From ${item.serviceHourlyRate}</Text>
+          <View style={[styles.ratePill, { backgroundColor: primaryColor + '15' }]}>
+            <Text style={[styles.rateText, { color: primaryColor }]}>From ${item.serviceHourlyRate}</Text>
           </View>
         ) : null}
       </View>
 
       <View style={styles.arrowButton}>
-        <Ionicons name="arrow-forward" size={18} color={Colors.ButtonPrimaryColor} />
+        <Ionicons name="arrow-forward" size={18} color={primaryColor} />
       </View>
     </TouchableOpacity>
   );
@@ -164,7 +166,7 @@ const ServicesScreen: React.FC<Props> = ({ navigation, route }) => {
           style={styles.backButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+          <Ionicons name="arrow-back" size={22} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.title}>{serviceTypeName || 'Select Service'}</Text>
         <View style={{ width: 44 }} />
@@ -181,8 +183,8 @@ const ServicesScreen: React.FC<Props> = ({ navigation, route }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[Colors.ButtonPrimaryColor]}
-            tintColor={Colors.ButtonPrimaryColor}
+            colors={[primaryColor]}
+            tintColor={primaryColor}
           />
         }
         ListHeaderComponent={

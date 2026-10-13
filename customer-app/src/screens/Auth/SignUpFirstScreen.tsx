@@ -28,6 +28,7 @@ import { AuthApi, UploadApi } from '../../api';
 import { useAuthStore } from '../../store';
 import { Storage } from '../../utils/storage';
 import { STORAGE_KEYS, kTermsLink, kPrivicyPolicyLink } from '../../constants';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'SignUpFirst'>;
@@ -110,6 +111,7 @@ export const parseDOBToDate = (val: any): Date | null => {
 };
 
 const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor, primaryLightColor } = useTheme();
   const { account, setAccount, setLoggedIn } = useAuthStore();
 
   // Personal Info
@@ -395,7 +397,7 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
               style={styles.backButton}
               activeOpacity={0.8}
             >
-              <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+              <Ionicons name="arrow-back" size={22} color={primaryColor} />
             </TouchableOpacity>
           </View>
 
@@ -478,17 +480,17 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
                 return (
                   <TouchableOpacity
                     key={item.key}
-                    style={[styles.genderCard, isActive && styles.genderCardActive]}
+                    style={[styles.genderCard, isActive && [styles.genderCardActive, { borderColor: primaryColor, backgroundColor: primaryLightColor }]]}
                     onPress={() => setGender(item.key as any)}
                     activeOpacity={0.8}
                   >
                     <Ionicons
                       name={item.icon as any}
                       size={18}
-                      color={isActive ? Colors.ButtonPrimaryColor : '#64748B'}
+                      color={isActive ? primaryColor : '#64748B'}
                       style={{ marginRight: 6 }}
                     />
-                    <Text style={[styles.genderCardText, isActive && styles.genderCardTextActive]}>
+                    <Text style={[styles.genderCardText, isActive && [styles.genderCardTextActive, { color: primaryColor }]]}>
                       {item.label}
                     </Text>
                   </TouchableOpacity>
@@ -507,7 +509,7 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
                 onChangeText={setDateOfBirth}
                 editable={false}
                 leftIcon={<Ionicons name="calendar-outline" size={18} color="#64748B" />}
-                rightIcon={<Ionicons name="calendar" size={18} color={Colors.ButtonPrimaryColor} />}
+                rightIcon={<Ionicons name="calendar" size={18} color={primaryColor} />}
                 onRightIconPress={openDatePicker}
               />
             </TouchableOpacity>
@@ -520,11 +522,11 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
                 return (
                   <TouchableOpacity
                     key={item.id}
-                    style={[styles.disabilityPill, isSelected && styles.disabilityPillActive]}
+                    style={[styles.disabilityPill, isSelected && [styles.disabilityPillActive, { borderColor: primaryColor, backgroundColor: primaryLightColor }]]}
                     onPress={() => setDisability(item.id)}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.disabilityText, isSelected && styles.disabilityTextActive]}>
+                    <Text style={[styles.disabilityText, isSelected && [styles.disabilityTextActive, { color: primaryColor }]]}>
                       {item.label}
                     </Text>
                   </TouchableOpacity>
@@ -553,11 +555,11 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
                 disabled={fetchingLocation}
               >
                 {fetchingLocation ? (
-                  <ActivityIndicator size="small" color={Colors.ButtonPrimaryColor} />
+                  <ActivityIndicator size="small" color={primaryColor} />
                 ) : (
                   <>
-                    <Ionicons name="navigate-circle-outline" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
-                    <Text style={styles.gpsButtonText}>Use GPS</Text>
+                    <Ionicons name="navigate-circle-outline" size={16} color={primaryColor} style={{ marginRight: 4 }} />
+                    <Text style={[styles.gpsButtonText, { color: primaryColor }]}>Use GPS</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -573,7 +575,7 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
                 value={address}
                 onChangeText={setAddress}
                 leftIcon={<Ionicons name="location-outline" size={18} color="#64748B" />}
-                rightIcon={<Ionicons name="search" size={18} color={Colors.ButtonPrimaryColor} />}
+                rightIcon={<Ionicons name="search" size={18} color={primaryColor} />}
                 onRightIconPress={() => setShowLocationModal(true)}
               />
             </TouchableOpacity>
@@ -632,7 +634,7 @@ const SignUpFirstScreen: React.FC<Props> = ({ navigation }) => {
             onPress={handleSubmit}
             loading={loading}
             disabled={!firstName || !lastName || !email || !password || !confirmPassword || !address}
-            style={styles.submitButton}
+            style={[styles.submitButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
             textStyle={styles.submitButtonText}
           />
         </ScrollView>

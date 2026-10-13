@@ -20,11 +20,13 @@ import { Spacing, BorderRadius } from "../../theme/spacing";
 import { Button } from "../../components/Button";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
 import { useUser } from "../../context/UserContext";
+import { useTheme } from "../../context/ThemeContext";
 import { api } from "../../services/api";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Verification">;
 
 export function VerificationScreen({ route, navigation }: Props) {
+  const { primaryColor, primaryLightColor, primaryDarkColor } = useTheme();
   const { phoneNumber, countryCode, isSignUp, isForgotPassword, code: incomingCode } = route.params;
   const { setAccount, setLoggedIn } = useUser();
 
@@ -242,7 +244,13 @@ export function VerificationScreen({ route, navigation }: Props) {
                   ref={(ref) => {
                     inputs.current[index] = ref;
                   }}
-                  style={[styles.codeInput, isFilled && styles.codeInputFilled]}
+                  style={[
+                    styles.codeInput,
+                    isFilled && {
+                      borderColor: primaryColor,
+                      backgroundColor: primaryLightColor,
+                    },
+                  ]}
                   keyboardType="number-pad"
                   maxLength={1}
                   value={digit}
@@ -261,7 +269,7 @@ export function VerificationScreen({ route, navigation }: Props) {
             onPress={handleVerify}
             loading={loading}
             disabled={!isComplete}
-            style={styles.verifyButton}
+            style={[styles.verifyButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
             textStyle={styles.verifyButtonText}
           />
 
@@ -269,7 +277,7 @@ export function VerificationScreen({ route, navigation }: Props) {
           <View style={styles.resendContainer}>
             {timer > 0 ? (
               <Text style={styles.timerText}>
-                Resend code in <Text style={styles.timerBold}>{timer}s</Text>
+                Resend code in <Text style={[styles.timerBold, { color: primaryDarkColor }]}>{timer}s</Text>
               </Text>
             ) : (
               <TouchableOpacity
@@ -280,10 +288,10 @@ export function VerificationScreen({ route, navigation }: Props) {
                 <Ionicons
                   name="reload-outline"
                   size={16}
-                  color={Colors.ButtonPrimaryColor}
+                  color={primaryColor}
                   style={{ marginRight: 4 }}
                 />
-                <Text style={styles.resendText}>Resend Code</Text>
+                <Text style={[styles.resendText, { color: primaryDarkColor }]}>Resend Code</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -387,10 +395,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(229, 182, 82, 0.10)",
   },
   verifyButton: {
-    backgroundColor: Colors.ButtonPrimaryColor,
     borderRadius: BorderRadius.lg,
     minHeight: 54,
-    shadowColor: Colors.ButtonPrimaryColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -411,7 +417,7 @@ const styles = StyleSheet.create({
   },
   timerBold: {
     fontWeight: FontWeights.bold,
-    color: "#854D0E",
+    color: Colors.accentDark,
   },
   resendTouch: {
     flexDirection: "row",
@@ -420,6 +426,6 @@ const styles = StyleSheet.create({
   resendText: {
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
-    color: "#854D0E",
+    color: Colors.accentDark,
   },
 });

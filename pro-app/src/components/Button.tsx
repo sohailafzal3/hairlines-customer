@@ -6,10 +6,12 @@ import {
   ActivityIndicator,
   ViewStyle,
   TextStyle,
+  StyleProp,
 } from "react-native";
 import { Colors } from "../theme/colors";
 import { BorderRadius, Spacing } from "../theme/spacing";
 import { FontSizes, FontWeights } from "../theme/fonts";
+import { useTheme } from "../context/ThemeContext";
 
 interface Props {
   title: string;
@@ -17,8 +19,8 @@ interface Props {
   variant?: "primary" | "secondary" | "danger" | "ghost";
   disabled?: boolean;
   loading?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }
 
 export function Button({
@@ -30,7 +32,16 @@ export function Button({
   style,
   textStyle,
 }: Props) {
+  const { primaryColor } = useTheme();
   const isDisabled = disabled || loading;
+
+  const dynamicColorStyle =
+    variant === "primary"
+      ? { backgroundColor: primaryColor, shadowColor: primaryColor }
+      : variant === "ghost"
+      ? { borderColor: primaryColor }
+      : null;
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -39,8 +50,9 @@ export function Button({
       style={[
         styles.button,
         styles[variant],
-        isDisabled && styles.disabled,
         style,
+        dynamicColorStyle,
+        isDisabled && styles.disabled,
       ]}
     >
       {loading ? (
@@ -50,7 +62,7 @@ export function Button({
               ? Colors.ButtonTextColor
               : variant === "danger"
               ? "#FFFFFF"
-              : Colors.ButtonPrimaryColor
+              : primaryColor
           }
         />
       ) : (
@@ -109,6 +121,5 @@ const styles = StyleSheet.create({
   primaryText: { color: Colors.ButtonTextColor },
   secondaryText: { color: Colors.TitleColor },
   dangerText: { color: "#FFFFFF" },
-  ghostText: { color: "#0F172A" },
+  ghostText: { color: Colors.TitleColor },
 });
-

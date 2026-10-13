@@ -19,6 +19,7 @@ import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
 import { useAuthStore, useUserStore, useJobStore } from '../../store';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Categories'>;
@@ -60,6 +61,7 @@ const categoriesList: ServiceCategoryItem[] = [
 ];
 
 const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor, primaryLightColor } = useTheme();
   const { user, account, isGuest } = useAuthStore();
   const { notificationBadge } = useUserStore();
   const { createJob, setCreateJobField, setCreateJob } = useJobStore();
@@ -186,7 +188,7 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
           <Image source={{ uri: item.image }} style={styles.image} />
         ) : (
           <View style={styles.imagePlaceholder}>
-            <MaterialCommunityIcons name="content-cut" size={28} color={Colors.ButtonPrimaryColor} />
+            <MaterialCommunityIcons name="content-cut" size={28} color={primaryColor} />
           </View>
         )}
       </View>
@@ -201,7 +203,7 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
       </View>
 
       <View style={styles.arrowButton}>
-        <Ionicons name="arrow-forward" size={18} color={Colors.ButtonPrimaryColor} />
+        <Ionicons name="arrow-forward" size={18} color={primaryColor} />
       </View>
     </TouchableOpacity>
   );
@@ -213,11 +215,11 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
       {/* Top Header Bar */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (navigation.getParent() as any)?.openDrawer?.()}
+          onPress={() => (navigation as any).openDrawer?.() || (navigation.getParent() as any)?.openDrawer?.()}
           style={styles.headerButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="menu" size={24} color="#0F172A" />
+          <Ionicons name="menu" size={24} color={primaryColor} />
         </TouchableOpacity>
 
         {/* Location Picker Pill */}
@@ -226,7 +228,7 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
           onPress={() => navigation.navigate('SetLocation')}
           activeOpacity={0.8}
         >
-          <Ionicons name="location-sharp" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 6 }} />
+          <Ionicons name="location-sharp" size={16} color={primaryColor} style={{ marginRight: 6 }} />
           <View style={styles.locationTextWrapper}>
             <Text style={styles.locationLabel}>CURRENT LOCATION</Text>
             <Text style={styles.locationText} numberOfLines={1}>
@@ -242,8 +244,8 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
           onPress={() => navigation.navigate('Notifications' as any)}
           activeOpacity={0.8}
         >
-          <Ionicons name="notifications-outline" size={22} color="#0F172A" />
-          {notificationBadge > 0 && <View style={styles.badgeDot} />}
+          <Ionicons name="notifications-outline" size={22} color={primaryColor} />
+          {notificationBadge > 0 && <View style={[styles.badgeDot, { backgroundColor: primaryColor }]} />}
         </TouchableOpacity>
       </View>
 
@@ -259,14 +261,14 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[Colors.ButtonPrimaryColor]}
-            tintColor={Colors.ButtonPrimaryColor}
+            colors={[primaryColor]}
+            tintColor={primaryColor}
           />
         }
         ListHeaderComponent={
           <View style={styles.heroSection}>
             {/* Greeting */}
-            <Text style={styles.greetingText}>
+            <Text style={[styles.greetingText, { color: primaryColor }]}>
               Hello, {getUserGreetingName()} 👋
             </Text>
             <Text style={styles.heroTitle}>What service do you need today?</Text>
@@ -297,15 +299,15 @@ const CategoriesScreen: React.FC<Props> = ({ navigation }) => {
         ListEmptyComponent={
           !hasLocationPicked ? (
             <View style={styles.locationRequiredCard}>
-              <View style={styles.locationIconCircle}>
-                <Ionicons name="location-sharp" size={32} color={Colors.ButtonPrimaryColor} />
+              <View style={[styles.locationIconCircle, { backgroundColor: primaryLightColor }]}>
+                <Ionicons name="location-sharp" size={32} color={primaryColor} />
               </View>
               <Text style={styles.locationRequiredTitle}>Set Location to View Services</Text>
               <Text style={styles.locationRequiredSub}>
                 Please select your location to view available haircuts, styling, and grooming services near you.
               </Text>
               <TouchableOpacity
-                style={styles.setLocationButton}
+                style={[styles.setLocationButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
                 onPress={() => navigation.navigate('SetLocation')}
                 activeOpacity={0.85}
               >

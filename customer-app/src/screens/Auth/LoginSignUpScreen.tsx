@@ -24,6 +24,7 @@ import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
 import { Storage } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../constants';
+import { useTheme } from '../../context/ThemeContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -34,6 +35,7 @@ type Props = {
 };
 
 const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor, primaryLightColor } = useTheme();
   const [fbLoading, setFbLoading] = useState(false);
   const { setAccount, setUser, setLoggedIn } = useAuthStore();
 
@@ -164,7 +166,7 @@ const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.header}>
           {/* Logo Badge */}
           <View style={styles.logoBadgeContainer}>
-            <View style={styles.logoBadge}>
+            <View style={[styles.logoBadge, { backgroundColor: primaryColor, shadowColor: primaryColor }]}>
               <MaterialCommunityIcons name="content-cut" size={38} color="#FFFFFF" />
               <View style={styles.sparkleBadge}>
                 <Ionicons name="sparkles" size={14} color="#E5B652" />
@@ -176,9 +178,9 @@ const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.appName}>HAIRLINES</Text>
 
           {/* Feature Pill */}
-          <View style={styles.featurePill}>
-            <Ionicons name="sparkles-sharp" size={12} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
-            <Text style={styles.featurePillText}>PREMIER BEAUTY & GROOMING</Text>
+          <View style={[styles.featurePill, { backgroundColor: primaryLightColor }]}>
+            <Ionicons name="sparkles-sharp" size={12} color={primaryColor} style={{ marginRight: 4 }} />
+            <Text style={[styles.featurePillText, { color: primaryColor }]}>PREMIER BEAUTY & GROOMING</Text>
           </View>
 
           {/* Tagline */}
@@ -196,7 +198,7 @@ const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
           <VTButton
             title="SIGN UP NOW"
             onPress={() => navigation.navigate('SignIn', { isSignUp: true })}
-            style={styles.signUpButton}
+            style={[styles.signUpButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
             textStyle={styles.signUpButtonText}
           />
 
@@ -224,7 +226,7 @@ const LoginSignUpScreen: React.FC<Props> = ({ navigation }) => {
             activeOpacity={0.7}
           >
             <Text style={styles.accountPrompt}>Already have an account? </Text>
-            <Text style={styles.accountLink}>SIGN IN</Text>
+            <Text style={[styles.accountLink, { color: primaryColor }]}>SIGN IN</Text>
           </TouchableOpacity>
         </View>
       </View>

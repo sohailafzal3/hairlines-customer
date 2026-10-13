@@ -18,6 +18,7 @@ import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTButton } from '../../components/common';
 import { useJobStore } from '../../store';
+import { useTheme } from '../../context/ThemeContext';
 
 import { parseDate } from '../../utils/helpers';
 
@@ -37,6 +38,7 @@ const TIME_SLOTS = [
 ];
 
 const CalendarScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const { createJob, setCreateJobField } = useJobStore();
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -81,7 +83,7 @@ const CalendarScreen: React.FC<Props> = ({ navigation }) => {
           style={styles.backButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+          <Ionicons name="arrow-back" size={22} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.title}>Select Date & Time</Text>
         <View style={{ width: 44 }} />
@@ -103,7 +105,7 @@ const CalendarScreen: React.FC<Props> = ({ navigation }) => {
               [selectedDate]: {
                 selected: true,
                 disableTouchEvent: true,
-                selectedColor: Colors.ButtonPrimaryColor,
+                selectedColor: primaryColor,
                 selectedTextColor: '#FFFFFF',
               },
             }}
@@ -111,12 +113,12 @@ const CalendarScreen: React.FC<Props> = ({ navigation }) => {
               backgroundColor: '#FFFFFF',
               calendarBackground: '#FFFFFF',
               textSectionTitleColor: '#64748B',
-              selectedDayBackgroundColor: Colors.ButtonPrimaryColor,
+              selectedDayBackgroundColor: primaryColor,
               selectedDayTextColor: '#FFFFFF',
-              todayTextColor: Colors.ButtonPrimaryColor,
+              todayTextColor: primaryColor,
               dayTextColor: '#0F172A',
               textDisabledColor: '#CBD5E1',
-              arrowColor: Colors.ButtonPrimaryColor,
+              arrowColor: primaryColor,
               monthTextColor: '#0F172A',
               textDayFontFamily: Fonts.uberMoveMedium,
               textMonthFontFamily: Fonts.uberMoveBold,
@@ -134,7 +136,10 @@ const CalendarScreen: React.FC<Props> = ({ navigation }) => {
               return (
                 <TouchableOpacity
                   key={slot}
-                  style={[styles.timeChip, isSelected && styles.timeChipActive]}
+                  style={[
+                    styles.timeChip,
+                    isSelected && { backgroundColor: primaryColor, borderColor: primaryColor },
+                  ]}
                   onPress={() => setSelectedTime(slot)}
                   activeOpacity={0.8}
                 >
@@ -155,10 +160,10 @@ const CalendarScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* Selected Summary Card */}
         <View style={styles.summaryCard}>
-          <Ionicons name="calendar-outline" size={24} color={Colors.ButtonPrimaryColor} style={{ marginRight: 12 }} />
+          <Ionicons name="calendar-outline" size={24} color={primaryColor} style={{ marginRight: 12 }} />
           <View style={{ flex: 1 }}>
             <Text style={styles.summaryLabel}>Selected Appointment</Text>
-            <Text style={styles.summaryValue}>
+            <Text style={[styles.summaryValue, { color: primaryColor }]}>
               {selectedDate} • {selectedTime}
             </Text>
           </View>
@@ -168,7 +173,7 @@ const CalendarScreen: React.FC<Props> = ({ navigation }) => {
         <VTButton
           title="Confirm Schedule"
           onPress={handleConfirm}
-          style={styles.confirmButton}
+          style={[styles.confirmButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
           textStyle={styles.confirmButtonText}
         />
       </ScrollView>

@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 import { BorderRadius, Spacing } from "../theme/spacing";
 import { FontSizes, FontWeights } from "../theme/fonts";
+import { useTheme } from "../context/ThemeContext";
 
 interface Props extends TextInputProps {
   label?: string;
@@ -33,6 +34,7 @@ export const Input = React.forwardRef<TextInput, Props>(
     },
     ref
   ) => {
+    const { primaryColor, primaryDarkColor } = useTheme();
     const [isFocused, setIsFocused] = useState(false);
     const [isSecure, setIsSecure] = useState(!!secureTextEntry);
 
@@ -42,7 +44,7 @@ export const Input = React.forwardRef<TextInput, Props>(
           <Text
             style={[
               styles.label,
-              isFocused && styles.labelFocused,
+              isFocused && [styles.labelFocused, { color: primaryDarkColor }],
               !!error && styles.labelError,
             ]}
           >
@@ -52,7 +54,10 @@ export const Input = React.forwardRef<TextInput, Props>(
         <View
           style={[
             styles.inputWrapper,
-            isFocused && styles.inputWrapperFocused,
+            isFocused && [
+              styles.inputWrapperFocused,
+              { borderColor: primaryColor, shadowColor: primaryColor },
+            ],
             !!error && styles.inputWrapperError,
           ]}
         >
@@ -81,7 +86,7 @@ export const Input = React.forwardRef<TextInput, Props>(
               <Ionicons
                 name={isSecure ? "eye-off-outline" : "eye-outline"}
                 size={20}
-                color={isFocused ? Colors.ButtonPrimaryColor : "#64748B"}
+                color={isFocused ? primaryColor : "#64748B"}
               />
             </TouchableOpacity>
           ) : null}
@@ -111,7 +116,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   labelFocused: {
-    color: "#854D0E",
+    color: Colors.accentDark,
     fontWeight: FontWeights.bold,
   },
   labelError: {

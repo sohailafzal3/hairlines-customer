@@ -219,15 +219,7 @@ export function SettingsScreen({ navigation }: Props) {
       <Header
         title={t("drawer:settings")}
         onBackPress={handleBack}
-        right={
-          <TouchableOpacity
-            onPress={() => navigation.openDrawer()}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.headerMenuBtn}
-          >
-            <Ionicons name="menu" size={24} color={Colors.NavigationTitle} />
-          </TouchableOpacity>
-        }
+        onRightMenuPress={() => navigation.openDrawer()}
       />
       <ScrollView
         contentContainerStyle={[

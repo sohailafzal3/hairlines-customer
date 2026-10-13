@@ -30,12 +30,13 @@ import { Gender, UploadImageType } from "../../constants";
 import { Colors } from "../../theme/colors";
 import { FontSizes, FontWeights } from "../../theme/fonts";
 import { Spacing, BorderRadius } from "../../theme/spacing";
-
 import { useUser } from "../../context/UserContext";
+import { useTheme } from "../../context/ThemeContext";
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, "PersonalInfo">;
 
 export function PersonalInfoScreen({ route, navigation }: Props) {
+  const { primaryColor, primaryLightColor, primaryDarkColor } = useTheme();
   const { t } = useTranslation();
   const { user, updateUser, clearUser } = useUser();
   const [loading, setLoading] = useState(false);
@@ -365,20 +366,26 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
                 return (
                   <TouchableOpacity
                     key={item.key}
-                    style={[styles.genderCard, isActive && styles.genderCardActive]}
+                    style={[
+                      styles.genderCard,
+                      isActive && {
+                        borderColor: primaryColor,
+                        backgroundColor: primaryLightColor,
+                      },
+                    ]}
                     onPress={() => setGender(item.key)}
                     activeOpacity={0.8}
                   >
                     <Ionicons
                       name={item.icon as any}
                       size={18}
-                      color={isActive ? Colors.ButtonPrimaryColor : "#64748B"}
+                      color={isActive ? primaryColor : "#64748B"}
                       style={{ marginRight: 6 }}
                     />
                     <Text
                       style={[
                         styles.genderCardText,
-                        isActive && styles.genderCardTextActive,
+                        isActive && { color: primaryDarkColor, fontWeight: "700" },
                       ]}
                     >
                       {item.label}
@@ -406,7 +413,7 @@ export function PersonalInfoScreen({ route, navigation }: Props) {
               <Ionicons
                 name="calendar-outline"
                 size={20}
-                color={Colors.ButtonPrimaryColor}
+                color={primaryColor}
               />
             </TouchableOpacity>
 
@@ -779,7 +786,7 @@ const styles = StyleSheet.create({
   },
   genderCardActive: {
     borderColor: Colors.ButtonPrimaryColor,
-    backgroundColor: "rgba(229, 182, 82, 0.12)",
+    backgroundColor: Colors.accentLight,
   },
   genderCardText: {
     fontSize: FontSizes.sm,
@@ -787,7 +794,7 @@ const styles = StyleSheet.create({
     color: "#64748B",
   },
   genderCardTextActive: {
-    color: "#854D0E",
+    color: Colors.accentDark,
     fontWeight: FontWeights.bold,
   },
   agreementRow: {
@@ -819,7 +826,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   termsLink: {
-    color: "#854D0E",
+    color: Colors.accentDark,
     fontWeight: FontWeights.bold,
     textDecorationLine: "underline",
   },

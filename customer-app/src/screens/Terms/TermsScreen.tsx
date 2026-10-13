@@ -18,6 +18,7 @@ import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
 import { AuthApi } from '../../api';
 import { kTermsLink, kPrivicyPolicyLink } from '../../constants';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'Terms'>;
@@ -26,6 +27,7 @@ type Props = {
 type ActiveTab = 'terms' | 'privacy';
 
 const TermsScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const [activeTab, setActiveTab] = useState<ActiveTab>('terms');
   const [termsText, setTermsText] = useState('');
   const [privacyText, setPrivacyText] = useState('');
@@ -68,11 +70,11 @@ const TermsScreen: React.FC<Props> = ({ navigation }) => {
       {/* Header Bar */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (navigation as any).openDrawer?.()}
+          onPress={() => (navigation as any).openDrawer?.() || (navigation.getParent() as any)?.openDrawer?.()}
           style={styles.menuButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="menu" size={24} color="#0F172A" />
+          <Ionicons name="menu" size={24} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Terms & Privacy</Text>
         <View style={{ width: 44 }} />
@@ -81,33 +83,33 @@ const TermsScreen: React.FC<Props> = ({ navigation }) => {
       {/* Tab Selector */}
       <View style={styles.tabBar}>
         <TouchableOpacity
-          style={[styles.tabSegment, activeTab === 'terms' && styles.tabSegmentActive]}
+          style={[styles.tabSegment, activeTab === 'terms' && [styles.tabSegmentActive, { backgroundColor: primaryColor + '18' }]]}
           onPress={() => setActiveTab('terms')}
           activeOpacity={0.8}
         >
           <Ionicons
             name="document-text-outline"
             size={16}
-            color={activeTab === 'terms' ? Colors.ButtonPrimaryColor : '#64748B'}
+            color={activeTab === 'terms' ? primaryColor : '#64748B'}
             style={{ marginRight: 6 }}
           />
-          <Text style={[styles.tabText, activeTab === 'terms' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, activeTab === 'terms' && [styles.tabTextActive, { color: primaryColor }]]}>
             Terms & Conditions
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabSegment, activeTab === 'privacy' && styles.tabSegmentActive]}
+          style={[styles.tabSegment, activeTab === 'privacy' && [styles.tabSegmentActive, { backgroundColor: primaryColor + '18' }]]}
           onPress={() => setActiveTab('privacy')}
           activeOpacity={0.8}
         >
           <Ionicons
             name="shield-checkmark-outline"
             size={16}
-            color={activeTab === 'privacy' ? Colors.ButtonPrimaryColor : '#64748B'}
+            color={activeTab === 'privacy' ? primaryColor : '#64748B'}
             style={{ marginRight: 6 }}
           />
-          <Text style={[styles.tabText, activeTab === 'privacy' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, activeTab === 'privacy' && [styles.tabTextActive, { color: primaryColor }]]}>
             Privacy Policy
           </Text>
         </TouchableOpacity>

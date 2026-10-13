@@ -225,15 +225,7 @@ export function HistoryScreen({ route, navigation }: Props) {
       <Header
         title={weekNumber ? `Week ${weekNumber} History` : "Job History"}
         onBackPress={handleBack}
-        right={
-          <TouchableOpacity
-            onPress={() => navigation.openDrawer()}
-            hitSlop={10}
-            style={{ padding: 4 }}
-          >
-            <Ionicons name="menu" size={24} color={Colors.NavigationTitle} />
-          </TouchableOpacity>
-        }
+        onRightMenuPress={() => navigation.openDrawer()}
       />
 
       <FlatList

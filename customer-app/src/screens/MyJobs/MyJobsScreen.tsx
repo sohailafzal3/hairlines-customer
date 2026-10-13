@@ -22,6 +22,7 @@ import { useApi } from '../../hooks';
 import { Job } from '../../models';
 import { JobStatus } from '../../constants';
 import { formatJobDate } from '../../utils/helpers';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'MyJobs'>;
@@ -30,6 +31,7 @@ type Props = {
 type SegmentTab = 'upcoming' | 'history';
 
 const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const [activeTab, setActiveTab] = useState<SegmentTab>('upcoming');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -128,14 +130,14 @@ const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
           {(item as any).spProfilePicUrl || (item as any).profileImage || item.serviceImage ? (
             <Image source={{ uri: (item as any).spProfilePicUrl || (item as any).profileImage || item.serviceImage }} style={styles.spImage} />
           ) : (
-            <View style={styles.spImagePlaceholder}>
+            <View style={[styles.spImagePlaceholder, { backgroundColor: primaryColor }]}>
               <Text style={styles.spImageText}>{item.name?.charAt(0) || 'B'}</Text>
             </View>
           )}
 
           <View style={styles.spInfo}>
             <Text style={styles.spName}>{item.name || 'Assigned Barber'}</Text>
-            <Text style={styles.serviceName}>{item.serviceName || 'Grooming Service'}</Text>
+            <Text style={[styles.serviceName, { color: primaryColor }]}>{item.serviceName || 'Grooming Service'}</Text>
             <Text style={styles.addressText} numberOfLines={1}>
               📍 {item.primaryAddress || 'Customer Location'}
             </Text>
@@ -156,12 +158,12 @@ const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
 
           <View style={styles.footerRight}>
             <TouchableOpacity
-              style={styles.chatPill}
+              style={[styles.chatPill, { borderColor: primaryColor + '30', backgroundColor: primaryColor + '12' }]}
               onPress={() => (navigation as any).navigate('HomeStack', { screen: 'Chat', params: { jobId: item.id, spName: item.name } })}
               activeOpacity={0.8}
             >
-              <Ionicons name="chatbubble-ellipses-outline" size={14} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
-              <Text style={styles.chatPillText}>Chat</Text>
+              <Ionicons name="chatbubble-ellipses-outline" size={14} color={primaryColor} style={{ marginRight: 4 }} />
+              <Text style={[styles.chatPillText, { color: primaryColor }]}>Chat</Text>
             </TouchableOpacity>
 
             <Text style={styles.amountText}>
@@ -180,11 +182,11 @@ const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
       {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (navigation as any).openDrawer?.()}
+          onPress={() => (navigation as any).openDrawer?.() || (navigation.getParent() as any)?.openDrawer?.()}
           style={styles.menuButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="menu" size={24} color="#0F172A" />
+          <Ionicons name="menu" size={24} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Bookings</Text>
         <View style={{ width: 44 }} />
@@ -193,21 +195,21 @@ const MyJobsScreen: React.FC<Props> = ({ navigation }) => {
       {/* Segment Tab Bar */}
       <View style={styles.tabBar}>
         <TouchableOpacity
-          style={[styles.tabSegment, activeTab === 'upcoming' && styles.tabSegmentActive]}
+          style={[styles.tabSegment, activeTab === 'upcoming' && [styles.tabSegmentActive, { backgroundColor: primaryColor + '18' }]]}
           onPress={() => setActiveTab('upcoming')}
           activeOpacity={0.8}
         >
-          <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, activeTab === 'upcoming' && [styles.tabTextActive, { color: primaryColor }]]}>
             Upcoming Bookings
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabSegment, activeTab === 'history' && styles.tabSegmentActive]}
+          style={[styles.tabSegment, activeTab === 'history' && [styles.tabSegmentActive, { backgroundColor: primaryColor + '18' }]]}
           onPress={() => setActiveTab('history')}
           activeOpacity={0.8}
         >
-          <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, activeTab === 'history' && [styles.tabTextActive, { color: primaryColor }]]}>
             Booking History
           </Text>
         </TouchableOpacity>

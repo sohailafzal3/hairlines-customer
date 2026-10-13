@@ -18,6 +18,7 @@ import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTButton, VTLoading } from '../../components/common';
 import { JobsApi } from '../../api';
 import { useApi } from '../../hooks';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'CostBreakDown'>;
@@ -25,6 +26,7 @@ type Props = {
 };
 
 const CostBreakDownScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { primaryColor } = useTheme();
   const { jobId } = route.params || {};
 
   const {
@@ -60,7 +62,7 @@ const CostBreakDownScreen: React.FC<Props> = ({ navigation, route }) => {
           style={styles.backButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+          <Ionicons name="arrow-back" size={22} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.title}>Payment Breakdown</Text>
         <View style={{ width: 44 }} />
@@ -75,7 +77,7 @@ const CostBreakDownScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Receipt Container */}
         <View style={styles.receiptCard}>
           <View style={styles.receiptHeader}>
-            <Ionicons name="receipt-outline" size={26} color={Colors.ButtonPrimaryColor} style={{ marginRight: 10 }} />
+            <Ionicons name="receipt-outline" size={26} color={primaryColor} style={{ marginRight: 10 }} />
             <View style={{ flex: 1 }}>
               <Text style={styles.serviceTitle}>{costData.serviceName}</Text>
               <Text style={styles.receiptSub}>Itemized Invoice Receipt</Text>
@@ -130,7 +132,7 @@ const CostBreakDownScreen: React.FC<Props> = ({ navigation, route }) => {
         <VTButton
           title="Done"
           onPress={() => navigation.goBack()}
-          style={styles.doneButton}
+          style={[styles.doneButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
           textStyle={styles.doneButtonText}
         />
       </ScrollView>

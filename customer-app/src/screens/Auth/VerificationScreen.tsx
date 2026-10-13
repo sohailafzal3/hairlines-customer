@@ -23,6 +23,7 @@ import { AuthApi } from '../../api';
 import { useAuthStore } from '../../store';
 import { Storage } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../constants';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Verification'>;
@@ -30,6 +31,7 @@ type Props = {
 };
 
 const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { primaryColor } = useTheme();
   const { countryCode, phoneNumber, isSignUp, isForgotPassword, otpCode } = route.params;
   const { setAccount, setLoggedIn } = useAuthStore();
 
@@ -152,7 +154,7 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
               style={styles.backButton}
               activeOpacity={0.8}
             >
-              <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+              <Ionicons name="arrow-back" size={22} color={primaryColor} />
             </TouchableOpacity>
           </View>
 
@@ -191,7 +193,7 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
                 <TextInput
                   key={index}
                   ref={(ref: any) => (inputs.current[index] = ref)}
-                  style={[styles.codeInput, isFilled && styles.codeInputFilled]}
+                  style={[styles.codeInput, isFilled && [styles.codeInputFilled, { borderColor: primaryColor }]]}
                   keyboardType="number-pad"
                   maxLength={1}
                   value={digit}
@@ -210,7 +212,7 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
             onPress={handleVerify}
             loading={loading}
             disabled={!isComplete}
-            style={styles.verifyButton}
+            style={[styles.verifyButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
             textStyle={styles.verifyButtonText}
           />
 
@@ -218,12 +220,12 @@ const VerificationScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={styles.resendContainer}>
             {timer > 0 ? (
               <Text style={styles.timerText}>
-                Resend code in <Text style={styles.timerBold}>{timer}s</Text>
+                Resend code in <Text style={[styles.timerBold, { color: primaryColor }]}>{timer}s</Text>
               </Text>
             ) : (
               <TouchableOpacity onPress={handleResend} style={styles.resendTouch} activeOpacity={0.7}>
-                <Ionicons name="reload-outline" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
-                <Text style={styles.resendText}>Resend Code</Text>
+                <Ionicons name="reload-outline" size={16} color={primaryColor} style={{ marginRight: 4 }} />
+                <Text style={[styles.resendText, { color: primaryColor }]}>Resend Code</Text>
               </TouchableOpacity>
             )}
           </View>

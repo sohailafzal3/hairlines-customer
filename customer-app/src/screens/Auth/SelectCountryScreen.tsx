@@ -16,6 +16,7 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Colors } from '../../theme/colors';
 import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
+import { useTheme } from '../../context/ThemeContext';
 
 export interface CountryItem {
   id: string;
@@ -59,6 +60,7 @@ type Props = {
 };
 
 const SelectCountryScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { primaryColor } = useTheme();
   const selectedCode = route.params?.selectedCode || '+1';
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -90,7 +92,7 @@ const SelectCountryScreen: React.FC<Props> = ({ navigation, route }) => {
           style={styles.backButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+          <Ionicons name="arrow-back" size={22} color={primaryColor} />
         </TouchableOpacity>
 
         <View style={styles.titleContainer}>
@@ -131,7 +133,10 @@ const SelectCountryScreen: React.FC<Props> = ({ navigation, route }) => {
           const isSelected = selectedCode === item.phoneCode;
           return (
             <TouchableOpacity
-              style={[styles.countryItem, isSelected && styles.countryItemActive]}
+              style={[
+                styles.countryItem,
+                isSelected && [styles.countryItemActive, { borderColor: primaryColor }],
+              ]}
               onPress={() => handleSelectCountry(item)}
               activeOpacity={0.7}
             >
@@ -144,10 +149,10 @@ const SelectCountryScreen: React.FC<Props> = ({ navigation, route }) => {
 
               <View style={styles.rightSection}>
                 <View style={styles.phoneCodeBadge}>
-                  <Text style={styles.phoneCodeText}>{item.phoneCode}</Text>
+                  <Text style={[styles.phoneCodeText, { color: primaryColor }]}>{item.phoneCode}</Text>
                 </View>
                 {isSelected && (
-                  <Ionicons name="checkmark-circle" size={20} color={Colors.ButtonPrimaryColor} style={{ marginLeft: 8 }} />
+                  <Ionicons name="checkmark-circle" size={20} color={primaryColor} style={{ marginLeft: 8 }} />
                 )}
               </View>
             </TouchableOpacity>

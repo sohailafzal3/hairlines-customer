@@ -19,6 +19,7 @@ import { VTButton, VTLoading } from '../../components/common';
 import { PaymentsApi } from '../../api';
 import { useApi } from '../../hooks';
 import { StripeCustomer, CreditCards } from '../../models';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'Payments'>;
@@ -38,6 +39,7 @@ const getCardIcon = (brand: string) => {
 };
 
 const PaymentsScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const [customer, setCustomer] = useState<StripeCustomer | null>(null);
 
   const {
@@ -100,9 +102,9 @@ const PaymentsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const renderCard = ({ item }: { item: CreditCards }) => (
-    <View style={[styles.cardItem, item.isDefaultCard && styles.cardItemDefault]}>
+    <View style={[styles.cardItem, item.isDefaultCard && [styles.cardItemDefault, { borderColor: primaryColor, backgroundColor: primaryColor + '12' }]]}>
       <View style={styles.cardIconCircle}>
-        <Ionicons name={getCardIcon(item.brand) as any} size={22} color={Colors.ButtonPrimaryColor} />
+        <Ionicons name={getCardIcon(item.brand) as any} size={22} color={primaryColor} />
       </View>
 
       <View style={styles.cardInfo}>
@@ -112,7 +114,7 @@ const PaymentsScreen: React.FC<Props> = ({ navigation }) => {
 
       <View style={styles.cardActions}>
         {item.isDefaultCard ? (
-          <View style={styles.defaultBadge}>
+          <View style={[styles.defaultBadge, { backgroundColor: primaryColor }]}>
             <Text style={styles.defaultText}>Default</Text>
           </View>
         ) : (
@@ -137,11 +139,11 @@ const PaymentsScreen: React.FC<Props> = ({ navigation }) => {
       {/* Header Bar */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (navigation as any).openDrawer?.()}
+          onPress={() => (navigation as any).openDrawer?.() || (navigation.getParent() as any)?.openDrawer?.()}
           style={styles.menuButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="menu" size={24} color="#0F172A" />
+          <Ionicons name="menu" size={24} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Payment Methods</Text>
         <View style={{ width: 44 }} />
@@ -172,7 +174,7 @@ const PaymentsScreen: React.FC<Props> = ({ navigation }) => {
             title="+ Add New Card"
             onPress={() => navigation.navigate('AddCard')}
             disabled={cards.length >= 5}
-            style={styles.addButton}
+            style={[styles.addButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
             textStyle={styles.addButtonText}
           />
         }

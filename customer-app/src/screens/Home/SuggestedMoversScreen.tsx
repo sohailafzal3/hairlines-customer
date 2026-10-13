@@ -20,12 +20,14 @@ import { JobsApi } from '../../api';
 import { useApi } from '../../hooks';
 import { SP } from '../../models';
 import { useJobStore } from '../../store';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'SuggestedMovers'>;
 };
 
 const SuggestedMoversScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const { createJob } = useJobStore();
   const [sps, setSps] = useState<SP[]>([]);
 
@@ -77,7 +79,7 @@ const SuggestedMoversScreen: React.FC<Props> = ({ navigation }) => {
         {item.profileImage ? (
           <Image source={{ uri: item.profileImage }} style={styles.spImage} />
         ) : (
-          <View style={styles.spImagePlaceholder}>
+          <View style={[styles.spImagePlaceholder, { backgroundColor: primaryColor }]}>
             <Text style={styles.spImageText}>{item.name?.charAt(0) || 'B'}</Text>
           </View>
         )}
@@ -104,7 +106,7 @@ const SuggestedMoversScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         <View style={styles.arrowButton}>
-          <Ionicons name="chevron-forward" size={18} color={Colors.ButtonPrimaryColor} />
+          <Ionicons name="chevron-forward" size={18} color={primaryColor} />
         </View>
       </View>
     </TouchableOpacity>
@@ -121,15 +123,15 @@ const SuggestedMoversScreen: React.FC<Props> = ({ navigation }) => {
           style={styles.backButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+          <Ionicons name="arrow-back" size={22} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Available Professionals</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('Filters')}
-          style={styles.filterButton}
+          style={[styles.filterButton, { backgroundColor: primaryColor + '15', borderColor: primaryColor + '30' }]}
           activeOpacity={0.8}
         >
-          <Ionicons name="options-outline" size={20} color={Colors.ButtonPrimaryColor} />
+          <Ionicons name="options-outline" size={20} color={primaryColor} />
         </TouchableOpacity>
       </View>
 

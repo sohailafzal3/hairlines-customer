@@ -17,6 +17,7 @@ import { Fonts, FontSizes } from '../../theme/fonts';
 import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTButton } from '../../components/common';
 import { useJobStore, useUserStore } from '../../store';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Filters'>;
@@ -49,6 +50,7 @@ const LOCATION_OPTIONS = [
 ];
 
 const FiltersScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor, primaryLightColor } = useTheme();
   const { createJob, setCreateJobField } = useJobStore();
   const { filters, setFilters } = useUserStore();
 
@@ -102,11 +104,11 @@ const FiltersScreen: React.FC<Props> = ({ navigation }) => {
           style={styles.backButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={22} color={Colors.TitleColor} />
+          <Ionicons name="arrow-back" size={22} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.title}>Filter Professionals</Text>
         <TouchableOpacity onPress={handleReset} style={styles.resetTouch}>
-          <Text style={styles.resetText}>Reset</Text>
+          <Text style={[styles.resetText, { color: primaryColor }]}>Reset</Text>
         </TouchableOpacity>
       </View>
 
@@ -125,7 +127,10 @@ const FiltersScreen: React.FC<Props> = ({ navigation }) => {
               return (
                 <TouchableOpacity
                   key={opt.value}
-                  style={[styles.chip, isActive && styles.chipActive]}
+                  style={[
+                    styles.chip,
+                    isActive && [styles.chipActive, { backgroundColor: primaryColor, borderColor: primaryColor }],
+                  ]}
                   onPress={() => setMinRating(opt.value)}
                   activeOpacity={0.8}
                 >
@@ -147,7 +152,10 @@ const FiltersScreen: React.FC<Props> = ({ navigation }) => {
               return (
                 <TouchableOpacity
                   key={opt.value}
-                  style={[styles.chip, isActive && styles.chipActive]}
+                  style={[
+                    styles.chip,
+                    isActive && [styles.chipActive, { backgroundColor: primaryColor, borderColor: primaryColor }],
+                  ]}
                   onPress={() => setDistance(opt.value)}
                   activeOpacity={0.8}
                 >
@@ -169,7 +177,10 @@ const FiltersScreen: React.FC<Props> = ({ navigation }) => {
               return (
                 <TouchableOpacity
                   key={opt.value}
-                  style={[styles.chip, isActive && styles.chipActive]}
+                  style={[
+                    styles.chip,
+                    isActive && [styles.chipActive, { backgroundColor: primaryColor, borderColor: primaryColor }],
+                  ]}
                   onPress={() => setBarberGender(opt.value)}
                   activeOpacity={0.8}
                 >
@@ -191,17 +202,23 @@ const FiltersScreen: React.FC<Props> = ({ navigation }) => {
               return (
                 <TouchableOpacity
                   key={opt.key}
-                  style={[styles.locationCard, isActive && styles.locationCardActive]}
+                  style={[
+                    styles.locationCard,
+                    isActive && [
+                      styles.locationCardActive,
+                      { borderColor: primaryColor, backgroundColor: primaryLightColor },
+                    ],
+                  ]}
                   onPress={() => setLocationType(opt.key)}
                   activeOpacity={0.8}
                 >
                   <Ionicons
                     name={isActive ? 'radio-button-on' : 'radio-button-off'}
                     size={20}
-                    color={isActive ? Colors.ButtonPrimaryColor : '#94A3B8'}
+                    color={isActive ? primaryColor : '#94A3B8'}
                     style={{ marginRight: 10 }}
                   />
-                  <Text style={[styles.locationCardText, isActive && styles.locationCardTextActive]}>
+                  <Text style={[styles.locationCardText, isActive && [styles.locationCardTextActive, { color: primaryColor }]]}>
                     {opt.label}
                   </Text>
                 </TouchableOpacity>
@@ -214,7 +231,7 @@ const FiltersScreen: React.FC<Props> = ({ navigation }) => {
         <VTButton
           title="Apply Filters"
           onPress={handleApplyFilters}
-          style={styles.applyButton}
+          style={[styles.applyButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
           textStyle={styles.applyButtonText}
         />
       </ScrollView>

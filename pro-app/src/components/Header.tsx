@@ -11,11 +11,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "../theme/colors";
 import { FontSizes, FontWeights } from "../theme/fonts";
 import { Spacing } from "../theme/spacing";
+import { useTheme } from "../context/ThemeContext";
 
 interface Props {
   title?: string;
   onMenuPress?: () => void;
   onBackPress?: () => void;
+  onRightMenuPress?: () => void;
   right?: ReactNode;
   style?: ViewStyle;
 }
@@ -24,10 +26,12 @@ export function Header({
   title,
   onMenuPress,
   onBackPress,
+  onRightMenuPress,
   right,
   style,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { primaryColor } = useTheme();
   const displayTitle = title
     ? title.charAt(0).toUpperCase() + title.slice(1)
     : "";
@@ -43,18 +47,26 @@ export function Header({
       <View style={styles.side}>
         {onMenuPress ? (
           <TouchableOpacity onPress={onMenuPress} hitSlop={10}>
-            <Ionicons name="menu" size={26} color={Colors.NavigationTitle} />
+            <Ionicons name="menu" size={26} color={primaryColor} />
           </TouchableOpacity>
         ) : onBackPress ? (
           <TouchableOpacity onPress={onBackPress} hitSlop={10}>
-            <Ionicons name="arrow-back" size={24} color={Colors.NavigationTitle} />
+            <Ionicons name="arrow-back" size={24} color={primaryColor} />
           </TouchableOpacity>
         ) : null}
       </View>
       <Text style={styles.title} numberOfLines={1}>
         {displayTitle}
       </Text>
-      <View style={[styles.side, styles.sideRight]}>{right}</View>
+      <View style={[styles.side, styles.sideRight]}>
+        {right ? (
+          right
+        ) : onRightMenuPress ? (
+          <TouchableOpacity onPress={onRightMenuPress} hitSlop={10} style={{ padding: 4 }}>
+            <Ionicons name="menu" size={24} color={primaryColor} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -79,4 +91,3 @@ const styles = StyleSheet.create({
     color: Colors.NavigationTitle,
   },
 });
-

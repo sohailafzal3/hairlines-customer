@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { AuthStackParamList } from "../../navigation/types";
 import { Button } from "../../components/Button";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
+import { useTheme } from "../../context/ThemeContext";
 import { api } from "../../services/api";
 import { Colors } from "../../theme/colors";
 import { FontSizes, FontWeights } from "../../theme/fonts";
@@ -24,6 +25,7 @@ import { Spacing, BorderRadius } from "../../theme/spacing";
 type Props = NativeStackScreenProps<AuthStackParamList, "ForgotPassword">;
 
 export function ForgotPasswordScreen({ route, navigation }: Props) {
+  const { primaryColor, primaryDarkColor } = useTheme();
   const [phoneNumber, setPhoneNumber] = useState(route.params?.phoneNumber ?? "");
   const [countryCode, setCountryCode] = useState(route.params?.selectedCountryCode || "+1");
   const [flagEmoji, setFlagEmoji] = useState(route.params?.selectedFlag || "🇺🇸");
@@ -177,7 +179,7 @@ export function ForgotPasswordScreen({ route, navigation }: Props) {
               onPress={handleSubmit}
               loading={loading}
               disabled={phoneNumber.replace(/\D/g, "").length !== 10}
-              style={styles.submitButton}
+              style={[styles.submitButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
               textStyle={styles.submitButtonText}
             />
 
@@ -190,10 +192,10 @@ export function ForgotPasswordScreen({ route, navigation }: Props) {
                 <Ionicons
                   name="arrow-back-circle-outline"
                   size={18}
-                  color={Colors.ButtonPrimaryColor}
+                  color={primaryColor}
                   style={{ marginRight: 6 }}
                 />
-                <Text style={styles.backToSignInText}>Back to Sign In</Text>
+                <Text style={[styles.backToSignInText, { color: primaryDarkColor }]}>Back to Sign In</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -350,10 +352,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
   },
   submitButton: {
-    backgroundColor: Colors.ButtonPrimaryColor,
     borderRadius: BorderRadius.lg,
     minHeight: 54,
-    shadowColor: Colors.ButtonPrimaryColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -377,6 +377,6 @@ const styles = StyleSheet.create({
   backToSignInText: {
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
-    color: "#854D0E",
+    color: Colors.accentDark,
   },
 });

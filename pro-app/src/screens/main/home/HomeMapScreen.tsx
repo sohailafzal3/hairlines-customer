@@ -36,12 +36,14 @@ import { Colors } from "../../../theme/colors";
 import { FontSizes, FontWeights } from "../../../theme/fonts";
 import { BorderRadius, Spacing } from "../../../theme/spacing";
 import { useUser } from "../../../context/UserContext";
+import { useTheme } from "../../../context/ThemeContext";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 type Props = NativeStackScreenProps<HomeTabParamList, "HomeMap">;
 
 export function HomeMapScreen({ navigation }: Props) {
+  const { primaryColor, primaryLightColor, primaryDarkColor } = useTheme();
   const { t } = useTranslation();
   const { user, updateUser } = useUser();
   const insets = useSafeAreaInsets();
@@ -353,7 +355,7 @@ export function HomeMapScreen({ navigation }: Props) {
               <Text style={styles.userName} numberOfLines={1}>
                 {item.userName || "Customer"}
               </Text>
-              <Text style={styles.service} numberOfLines={1}>
+              <Text style={[styles.service, { color: primaryColor }]} numberOfLines={1}>
                 {item.serviceName}
               </Text>
               <View style={styles.addressRow}>
@@ -368,8 +370,8 @@ export function HomeMapScreen({ navigation }: Props) {
                 </Text>
               </View>
             </View>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>{statusText}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: primaryLightColor }]}>
+              <Text style={[styles.statusText, { color: primaryDarkColor }]}>{statusText}</Text>
             </View>
           </View>
         </Card>
@@ -383,32 +385,43 @@ export function HomeMapScreen({ navigation }: Props) {
         title="Appointments"
         onMenuPress={() => navigation.dispatch(DrawerActions.openDrawer())}
         right={
-          <View style={styles.headerToggleWrap}>
+          <TouchableOpacity
+            style={[
+              styles.statusTogglePill,
+              online ? styles.statusTogglePillOnline : styles.statusTogglePillOffline,
+            ]}
+            onPress={() => toggleOnline(!online)}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <View
               style={[
-                styles.headerStatusDot,
-                { backgroundColor: online ? "#22C55E" : "#94A3B8" },
+                styles.statusPillDot,
+                { backgroundColor: online ? "#10B981" : "#94A3B8" },
               ]}
             />
             <Text
               style={[
-                styles.headerStatusText,
-                { color: online ? "#16A34A" : "#64748B" },
+                styles.statusPillText,
+                { color: online ? "#047857" : "#64748B" },
               ]}
             >
               {online ? "Online" : "Offline"}
             </Text>
-            <Switch
-              value={online}
-              onValueChange={toggleOnline}
-              trackColor={{ false: "#CBD5E1", true: "#86EFAC" }}
-              thumbColor={online ? "#16A34A" : "#FFFFFF"}
-              style={{
-                transform: [{ scaleX: 0.75 }, { scaleY: 0.75 }],
-                marginLeft: 2,
-              }}
-            />
-          </View>
+            <View
+              style={[
+                styles.customToggleTrack,
+                { backgroundColor: online ? "#10B981" : "#CBD5E1" },
+              ]}
+            >
+              <View
+                style={[
+                  styles.customToggleThumb,
+                  online ? { alignSelf: "flex-end" } : { alignSelf: "flex-start" },
+                ]}
+              />
+            </View>
+          </TouchableOpacity>
         }
       />
 
@@ -428,8 +441,18 @@ export function HomeMapScreen({ navigation }: Props) {
               coordinate={userLocation}
               title="My Location"
               description={user.name || "Provider"}
-              pinColor={Colors.ButtonPrimaryColor}
-            />
+              pinColor={primaryColor}
+            >
+              <View style={styles.teardropMarkerWrap}>
+                <View style={[styles.teardropHead, { backgroundColor: primaryColor }]}>
+                  <View style={styles.teardropInnerCircle}>
+                    <Ionicons name="cut" size={16} color={primaryColor} />
+                  </View>
+                </View>
+                <View style={[styles.teardropPointer, { borderTopColor: primaryColor }]} />
+                <View style={styles.teardropGroundShadow} />
+              </View>
+            </Marker>
           )}
           {jobs.map(
             (job) =>
@@ -442,25 +465,76 @@ export function HomeMapScreen({ navigation }: Props) {
                     longitude: job.longitude,
                   }}
                   title={job.serviceName}
-                />
+                  description={job.primaryAddress}
+                  pinColor={primaryColor}
+                >
+                  <View style={styles.teardropMarkerWrap}>
+                    <View style={[styles.teardropHead, { backgroundColor: "#1E293B" }]}>
+                      <View style={styles.teardropInnerCircle}>
+                        <Ionicons name="location" size={16} color="#1E293B" />
+                      </View>
+                    </View>
+                    <View style={[styles.teardropPointer, { borderTopColor: "#1E293B" }]} />
+                    <View style={styles.teardropGroundShadow} />
+                  </View>
+                </Marker>
               )
           )}
         </MapView>
 
+        {/* Floating Offline Notice Banner */}
+        {user.isApproved && !online && (
+          <TouchableOpacity
+            style={styles.floatingOfflineBanner}
+            onPress={() => toggleOnline(true)}
+            activeOpacity={0.85}
+          >
+            <View style={styles.floatingOfflineDot} />
+            <Text style={styles.floatingOfflineText}>
+              You are offline • Tap to go online
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color="#64748B" />
+          </TouchableOpacity>
+        )}
+
         {/* Floating Admin Review Banner */}
         {!user.isApproved && (
-          <View style={styles.floatingReviewCard}>
+          <View
+            style={[
+              styles.floatingReviewCard,
+              { backgroundColor: primaryLightColor, borderColor: primaryColor },
+            ]}
+          >
             <View style={styles.floatingReviewIconWrap}>
-              <Ionicons name="time" size={16} color="#D97706" />
+              <Ionicons name="time" size={16} color={primaryDarkColor} />
             </View>
             <View style={{ flex: 1, marginHorizontal: 8 }}>
-              <Text style={styles.floatingReviewTitle}>Profile In Review</Text>
+              <Text
+                style={[
+                  styles.floatingReviewTitle,
+                  { color: primaryDarkColor },
+                ]}
+              >
+                Profile In Review
+              </Text>
               <Text style={styles.floatingReviewSubtitle}>
                 Your profile is pending admin approval
               </Text>
             </View>
-            <View style={styles.floatingReviewBadge}>
-              <Text style={styles.floatingReviewBadgeText}>Pending</Text>
+            <View
+              style={[
+                styles.floatingReviewBadge,
+                { borderColor: primaryColor },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.floatingReviewBadgeText,
+                  { color: primaryDarkColor },
+                ]}
+              >
+                Pending
+              </Text>
             </View>
           </View>
         )}
@@ -471,7 +545,7 @@ export function HomeMapScreen({ navigation }: Props) {
           onPress={handleRecenterLocation}
           activeOpacity={0.85}
         >
-          <Ionicons name="locate" size={18} color={Colors.ButtonPrimaryColor} />
+          <Ionicons name="locate" size={18} color={primaryColor} />
         </TouchableOpacity>
 
         {/* Floating Tools & Equipment Button */}
@@ -480,8 +554,15 @@ export function HomeMapScreen({ navigation }: Props) {
           onPress={handleOpenToolsModal}
           activeOpacity={0.85}
         >
-          <Ionicons name="construct" size={15} color={Colors.ButtonPrimaryColor} />
-          <Text style={styles.floatingToolsFabText}>Tools</Text>
+          <Ionicons name="construct" size={15} color={primaryColor} />
+          <Text
+            style={[
+              styles.floatingToolsFabText,
+              { color: primaryDarkColor },
+            ]}
+          >
+            Tools
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -507,7 +588,7 @@ export function HomeMapScreen({ navigation }: Props) {
               <Ionicons
                 name="calendar-outline"
                 size={16}
-                color={Colors.ButtonPrimaryColor}
+                color={primaryColor}
                 style={{ marginRight: 6 }}
               />
               <Text style={styles.sectionTitle}>
@@ -515,14 +596,24 @@ export function HomeMapScreen({ navigation }: Props) {
               </Text>
             </View>
 
-            <View style={styles.toggleIndicator}>
-              <Text style={styles.toggleText}>
+            <View
+              style={[
+                styles.toggleIndicator,
+                { backgroundColor: primaryLightColor },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.toggleText,
+                  { color: primaryDarkColor },
+                ]}
+              >
                 {isScheduleExpanded ? "Slide Down" : "Slide Up"}
               </Text>
               <Ionicons
                 name={isScheduleExpanded ? "chevron-down" : "chevron-up"}
                 size={14}
-                color={Colors.ButtonPrimaryColor}
+                color={primaryDarkColor}
               />
             </View>
           </View>
@@ -585,7 +676,7 @@ export function HomeMapScreen({ navigation }: Props) {
                 returnKeyType="done"
               />
               <TouchableOpacity
-                style={styles.addToolBtn}
+                style={[styles.addToolBtn, { backgroundColor: primaryColor }]}
                 onPress={handleAddTool}
                 activeOpacity={0.8}
               >
@@ -614,7 +705,7 @@ export function HomeMapScreen({ navigation }: Props) {
                       <Ionicons
                         name="checkmark-circle"
                         size={18}
-                        color={Colors.ButtonPrimaryColor}
+                        color={primaryColor}
                         style={{ marginRight: 8 }}
                       />
                       <Text style={styles.toolItemName}>{tool}</Text>
@@ -650,19 +741,50 @@ export function HomeMapScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.ScreenBG },
-  headerToggleWrap: {
+  statusTogglePill: {
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
   },
-  headerStatusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    marginRight: 4,
+  statusTogglePillOnline: {
+    backgroundColor: "#ECFDF5",
+    borderColor: "#A7F3D0",
   },
-  headerStatusText: {
-    fontSize: 12,
+  statusTogglePillOffline: {
+    backgroundColor: "#F1F5F9",
+    borderColor: "#E2E8F0",
+  },
+  statusPillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusPillText: {
+    fontSize: 11,
     fontWeight: FontWeights.bold,
+    letterSpacing: 0.2,
+  },
+  customToggleTrack: {
+    width: 28,
+    height: 16,
+    borderRadius: 8,
+    padding: 2,
+    justifyContent: "center",
+  },
+  customToggleThumb: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+    elevation: 2,
   },
   mapContainer: {
     flex: 1,
@@ -678,13 +800,13 @@ const styles = StyleSheet.create({
     right: 12,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFBEB",
+    backgroundColor: Colors.accentLight,
     borderRadius: BorderRadius.xl,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: "#FDE68A",
-    shadowColor: "#D97706",
+    borderColor: Colors.ButtonPrimaryColor,
+    shadowColor: Colors.ButtonPrimaryColor,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -695,32 +817,32 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#FEF3C7",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
   floatingReviewTitle: {
     fontSize: 12,
     fontWeight: FontWeights.bold,
-    color: "#92400E",
+    color: Colors.accentDark,
   },
   floatingReviewSubtitle: {
     fontSize: 10,
-    color: "#B45309",
+    color: Colors.accentDark,
     marginTop: 1,
   },
   floatingReviewBadge: {
-    backgroundColor: "#FEF3C7",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    borderColor: "#FDE68A",
+    borderColor: Colors.ButtonPrimaryColor,
   },
   floatingReviewBadgeText: {
     fontSize: 10,
     fontWeight: FontWeights.bold,
-    color: "#D97706",
+    color: Colors.accentDark,
   },
   floatingGpsFab: {
     position: "absolute",
@@ -1051,6 +1173,86 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.ButtonPrimaryColor,
     borderRadius: BorderRadius.lg,
     minHeight: 48,
+  },
+  floatingOfflineBanner: {
+    position: "absolute",
+    top: 12,
+    left: 20,
+    right: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 10,
+  },
+  floatingOfflineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#94A3B8",
+    marginRight: 8,
+  },
+  floatingOfflineText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: FontWeights.semibold,
+    color: "#475569",
+  },
+  teardropMarkerWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 44,
+    height: 52,
+  },
+  teardropHead: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2.5,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.28,
+    shadowRadius: 3,
+    elevation: 6,
+  },
+  teardropInnerCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  teardropPointer: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 8,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    alignSelf: "center",
+    marginTop: -2,
+  },
+  teardropGroundShadow: {
+    width: 14,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(15, 23, 42, 0.25)",
+    alignSelf: "center",
+    marginTop: 1,
   },
 });
 

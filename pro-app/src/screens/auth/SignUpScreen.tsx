@@ -20,12 +20,14 @@ import { Fonts, FontSizes, FontWeights } from "../../theme/fonts";
 import { Spacing, BorderRadius } from "../../theme/spacing";
 import { Button } from "../../components/Button";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
+import { useTheme } from "../../context/ThemeContext";
 import { api } from "../../services/api";
 import { TERMS_URL, PRIVACY_URL } from "../../constants";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "SignUp">;
 
 export function SignUpScreen({ route, navigation }: Props) {
+  const { primaryColor, primaryDarkColor } = useTheme();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [countryCode, setCountryCode] = useState(route.params?.selectedCountryCode || "+1");
   const [flagEmoji, setFlagEmoji] = useState(route.params?.selectedFlag || "🇺🇸");
@@ -170,7 +172,7 @@ export function SignUpScreen({ route, navigation }: Props) {
                   style={styles.checkboxTouch}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.checkbox, isTermsAccepted && styles.checkboxActive]}>
+                  <View style={[styles.checkbox, isTermsAccepted && { backgroundColor: primaryColor, borderColor: primaryColor }]}>
                     {isTermsAccepted && <Ionicons name="checkmark" size={14} color={Colors.ButtonTextColor} />}
                   </View>
                   <View style={styles.termsTextContainer}>
@@ -178,14 +180,14 @@ export function SignUpScreen({ route, navigation }: Props) {
                       I agree to receive promotional and personalized marketing texts at the phone number provided above. Message frequency may vary. Standard message and data rates may apply. By opting in, you also agree to our{" "}
                       <Text
                         onPress={() => Linking.openURL(PRIVACY_URL)}
-                        style={styles.termsLink}
+                        style={[styles.termsLink, { color: primaryDarkColor }]}
                       >
                         Privacy Policy
                       </Text>{" "}
                       and{" "}
                       <Text
                         onPress={() => Linking.openURL(TERMS_URL)}
-                        style={styles.termsLink}
+                        style={[styles.termsLink, { color: primaryDarkColor }]}
                       >
                         Terms
                       </Text>{" "}
@@ -204,7 +206,7 @@ export function SignUpScreen({ route, navigation }: Props) {
               onPress={handleSubmit}
               loading={loading}
               disabled={phoneNumber.replace(/\D/g, "").length !== 10 || !isTermsAccepted}
-              style={styles.submitButton}
+              style={[styles.submitButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
               textStyle={styles.submitButtonText}
             />
 
@@ -215,7 +217,7 @@ export function SignUpScreen({ route, navigation }: Props) {
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Text style={styles.footerLinkText}>SIGN IN</Text>
+                <Text style={[styles.footerLinkText, { color: primaryDarkColor }]}>SIGN IN</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -395,10 +397,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
   },
   submitButton: {
-    backgroundColor: Colors.ButtonPrimaryColor,
     borderRadius: BorderRadius.lg,
     minHeight: 54,
-    shadowColor: Colors.ButtonPrimaryColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -423,6 +423,6 @@ const styles = StyleSheet.create({
   footerLinkText: {
     fontSize: FontSizes.md,
     fontWeight: FontWeights.bold,
-    color: "#854D0E",
+    color: Colors.accentDark,
   },
 });

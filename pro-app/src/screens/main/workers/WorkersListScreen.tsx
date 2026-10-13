@@ -14,10 +14,12 @@ import { Mover } from "../../../types";
 import { Colors } from "../../../theme/colors";
 import { FontSizes, FontWeights } from "../../../theme/fonts";
 import { BorderRadius, Spacing } from "../../../theme/spacing";
+import { useTheme } from "../../../context/ThemeContext";
 
 type Props = DrawerScreenProps<MainDrawerParamList, "Workers">;
 
 export function WorkersListScreen({ navigation }: Props) {
+  const { primaryColor } = useTheme();
   const [loading, setLoading] = useState(true);
   const [workers, setWorkers] = useState<Mover[]>([]);
 
@@ -41,7 +43,7 @@ export function WorkersListScreen({ navigation }: Props) {
               <Text style={styles.badgeText}>{item.jobsDone || 0} jobs</Text>
             </View>
             <View style={styles.ratingPill}>
-              <Ionicons name="star" size={11} color="#854D0E" style={{ marginRight: 3 }} />
+              <Ionicons name="star" size={11} color={Colors.accentDark} style={{ marginRight: 3 }} />
               <Text style={styles.ratingText}>{item.avgRating ? item.avgRating.toFixed(1) : "0.0"}</Text>
             </View>
           </View>
@@ -77,7 +79,7 @@ export function WorkersListScreen({ navigation }: Props) {
               hitSlop={10}
               style={{ padding: 4 }}
             >
-              <Ionicons name="menu" size={24} color={Colors.NavigationTitle} />
+              <Ionicons name="menu" size={24} color={primaryColor} />
             </TouchableOpacity>
           </View>
         }
@@ -141,7 +143,7 @@ const styles = StyleSheet.create({
   ratingPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FEF9C3",
+    backgroundColor: Colors.accentLight,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: BorderRadius.full,
@@ -149,7 +151,7 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 10,
     fontWeight: FontWeights.bold,
-    color: "#854D0E",
+    color: Colors.accentDark,
   },
   addBtn: {
     width: 32,

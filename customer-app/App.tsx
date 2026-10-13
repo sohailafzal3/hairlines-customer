@@ -5,6 +5,7 @@ import RootNavigator from './src/navigation/RootNavigator';
 import Toast from 'react-native-toast-message';
 import * as Font from 'expo-font';
 import { Ionicons, MaterialCommunityIcons, FontAwesome, FontAwesome5 } from '@expo/vector-icons';
+import { ThemeProvider } from './src/context/ThemeContext';
 
 const App = () => {
   const [fontsLoaded, setFontsLoaded] = useState(false);
@@ -30,9 +31,11 @@ const App = () => {
 
   return (
     <SafeAreaProvider>
-      <RootNavigator fontsLoaded={fontsLoaded} />
-      <Toast />
-      <StatusBar style="dark" />
+      <ThemeProvider>
+        <RootNavigator fontsLoaded={fontsLoaded} />
+        <Toast />
+        <StatusBar style="dark" />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 };

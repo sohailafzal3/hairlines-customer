@@ -24,6 +24,7 @@ import { useApi } from '../../hooks';
 import { JobDetail } from '../../models';
 import { JobStatus } from '../../constants';
 import { formatJobDate } from '../../utils/helpers';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'JobDetails'>;
@@ -70,6 +71,7 @@ const getStatusColor = (status: number): { bg: string; text: string } => {
 };
 
 const JobDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { primaryColor } = useTheme();
   const { jobId } = route.params;
   const [job, setJob] = useState<JobDetail | null>(null);
 
@@ -163,7 +165,7 @@ const JobDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
           style={styles.backButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+          <Ionicons name="arrow-back" size={22} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Booking Details</Text>
         <View style={{ width: 44 }} />
@@ -180,7 +182,7 @@ const JobDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
               {job.profileImage ? (
                 <Image source={{ uri: job.profileImage }} style={styles.spImage} />
               ) : (
-                <View style={styles.spImagePlaceholder}>
+                <View style={[styles.spImagePlaceholder, { backgroundColor: primaryColor }]}>
                   <Text style={styles.spImageText}>{job.name?.charAt(0) || 'W'}</Text>
                 </View>
               )}
@@ -208,22 +210,22 @@ const JobDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
               <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
               <View style={styles.actionRow}>
                 <TouchableOpacity style={styles.actionButton} onPress={handleMessage} activeOpacity={0.8}>
-                  <View style={styles.actionIconCircle}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={20} color={Colors.ButtonPrimaryColor} />
+                  <View style={[styles.actionIconCircle, { backgroundColor: primaryColor + '15' }]}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={20} color={primaryColor} />
                   </View>
                   <Text style={styles.actionLabel}>Chat</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.actionButton} onPress={handleCall} activeOpacity={0.8}>
-                  <View style={styles.actionIconCircle}>
-                    <Ionicons name="call-outline" size={20} color={Colors.ButtonPrimaryColor} />
+                  <View style={[styles.actionIconCircle, { backgroundColor: primaryColor + '15' }]}>
+                    <Ionicons name="call-outline" size={20} color={primaryColor} />
                   </View>
                   <Text style={styles.actionLabel}>Call</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.actionButton} onPress={handleViewCost} activeOpacity={0.8}>
-                  <View style={styles.actionIconCircle}>
-                    <Ionicons name="receipt-outline" size={20} color={Colors.ButtonPrimaryColor} />
+                  <View style={[styles.actionIconCircle, { backgroundColor: primaryColor + '15' }]}>
+                    <Ionicons name="receipt-outline" size={20} color={primaryColor} />
                   </View>
                   <Text style={styles.actionLabel}>Receipt</Text>
                 </TouchableOpacity>

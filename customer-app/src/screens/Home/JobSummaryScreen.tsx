@@ -23,12 +23,14 @@ import { useJobStore } from '../../store';
 import { CostBreakDown } from '../../models';
 
 import { formatJobDate } from '../../utils/helpers';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'JobSummary'>;
 };
 
 const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const { createJob, selectedPromoCode, resetCreateJob } = useJobStore();
   const [costBreakdown, setCostBreakdown] = useState<CostBreakDown | null>(null);
 
@@ -104,7 +106,7 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
           style={styles.backButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+          <Ionicons name="arrow-back" size={22} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Booking Summary</Text>
         <View style={{ width: 44 }} />
@@ -117,7 +119,7 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
         {/* Service Details Card */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Ionicons name="cut-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+            <Ionicons name="cut-outline" size={20} color={primaryColor} style={{ marginRight: 8 }} />
             <Text style={styles.cardTitle}>SERVICE DETAILS</Text>
           </View>
           <Text style={styles.cardValue}>{createJob.serviceName || 'Grooming Service'}</Text>
@@ -128,7 +130,7 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
         {createJob.selectedSp && (
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
-              <Ionicons name="person-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+              <Ionicons name="person-outline" size={20} color={primaryColor} style={{ marginRight: 8 }} />
               <Text style={styles.cardTitle}>SELECTED BARBER</Text>
             </View>
             <Text style={styles.cardValue}>{createJob.selectedSp.name}</Text>
@@ -143,7 +145,7 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
         {/* Schedule & Location */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Ionicons name="calendar-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+            <Ionicons name="calendar-outline" size={20} color={primaryColor} style={{ marginRight: 8 }} />
             <Text style={styles.cardTitle}>WHEN & WHERE</Text>
           </View>
           <Text style={styles.cardValue}>
@@ -158,11 +160,11 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
           onPress={() => navigation.getParent()?.navigate('PromoCodes')}
           activeOpacity={0.8}
         >
-          <Ionicons name="pricetag-outline" size={20} color={Colors.ButtonPrimaryColor} style={{ marginRight: 8 }} />
+          <Ionicons name="pricetag-outline" size={20} color={primaryColor} style={{ marginRight: 8 }} />
           <Text style={styles.promoText}>
             {selectedPromoCode ? `Promo Applied: ${selectedPromoCode.code}` : 'Apply Promo Code / Coupon'}
           </Text>
-          <Ionicons name="chevron-forward" size={18} color={Colors.ButtonPrimaryColor} />
+          <Ionicons name="chevron-forward" size={18} color={primaryColor} />
         </TouchableOpacity>
 
         {/* Cost Breakdown Receipt */}
@@ -207,7 +209,7 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
 
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total Due</Text>
-            <Text style={styles.totalValue}>
+            <Text style={[styles.totalValue, { color: primaryColor }]}>
               {costBreakdown?.currency || '$'}{costBreakdown?.totalAmount?.toFixed(2) || '0.00'}
             </Text>
           </View>
@@ -218,7 +220,7 @@ const JobSummaryScreen: React.FC<Props> = ({ navigation }) => {
           title={posting ? 'Posting Request...' : 'Confirm & Post Booking'}
           onPress={handlePostJob}
           loading={posting}
-          style={styles.postButton}
+          style={[styles.postButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
           textStyle={styles.postButtonText}
         />
       </ScrollView>

@@ -63,6 +63,7 @@ export const StorageKeys = {
   userTools: "kUserTools",
   userServices: "kUserServices",
   userAvailability: "kUserAvailability",
+  themePrimaryColor: "kThemePrimaryColor",
 } as const;
 
 // MARK: Enums

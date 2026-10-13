@@ -23,10 +23,12 @@ import { NotificationModel } from "../../../types";
 import { Colors } from "../../../theme/colors";
 import { FontSizes, FontWeights } from "../../../theme/fonts";
 import { BorderRadius, Spacing } from "../../../theme/spacing";
+import { useTheme } from "../../../context/ThemeContext";
 
 type Props = DrawerScreenProps<MainDrawerParamList, "Notifications">;
 
 export function NotificationsScreen({ navigation }: Props) {
+  const { primaryColor } = useTheme();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -162,7 +164,7 @@ export function NotificationsScreen({ navigation }: Props) {
               hitSlop={10}
               style={{ padding: 4 }}
             >
-              <Ionicons name="menu" size={24} color={Colors.NavigationTitle} />
+              <Ionicons name="menu" size={24} color={primaryColor} />
             </TouchableOpacity>
           </View>
         }

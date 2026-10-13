@@ -518,7 +518,7 @@ export function JobAvailabilityScreen({ route, navigation }: any) {
                     <Switch
                       value={isEnabled}
                       onValueChange={() => handleToggleSlotSwitch(index)}
-                      trackColor={{ false: "#E2E8F0", true: "#FDE68A" }}
+                      trackColor={{ false: "#E2E8F0", true: Colors.accentLight }}
                       thumbColor={isEnabled ? Colors.ButtonPrimaryColor : "#FFFFFF"}
                       style={{ transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] }}
                     />

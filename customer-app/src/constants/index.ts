@@ -111,6 +111,7 @@ export const STORAGE_KEYS = {
   kPromoCodeApplied: 'kPromoCodeApplied',
   kLanguageCode: 'kLanguageCode',
   kLastLanguageUpdatedTime: 'kLastLanguageUpdatedTime',
+  themePrimaryColor: 'theme_primary_color',
 } as const;
 
 // Fallback device token used when push notifications are unavailable

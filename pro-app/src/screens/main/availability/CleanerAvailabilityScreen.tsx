@@ -741,7 +741,7 @@ const styles = StyleSheet.create({
   addHeaderBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FEF9EE",
+    backgroundColor: Colors.accentLight,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: BorderRadius.full,
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#FEF9EE",
+    backgroundColor: Colors.accentLight,
     justifyContent: "center",
     alignItems: "center",
     marginRight: Spacing.md,
@@ -840,7 +840,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#FEF9EE",
+    backgroundColor: Colors.accentLight,
     justifyContent: "center",
     alignItems: "center",
     marginRight: Spacing.sm,
@@ -1091,7 +1091,7 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
   },
   presetChipActive: {
-    backgroundColor: "#FEF9EE",
+    backgroundColor: Colors.accentLight,
     borderColor: Colors.ButtonPrimaryColor,
   },
   presetChipText: {

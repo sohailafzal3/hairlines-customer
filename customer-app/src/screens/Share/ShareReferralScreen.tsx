@@ -21,12 +21,14 @@ import { ProfileApi } from '../../api';
 import { useApi } from '../../hooks';
 import { useAuthStore } from '../../store';
 import { kUserAppUrl } from '../../constants';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'ShareReferral'>;
 };
 
 const ShareReferralScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const { user } = useAuthStore();
   const [referralInfo, setReferralInfo] = useState<any>(null);
 
@@ -77,11 +79,11 @@ const ShareReferralScreen: React.FC<Props> = ({ navigation }) => {
       {/* Header Bar */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (navigation as any).openDrawer?.()}
+          onPress={() => (navigation as any).openDrawer?.() || (navigation.getParent() as any)?.openDrawer?.()}
           style={styles.menuButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="menu" size={24} color="#0F172A" />
+          <Ionicons name="menu" size={24} color={primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Invite & Earn</Text>
         <View style={{ width: 44 }} />
@@ -93,8 +95,8 @@ const ShareReferralScreen: React.FC<Props> = ({ navigation }) => {
       >
         {/* Banner Illustration */}
         <View style={styles.bannerCard}>
-          <View style={styles.giftIconCircle}>
-            <Ionicons name="gift" size={32} color={Colors.ButtonPrimaryColor} />
+          <View style={[styles.giftIconCircle, { backgroundColor: primaryColor + '18' }]}>
+            <Ionicons name="gift" size={32} color={primaryColor} />
           </View>
           <Text style={styles.bannerTitle}>Give $10, Get $10</Text>
           <Text style={styles.bannerDesc}>
@@ -110,7 +112,7 @@ const ShareReferralScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.codeText}>{referralCode}</Text>
           </View>
           <TouchableOpacity
-            style={styles.copyButton}
+            style={[styles.copyButton, { backgroundColor: primaryColor }]}
             onPress={handleCopyCode}
             activeOpacity={0.8}
           >
@@ -124,7 +126,7 @@ const ShareReferralScreen: React.FC<Props> = ({ navigation }) => {
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Ionicons name="people-outline" size={22} color={Colors.ButtonPrimaryColor} style={{ marginBottom: 4 }} />
+            <Ionicons name="people-outline" size={22} color={primaryColor} style={{ marginBottom: 4 }} />
             <Text style={styles.statValue}>{referralInfo?.totalReferrals || 0}</Text>
             <Text style={styles.statLabel}>Friends Invited</Text>
           </View>
@@ -139,7 +141,7 @@ const ShareReferralScreen: React.FC<Props> = ({ navigation }) => {
         <VTButton
           title="Share Referral Link"
           onPress={handleShare}
-          style={styles.shareButton}
+          style={[styles.shareButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
           textStyle={styles.shareButtonText}
         />
       </ScrollView>

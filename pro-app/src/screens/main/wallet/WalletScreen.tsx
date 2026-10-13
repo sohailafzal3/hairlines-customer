@@ -65,15 +65,7 @@ export function WalletScreen({ navigation }: Props) {
       <Header
         title={t("drawer:wallet")}
         onBackPress={handleBack}
-        right={
-          <TouchableOpacity
-            onPress={() => navigation.openDrawer()}
-            hitSlop={10}
-            style={{ padding: 4 }}
-          >
-            <Ionicons name="menu" size={24} color={Colors.NavigationTitle} />
-          </TouchableOpacity>
-        }
+        onRightMenuPress={() => navigation.openDrawer()}
       />
       <ScrollView
         contentContainerStyle={styles.content}

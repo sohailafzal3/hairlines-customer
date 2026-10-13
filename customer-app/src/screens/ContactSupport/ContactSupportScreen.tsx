@@ -21,12 +21,14 @@ import { Spacing, BorderRadius } from '../../theme/spacing';
 import { VTButton, VTTextField, VTLoading } from '../../components/common';
 import { ProfileApi } from '../../api';
 import { useApi } from '../../hooks';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'ContactSupport'>;
 };
 
 const ContactSupportScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const [message, setMessage] = useState('');
   const { loading, execute: sendMessage } = useApi(ProfileApi.contactSupport);
 
@@ -92,11 +94,11 @@ const ContactSupportScreen: React.FC<Props> = ({ navigation }) => {
         {/* Header Bar */}
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => (navigation as any).openDrawer?.()}
+            onPress={() => (navigation as any).openDrawer?.() || (navigation.getParent() as any)?.openDrawer?.()}
             style={styles.menuButton}
             activeOpacity={0.8}
           >
-            <Ionicons name="menu" size={24} color="#0F172A" />
+            <Ionicons name="menu" size={24} color={primaryColor} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Contact Support</Text>
           <View style={{ width: 44 }} />
@@ -109,8 +111,8 @@ const ContactSupportScreen: React.FC<Props> = ({ navigation }) => {
         >
           {/* Support Info Card */}
           <View style={styles.infoCard}>
-            <View style={styles.supportIconCircle}>
-              <Ionicons name="headset" size={28} color={Colors.ButtonPrimaryColor} />
+            <View style={[styles.supportIconCircle, { backgroundColor: primaryColor + '18' }]}>
+              <Ionicons name="headset" size={28} color={primaryColor} />
             </View>
             <Text style={styles.infoTitle}>We're Here to Help</Text>
             <Text style={styles.infoDesc}>
@@ -119,7 +121,7 @@ const ContactSupportScreen: React.FC<Props> = ({ navigation }) => {
 
             {/* Support Hours Banner */}
             <View style={styles.hoursBanner}>
-              <Ionicons name="time-outline" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 6 }} />
+              <Ionicons name="time-outline" size={16} color={primaryColor} style={{ marginRight: 6 }} />
               <Text style={styles.hoursText}>
                 Support Hours: <Text style={styles.hoursBold}>6:00 AM to 12:00 AM</Text> (Daily)
               </Text>
@@ -133,13 +135,13 @@ const ContactSupportScreen: React.FC<Props> = ({ navigation }) => {
               onPress={handleOpenEmail}
               activeOpacity={0.8}
             >
-              <Ionicons name="mail-outline" size={18} color={Colors.ButtonPrimaryColor} style={{ marginRight: 6 }} />
+              <Ionicons name="mail-outline" size={18} color={primaryColor} style={{ marginRight: 6 }} />
               <Text style={styles.contactChipText}>Email Us</Text>
             </TouchableOpacity>
 
             {/* Phone Number Chip (Opens Phone Dialer) */}
             <TouchableOpacity
-              style={styles.contactChipPrimary}
+              style={[styles.contactChipPrimary, { backgroundColor: primaryColor }]}
               onPress={handleCallPhone}
               activeOpacity={0.8}
             >
@@ -202,7 +204,7 @@ const ContactSupportScreen: React.FC<Props> = ({ navigation }) => {
             onPress={handleSubmit}
             loading={loading}
             disabled={!message.trim()}
-            style={styles.sendButton}
+            style={[styles.sendButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
             textStyle={styles.sendButtonText}
           />
         </ScrollView>

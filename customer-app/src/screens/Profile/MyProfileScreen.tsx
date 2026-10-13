@@ -28,6 +28,7 @@ import { VTButton, VTTextField, LocationPickerModal, SelectedLocationData } from
 import { ProfileApi, UploadApi } from '../../api';
 import { useAuthStore } from '../../store';
 import { MyProfile } from '../../models';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppDrawerParamList, 'MyProfile'>;
@@ -166,6 +167,7 @@ export const formatDOB = (val: any): string => {
 };
 
 const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
+  const { primaryColor } = useTheme();
   const { user, account, setAccount, setUser, logout, updateUserField } = useAuthStore();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -568,11 +570,11 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
       {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (navigation as any).openDrawer?.()}
+          onPress={() => (navigation as any).openDrawer?.() || (navigation.getParent() as any)?.openDrawer?.()}
           style={styles.menuButton}
           activeOpacity={0.8}
         >
-          <Ionicons name="menu" size={24} color="#0F172A" />
+          <Ionicons name="menu" size={24} color={primaryColor} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>My Profile</Text>
@@ -582,7 +584,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
           activeOpacity={0.7}
           style={styles.editTouch}
         >
-          <Text style={styles.editText}>{isEditing ? 'Done' : 'Edit'}</Text>
+          <Text style={[styles.editText, { color: primaryColor }]}>{isEditing ? 'Done' : 'Edit'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -594,7 +596,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.ButtonPrimaryColor]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[primaryColor]} tintColor={primaryColor} />}
         >
           {/* Avatar Hero Card */}
           <View style={styles.avatarCard}>
@@ -604,16 +606,16 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
               style={styles.avatarWrapper}
             >
               {profileImage ? (
-                <Image source={{ uri: profileImage }} style={styles.profileImage} />
+                <Image source={{ uri: profileImage }} style={[styles.profileImage, { borderColor: primaryColor }]} />
               ) : (
-                <View style={styles.imagePlaceholder}>
+                <View style={[styles.imagePlaceholder, { backgroundColor: primaryColor }]}>
                   <Text style={styles.imagePlaceholderText}>
                     {firstName?.charAt(0)?.toUpperCase() || 'U'}
                     {lastName?.charAt(0)?.toUpperCase() || ''}
                   </Text>
                 </View>
               )}
-              <View style={styles.cameraBadge}>
+              <View style={[styles.cameraBadge, { backgroundColor: primaryColor }]}>
                 {uploadingImage ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
@@ -703,7 +705,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
                     key={item.key}
                     style={[
                       styles.genderCard,
-                      isActive && styles.genderCardActive,
+                      isActive && [styles.genderCardActive, { borderColor: primaryColor, backgroundColor: primaryColor + '12' }],
                       !isEditing && { opacity: 0.8 },
                     ]}
                     onPress={() => isEditing && setGender(item.key as any)}
@@ -713,10 +715,10 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
                     <Ionicons
                       name={item.icon as any}
                       size={18}
-                      color={isActive ? Colors.ButtonPrimaryColor : '#64748B'}
+                      color={isActive ? primaryColor : '#64748B'}
                       style={{ marginRight: 6 }}
                     />
-                    <Text style={[styles.genderCardText, isActive && styles.genderCardTextActive]}>
+                    <Text style={[styles.genderCardText, isActive && [styles.genderCardTextActive, { color: primaryColor }]]}>
                       {item.label}
                     </Text>
                   </TouchableOpacity>
@@ -735,7 +737,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
                 editable={false}
                 placeholder="MM/DD/YYYY"
                 leftIcon={<Ionicons name="calendar-outline" size={18} color="#64748B" />}
-                rightIcon={isEditing ? <Ionicons name="calendar" size={18} color={Colors.ButtonPrimaryColor} /> : undefined}
+                rightIcon={isEditing ? <Ionicons name="calendar" size={18} color={primaryColor} /> : undefined}
                 onRightIconPress={openDatePicker}
               />
             </TouchableOpacity>
@@ -750,14 +752,14 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
                     key={item.id}
                     style={[
                       styles.disabilityPill,
-                      isSelected && styles.disabilityPillActive,
+                      isSelected && [styles.disabilityPillActive, { borderColor: primaryColor, backgroundColor: primaryColor + '15' }],
                       !isEditing && { opacity: 0.8 },
                     ]}
                     onPress={() => isEditing && setDisability(item.id)}
                     disabled={!isEditing}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.disabilityText, isSelected && styles.disabilityTextActive]}>
+                    <Text style={[styles.disabilityText, isSelected && [styles.disabilityTextActive, { color: primaryColor }]]}>
                       {item.label}
                     </Text>
                   </TouchableOpacity>
@@ -776,8 +778,8 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
                   style={styles.gpsButton}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="navigate-circle-outline" size={16} color={Colors.ButtonPrimaryColor} style={{ marginRight: 4 }} />
-                  <Text style={styles.gpsButtonText}>Pick Location</Text>
+                  <Ionicons name="navigate-circle-outline" size={16} color={primaryColor} style={{ marginRight: 4 }} />
+                  <Text style={[styles.gpsButtonText, { color: primaryColor }]}>Pick Location</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -793,7 +795,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
                 editable={isEditing}
                 placeholder="Tap to search or pick address..."
                 leftIcon={<Ionicons name="location-outline" size={18} color="#64748B" />}
-                rightIcon={isEditing ? <Ionicons name="search" size={18} color={Colors.ButtonPrimaryColor} /> : undefined}
+                rightIcon={isEditing ? <Ionicons name="search" size={18} color={primaryColor} /> : undefined}
                 onRightIconPress={() => isEditing && setShowLocationModal(true)}
               />
             </TouchableOpacity>
@@ -833,7 +835,7 @@ const MyProfileScreen: React.FC<Props> = ({ navigation }) => {
               title="Save Changes"
               onPress={handleSave}
               loading={saving}
-              style={styles.saveButton}
+              style={[styles.saveButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
               textStyle={styles.saveButtonText}
             />
           )}
